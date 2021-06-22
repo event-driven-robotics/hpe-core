@@ -6,5 +6,3 @@ A library of functions for human pose estimation with event-driven cameras
 * Evaluate your performance using the scripts in evaluation
 
 For curated datasets compatible with the example function see LINK-TODO
-
-:warning: All libraries used by hpe-core should be non-GPL license
