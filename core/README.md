@@ -8,3 +8,15 @@ C++ src for compiling a library of functions useful for HPE:
 * skeleton tracking
 * fusion
 * on-line visualisation
+
+### Dependencies
+
+* this could be event-driven independent
+* this could also be YARP independent
+* C++ torch?
+
+⚠️ all dependencies should by non-GPL license
+
+### How to compile and link to your project
+
+Instructions here
