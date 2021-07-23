@@ -33,7 +33,7 @@ sys.path.insert(0, mustard_path)
 datadir = '/home/fdipietro/hpe-data'
 
 # Selected recording
-subj, sess, mov = 1, 2, 1
+subj, sess, mov = 1, 1, 5
 datafile = 'S{}_{}_{}'.format(subj, sess, mov)+'.mat'
 
 
@@ -94,9 +94,12 @@ for i in range(4):
 Vicon_dir = join(datadir, 'Vicon/')
 dataVicon = loadmat(join(Vicon_dir,datafile))
 
-dt = (dataDvs['out']['extra']['ts'][-1]-startTime)/np.shape(dataVicon['XYZPOS']['head'])[0]
+# dt = (dataDvs['out']['extra']['ts'][-1]-startTime)/np.shape(dataVicon['XYZPOS']['head'])[0]
+dt = 10000
 thz = np.arange(dataDvs['out']['extra']['ts'][0]-startTime, dataDvs['out']['extra']['ts'][-1]-startTime+dt, dt) * 1e-6 # Vicon timestams @ 100Hz
-
+diff = len(thz)  - dataVicon['XYZPOS']['head'].shape[0]
+if(diff>0):
+    thz = thz[:-diff]
 
 # %% Vicon 3D -> 2D
 #  % Load P Matrix
@@ -147,7 +150,7 @@ for ch in range(4):
     joints['ch'+str(ch)] = {}
     for key in dataVicon['XYZPOS']:
         joints['ch'+str(ch)][key] = np.empty((size,2), dtype = 'uint16')
-    for i in range(len(thz)-1):
+    for i in range(len(thz)):   # CHECK -1
         viconMat = get_all_joints(dataVicon, i)
         y_2d, gt_mask = get_2Dcoords_and_heatmaps_label(np.transpose(viconMat), ch)
         y_2d_float = y_2d.astype(np.uint16)
@@ -166,16 +169,18 @@ for ch in range(4):
     container['data']['ch'+str(ch)]['dhp19']['skeleton']['gt'] = joints['ch'+str(ch)]
             
     
-# %% Plot joint vs t
+# %% Plot joints vs t
 import matplotlib.pyplot as plt
+
 
 plt.close('all')
 fig, ax = plt.subplots(2)
 ch = 3 # choose cahnnel to plot
+l = joints['ch'+str(ch)]['head'].shape[0]
 for j in range(13):
-    ax[0].plot(thz, joints['ch'+str(ch)][list(joints['ch'+str(ch)])[j]][:,0],)
+    ax[0].plot(thz[0:l], joints['ch'+str(ch)][list(joints['ch'+str(ch)])[j]][:,0],)
     ax[0].set_ylabel('x coordinate [px]', fontsize=12, labelpad=5)
-    ax[1].plot(thz, joints['ch'+str(ch)][list(joints['ch'+str(ch)])[j]][:,1])
+    ax[1].plot(thz[0:l], joints['ch'+str(ch)][list(joints['ch'+str(ch)])[j]][:,1])
     ax[1].set_ylabel('y coordinate [px]', fontsize=12, labelpad=5)
     
 for i in range(2):
@@ -185,6 +190,179 @@ for i in range(2):
 fig.suptitle('Ground truth 2D position for ch'+str(ch)+' camera', fontsize=18)
 
 
+# %% Plot events (RoI) + GT  (2 Roi values)
+import math
+import matplotlib.pyplot as plt
+
+plt.close('all')
+fig, ax = plt.subplots(2, 2, sharex=True)
+
+# choose joint and camera cahnnel to plot
+ch = 3 
+joint = 'handL'
+# set RoI values
+RoI = [2, 4]
+# set plot markers
+plotMarkers = True
+
+def findNearest(array, value):
+    idx = np.searchsorted(array, value) # side="left" param is the default
+    if idx > 0 and ( \
+            idx == len(array) or \
+            math.fabs(value - array[idx-1]) < math.fabs(value - array[idx])):
+        return idx-1
+    else:
+        return idx
+        
+# evs
+t = container['data']['ch'+str(ch)]['dhp19']['ts']
+x = container['data']['ch'+str(ch)]['dhp19']['x']
+y = container['data']['ch'+str(ch)]['dhp19']['y']
+# extract events inside roi(t)
+for idx, roi in enumerate(RoI):
+    prev = -1
+    xev = np.array([])
+    yev = np.array([])
+    tev = np.array([])
+    for i in range(0,len(thz)):
+            if(i>0):
+                t2 = findNearest(t, thz[i])-1
+            else:
+                t2 = 0   
+            auxX = np.array(x[prev:t2])
+            auxY = np.array(y[prev:t2])
+            auxT = np.array(t[prev:t2])
+            condX = np.logical_and(auxX > joints['ch'+str(ch)][joint][i,0]-roi,
+                                  auxX < joints['ch'+str(ch)][joint][i,0]+roi)
+            condY = np.logical_and(auxY > joints['ch'+str(ch)][joint][i,1]-roi,
+                                  auxY < joints['ch'+str(ch)][joint][i,1]+roi)
+            cond = np.logical_and(condX, condY)
+            xev = np.append(xev, auxX[cond])
+            yev = np.append(yev, auxY[cond])
+            tev = np.append(tev, auxT[cond])
+            prev = t2
+    if(plotMarkers):
+        # With markers
+        ax[0,idx].plot(tev, xev, color='red',marker = ".")
+        ax[1,idx].plot(tev, yev, color='red',marker = ".")
+        ax[0,idx].plot(thz, joints['ch'+str(ch)][joint][:,0],marker = "D", markersize=12)
+        ax[1,idx].plot(thz, joints['ch'+str(ch)][joint][:,1],marker = "D", markersize=12)
+    else:
+        # Without markers
+        ax[0,idx].plot(tev, xev, color='red')
+        ax[1,idx].plot(tev, yev, color='red')
+        ax[0,idx].plot(thz, joints['ch'+str(ch)][joint][:,0])
+        ax[1,idx].plot(thz, joints['ch'+str(ch)][joint][:,1])
+    ax[0,idx].set_ylabel('x coordinate [px]', fontsize=12, labelpad=5)
+    ax[1,idx].set_ylabel('y coordinate [px]', fontsize=12, labelpad=5)
+    ax[0,idx].set_title('RoI = '+str(roi), fontsize = 20)
+
+figManager = plt.get_current_fig_manager()
+figManager.window.showMaximized()
+plt.show()
+
+
+# %% Plot events (RoI) + GT (FILTER)
+import math
+import matplotlib.pyplot as plt
+
+
+plt.close('all')
+fig, ax = plt.subplots(2, sharex=True)
+# choose joint and camera cahnnel to plot
+ch = 3 
+joint = 'handL'
+# set RoI values
+roi = 5
+# set order of the polynomial used for filter
+order = 4
+
+def findNearest(array, value):
+    idx = np.searchsorted(array, value) # side="left" param is the default
+    if idx > 0 and ( \
+            idx == len(array) or \
+            math.fabs(value - array[idx-1]) < math.fabs(value - array[idx])):
+        return idx-1
+    else:
+        return idx
+        
+# evs
+t = container['data']['ch'+str(ch)]['dhp19']['ts']
+x = container['data']['ch'+str(ch)]['dhp19']['x']
+y = container['data']['ch'+str(ch)]['dhp19']['y']
+# extract events inside roi(t)
+prev = -1
+xev = np.array([])
+yev = np.array([])
+tev = np.array([])
+avg = 0
+for i in range(0,len(thz)):
+        if(i>0):
+            t2 = findNearest(t, thz[i])-1
+        else:
+            t2 = 0   
+        auxX = np.array(x[prev:t2])
+        auxY = np.array(y[prev:t2])
+        auxT = np.array(t[prev:t2])
+        condX = np.logical_and(auxX > joints['ch'+str(ch)][joint][i,0]-roi,
+                              auxX < joints['ch'+str(ch)][joint][i,0]+roi)
+        condY = np.logical_and(auxY > joints['ch'+str(ch)][joint][i,1]-roi,
+                              auxY < joints['ch'+str(ch)][joint][i,1]+roi)
+        cond = np.logical_and(condX, condY)
+        xev = np.append(xev, auxX[cond])
+        yev = np.append(yev, auxY[cond])
+        tev = np.append(tev, auxT[cond])
+        prev = t2
+        avg += len(auxT[cond])
+avg = int(avg / len(thz)) * 10
+print('Average num evs per vicon sample = ', avg)
+if(avg%2 == 0):
+    avg += 1
+    
+# Without markers
+# ax[0].plot(tev, xev, color='red')
+# # ax[1].plot(tev, yev, color='red')
+# # GT
+# ax[0].plot(thz, joints['ch'+str(ch)][joint][:,0])
+# ax[0].set_ylabel('x coordinate [px]', fontsize=12, labelpad=5)
+# ax[1].plot(thz, joints['ch'+str(ch)][joint][:,1])
+# ax[1].set_ylabel('y coordinate [px]', fontsize=12, labelpad=5)
+# # With big markers
+# ax[0].plot(tev, xev, color='red',marker = ".")
+# ax[1].plot(tev, yev, color='red',marker = ".")
+# # GT
+# ax[0].plot(thz, joints['ch'+str(ch)][joint][:,0],marker = "D", markersize=12)
+# ax[0].set_ylabel('x coordinate [px]', fontsize=12, labelpad=5)
+# ax[1].plot(thz, joints['ch'+str(ch)][joint][:,1],marker = "D", markersize=12)
+# ax[1].set_ylabel('y coordinate [px]', fontsize=12, labelpad=5)
+
+
+#  Filter
+from scipy.signal import savgol_filter # Savitzky-Golay filter
+
+# x-axis
+ax[0].plot(tev, xev, color='red',marker = ".", label='raw events')
+ax[0].plot(thz, joints['ch'+str(ch)][joint][:,0],marker = "D", markersize=12, label='GT')
+ax[0].set_ylabel('x coordinate [px]', fontsize=12, labelpad=5)
+xS = savgol_filter(xev, avg, order)
+ax[0].plot(tev, xS, color='blue',marker = "o", label='filtered events')
+
+# y-axis
+ax[1].plot(tev, yev, color='red',marker = ".")
+ax[1].plot(thz, joints['ch'+str(ch)][joint][:,1],marker = "D", markersize=12)
+ax[1].set_ylabel('y coordinate [px]', fontsize=12, labelpad=5)
+yS = savgol_filter(yev, avg, order)
+ax[1].plot(tev, yS, color='blue',marker = "o")
+
+lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
+lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+
+fig.legend(lines, labels, loc=1, prop={'size': 16})
+figManager = plt.get_current_fig_manager()
+figManager.window.showMaximized()
+plt.show()
+
+
 # %% Generate a second skeleton with noise to see if comparisson works
 import copy
 
@@ -192,11 +370,17 @@ noisySkt = copy.deepcopy(joints)
 for ch in range(4):
     for key in noisySkt['ch'+str(ch)]:
         if key != 'ts':
-            noise = np.int_(np.random.normal(0, 3,  noisySkt['ch'+str(ch)][key].shape))
+            noise = np.int_(np.random.normal(0, 1,  noisySkt['ch'+str(ch)][key].shape))
             noisySkt['ch'+str(ch)][key] =  noisySkt['ch'+str(ch)][key] + noise
 
 for ch in range(4):
     container['data']['ch'+str(ch)]['dhp19']['skeleton']['test'] = noisySkt['ch'+str(ch)]
+
+# %% Container with just one channel
+contCh3 = {}
+contCh3['info'] = container['info']
+contCh3['data'] = {}
+contCh3['data']['ch3'] = container['data']['ch3']
 
 # %% Start Mustard
 cwd = os.getcwd()
@@ -215,6 +399,8 @@ os.chdir(cwd)
 
 #%% Visualize data
 app.setData(container)
+# app.setData(contCh3)
+
 
 
 # %% Export to yarp (only DVS)

@@ -10,16 +10,17 @@
 %--------------------------------------------------------------------------
 tic
 
+
 % Set recording to pre-process
 subj = 1;
 sess = 2;
-mov = 2;
+mov = 3;
 outFile_string = sprintf('S%d_%d_%d.mat',subj,sess,mov);
 
 
 % Set the paths of code repository folder, data folder and output folder 
 % where to generate files of accumulated events.
-rootCodeFolder = '/home/fdipietro/projects/hpe-core/evaluation/matlab'; % root directory of the git repo.
+rootCodeFolder = '/home/fdipietro/projects/hpe-core/evaluation/convert_DHP19'; % root directory of the git repo.
 rootDataFolder = '/mnt/0058555E5855540E'; % root directory of the data downloaded from resiliosync.
 outDatasetFolder = '/home/fdipietro/hpe-data';
 outFolder = '/home/fdipietro/hpe-data/DVS';
@@ -79,8 +80,8 @@ viconFolder = fullfile(rootDataFolder,'Vicon_data/');
 % output directory where to save files after events accumulation.
 out_folder_append = ['h5_dataset_',num2str(eventsPerFrame),'_events'];
 
-addpath(fullfile(rootCodeFolder, 'read_aedat/'));
-addpath(fullfile(rootCodeFolder, 'generate_DHP19/'));
+addpath(fullfile(rootCodeFolder));
+% addpath(fullfile(rootCodeFolder, 'generate_DHP19/'));
 
 % Setup output folder path, according to accumulation type and spatial resolution.
 outputFolder = fullfile(outDatasetFolder, out_folder_append,[num2str(reshapex),'x',num2str(reshapey)]);
@@ -318,4 +319,5 @@ end % if file not exist yet condition
 if save_log_special_events
     fclose(fileID_specials);
 end
+
 toc
