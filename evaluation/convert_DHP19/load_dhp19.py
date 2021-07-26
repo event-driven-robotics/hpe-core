@@ -4,14 +4,7 @@
 Copyright (C) 2021 Event-driven Perception for Robotics
 Author: Franco Di Pietro 
 
-This program is free software: you can redistribute it and/or modify it under 
-the terms of the GNU General Public License as published by the Free Software 
-Foundation, either version 3 of the License, or (at your option) any later version.
-This program is distributed in the hope that it will be useful, but WITHOUT ANY 
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A 
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-You should have received a copy of the GNU General Public License along with 
-this program. If not, see <https://www.gnu.org/licenses/>.
+LICENSE GOES HERE
 """
 
 # %% Preliminaries
@@ -33,7 +26,7 @@ sys.path.insert(0, mustard_path)
 datadir = '/home/fdipietro/hpe-data'
 
 # Selected recording
-subj, sess, mov = 1, 1, 5
+subj, sess, mov = 1, 2, 1
 datafile = 'S{}_{}_{}'.format(subj, sess, mov)+'.mat'
 
 
@@ -189,6 +182,10 @@ for i in range(2):
     ax[i].grid()
 fig.suptitle('Ground truth 2D position for ch'+str(ch)+' camera', fontsize=18)
 
+figManager = plt.get_current_fig_manager()
+figManager.window.showMaximized()
+plt.show()
+
 
 # %% Plot events (RoI) + GT  (2 Roi values)
 import math
@@ -275,7 +272,7 @@ joint = 'handL'
 # set RoI values
 roi = 5
 # set order of the polynomial used for filter
-order = 4
+order = 3
 
 def findNearest(array, value):
     idx = np.searchsorted(array, value) # side="left" param is the default
@@ -363,6 +360,42 @@ figManager.window.showMaximized()
 plt.show()
 
 
+# %% Plot GT 10Hz
+import math
+import matplotlib.pyplot as plt
+
+plt.close('all')
+fig, ax = plt.subplots(2, sharex=True)
+# choose joint and camera cahnnel to plot
+ch = 3 
+joint = 'handL'
+
+f = 10
+T = int(100/f)
+gtf = joints['ch'+str(ch)][joint][::T,:]
+tf = thz[::T]
+
+# x-axis
+ax[0].plot(tf, gtf[:,0],color='red',marker = "o", markersize=12, label='GT')
+ax[0].plot(thz, joints['ch'+str(ch)][joint][:,0],marker = "*", markersize=8, label='GT')
+ax[0].set_ylabel('x coordinate [px]', fontsize=12, labelpad=5)
+
+
+
+
+# y-axis
+ax[1].plot(tf, gtf[:,1],color='red',marker = "o", markersize=12, label='GT')
+ax[1].plot(thz, joints['ch'+str(ch)][joint][:,1],marker = "*", markersize=8)
+ax[1].set_ylabel('y coordinate [px]', fontsize=12, labelpad=5)
+
+
+
+
+figManager = plt.get_current_fig_manager()
+figManager.window.showMaximized()
+plt.show()
+
+
 # %% Generate a second skeleton with noise to see if comparisson works
 import copy
 
@@ -408,6 +441,10 @@ from bimvee import exportIitYarp
 
 datafile = 'S{}_{}_{}'.format(subj, sess, mov)
 
+# exportIitYarp.exportIitYarp(container, 
+#               exportFilePath= '/home/fdipietro/hpe-data/yarp/'+datafile, 
+#               pathForPlayback= '/home/fdipietro/hpe-data/yarp/'+datafile,
+#               protectedWrite = False)
 exportIitYarp.exportIitYarp(container, 
-              exportFilePath= '/home/fdipietro/hpe-data'+datafile, 
-              pathForPlayback= '/home/fdipietro/hpe-data'+datafile)
+              exportFilePath= '/home/fdipietro/hpe-data/yarp/'+datafile,
+              protectedWrite = False)

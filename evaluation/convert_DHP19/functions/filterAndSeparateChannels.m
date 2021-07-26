@@ -101,7 +101,7 @@ function [] = filterAndSeparateChannels(subj, sess, mov, rootCodeFolder, rootDat
     cd(outputFolder)
 
     % log files
-    fileID = fopen(sprintf('%s/Fileslog_%s.log', log_path, t), 'w');
+    %fileID = fopen(sprintf('%s/Fileslog_%s.log', log_path, t), 'w');
 
     if save_log_special_events
         fileID_specials = fopen(sprintf('%s/SpecialEventsLog_%s.log', log_path, t), 'w');
@@ -320,5 +320,6 @@ function [] = filterAndSeparateChannels(subj, sess, mov, rootCodeFolder, rootDat
     if save_log_special_events
         fclose(fileID_specials);
     end
+
 
 end
