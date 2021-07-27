@@ -63,50 +63,52 @@ from bimvee import exportIitYarp
 
 numSubjects = 17;
 numSessions = 5;
-subj = 1
+pathRawData = '/home/fdipietro/hpe-data/DVS/'
 exportPath = '/home/fdipietro/hpe-data/yarp/'
 
-
-for sess in range(1,numSessions+1):
-    
-    if(sess == 1):
-        numMovements = 8;
-    elif(sess == 2):
-        numMovements = 6;
-    elif(sess == 3):
-        numMovements = 6;
-    elif(sess == 4):
-        numMovements = 6;
-    elif(sess == 5):
-        numMovements = 7;
+for subj in range(1,numSubjects+1):
+    for sess in range(1,numSessions+1):
         
-    for mov in range(1,numMovements+1):
-        # Selected recording
+        if(sess == 1):
+            numMovements = 8;
+        elif(sess == 2):
+            numMovements = 6;
+        elif(sess == 3):
+            numMovements = 6;
+        elif(sess == 4):
+            numMovements = 6;
+        elif(sess == 5):
+            numMovements = 7;
+            
+        for mov in range(1,numMovements+1):
+            # Selected recording
+            
+            datafile = 'S{}_{}_{}'.format(subj, sess, mov)+'.mat'
+            if os.path.exists(pathRawData+datafile):
+                print('Exporting file ' + pathRawData+datafile + ' ...')
+                # datafile += '.mat'
+                
+                outfile = 'S{}_{}_{}'.format(subj, sess, mov)
+                
+                
+                # Load DVS data
+                DVS_dir = join(datadir, 'DVS/')
+                dataDvs = loadmat(join(DVS_dir,datafile))
+                
+                # Build container
+                info = {}
+                # info['filePathOrName'] = ''
+                container = {}
+                container['info'] = info
+                container['data'] = {}
+                startTime = dataDvs['out']['extra']['startTime']
+                for i in range(4):
+                    container['data']['ch'+str(i)] = dataDvs['out']['data']['cam'+str(i)]
+                    container['data']['ch'+str(i)]['dvs']['x'] = container['data']['ch'+str(i)]['dvs']['x']  - 1  - 346*i
+                    container['data']['ch'+str(i)]['dvs']['y'] = container['data']['ch'+str(i)]['dvs']['y']  - 1
+                    container['data']['ch'+str(i)]['dvs']['ts'] = (container['data']['ch'+str(i)]['dvs']['ts'] - startTime) * 1e-6
+                    container['data']['ch'+str(i)]['dvs']['pol'] = np.array(container['data']['ch'+str(i)]['dvs']['pol'], dtype=bool)
         
-        datafile = 'S{}_{}_{}'.format(subj, sess, mov)+'.mat'
-        if os.path.isfile(exportPath+datafile):
-
-            outfile = 'S{}_{}_{}'.format(subj, sess, mov)
-            
-            
-            # Load DVS data
-            DVS_dir = join(datadir, 'DVS/')
-            dataDvs = loadmat(join(DVS_dir,datafile))
-            
-            # Build container
-            info = {}
-            # info['filePathOrName'] = ''
-            container = {}
-            container['info'] = info
-            container['data'] = {}
-            startTime = dataDvs['out']['extra']['startTime']
-            for i in range(4):
-                container['data']['ch'+str(i)] = dataDvs['out']['data']['cam'+str(i)]
-                container['data']['ch'+str(i)]['dvs']['x'] = container['data']['ch'+str(i)]['dvs']['x']  - 1  - 346*i
-                container['data']['ch'+str(i)]['dvs']['y'] = container['data']['ch'+str(i)]['dvs']['y']  - 1
-                container['data']['ch'+str(i)]['dvs']['ts'] = (container['data']['ch'+str(i)]['dvs']['ts'] - startTime) * 1e-6
-                container['data']['ch'+str(i)]['dvs']['pol'] = np.array(container['data']['ch'+str(i)]['dvs']['pol'], dtype=bool)
-    
-            exportIitYarp.exportIitYarp(container, exportFilePath= exportPath+outfile, protectedWrite = True)
-        else:
-            print('File ' + exportPath+datafile + ' does not exists')
+                exportIitYarp.exportIitYarp(container, exportFilePath= exportPath+outfile, protectedWrite = True)
+            else:
+                print('File ' + pathRawData+datafile + ' does not exists')

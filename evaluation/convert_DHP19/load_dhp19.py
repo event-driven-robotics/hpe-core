@@ -361,7 +361,6 @@ plt.show()
 
 
 # %% Plot GT 10Hz
-import math
 import matplotlib.pyplot as plt
 
 plt.close('all')
@@ -377,23 +376,46 @@ tf = thz[::T]
 
 # x-axis
 ax[0].plot(tf, gtf[:,0],color='red',marker = "o", markersize=12, label='GT')
-ax[0].plot(thz, joints['ch'+str(ch)][joint][:,0],marker = "*", markersize=8, label='GT')
-ax[0].set_ylabel('x coordinate [px]', fontsize=12, labelpad=5)
-
-
-
+ax[0].plot(thz, joints['ch'+str(ch)][joint][:,0],marker = "*", markersize=8, label='sampled GT')
+ax[0].set_ylabel('x coordinate [px]', fontsize=14, labelpad=5)
+ax[0].set_title('Left hand joint  - Sampling freq = ' + str(f) + ' Hz', fontsize = 18)
+# inset axes
+axins = ax[0].inset_axes([0.5, 0.1, 0.45, 0.8])
+# sub region of the original image
+x1, x2, y1, y2 = 22, 25, 168, 215
+axins.set_xlim(x1, x2)
+axins.set_ylim(y1, y2)
+axins.set_xticklabels('')
+axins.set_yticklabels('')
+axins.plot(tf, gtf[:,0],color='red',marker = "o", markersize=12)
+axins.plot(thz, joints['ch'+str(ch)][joint][:,0],marker = "*", markersize=8)
+axins.set_facecolor('gainsboro')
+ax[0].indicate_inset_zoom(axins, edgecolor="black", label='_nolegend_')
 
 # y-axis
-ax[1].plot(tf, gtf[:,1],color='red',marker = "o", markersize=12, label='GT')
+ax[1].plot(tf, gtf[:,1],color='red',marker = "o", markersize=12)
 ax[1].plot(thz, joints['ch'+str(ch)][joint][:,1],marker = "*", markersize=8)
-ax[1].set_ylabel('y coordinate [px]', fontsize=12, labelpad=5)
+ax[1].set_ylabel('y coordinate [px]', fontsize=14, labelpad=5)
+ax[1].set_xlabel('time [sec]', fontsize=14)
+axins = ax[1].inset_axes([0.5, 0.15, 0.45, 0.8])
+y1, y2 = 115, 150
+axins.set_xlim(x1, x2)
+axins.set_ylim(y1, y2)
+axins.set_xticklabels('')
+axins.set_yticklabels('')
+axins.plot(tf, gtf[:,1],color='red',marker = "o", markersize=12)
+axins.plot(thz, joints['ch'+str(ch)][joint][:,1],marker = "*", markersize=8)
+axins.set_facecolor('gainsboro')
+ax[1].indicate_inset_zoom(axins, edgecolor="black", label='_nolegend_')
 
-
-
-
+# global legend
+lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
+lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+fig.legend(lines, labels, loc=1, prop={'size': 16})
 figManager = plt.get_current_fig_manager()
 figManager.window.showMaximized()
 plt.show()
+plt.tight_layout()
 
 
 # %% Generate a second skeleton with noise to see if comparisson works
