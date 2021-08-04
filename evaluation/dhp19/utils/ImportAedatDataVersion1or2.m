@@ -5,7 +5,7 @@ file format is determined to be 1 or 2.
 The .aedat file format is documented here:
 http://inilabs.com/support/software/fileformat/
 This function is based on a combination of the loadaerdat function and
-sensor-specific address interpretation functions. 
+sensor-specific address interpretation functions.
 There is a single input "info", a structure with the following
 fields:
 	- beginningOfDataPointer - Points to the byte before the beginning of the

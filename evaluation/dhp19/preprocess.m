@@ -10,8 +10,8 @@ rootDataFolder = '/mnt/0058555E5855540E'; % root directory of the data downloade
 outFolder = '/home/fdipietro/hpe-data/DVS';
 
 addpath(fullfile(rootCodeFolder));
-addpath(fullfile(rootCodeFolder, 'evaluation/convert_DHP19/'));
-addpath(fullfile(rootCodeFolder, 'evaluation/convert_DHP19/functions/'));
+addpath(fullfile(rootCodeFolder, 'evaluation/dhp19/'));
+addpath(fullfile(rootCodeFolder, 'evaluation/dhp19/utils/'));
 outFile_string = sprintf('S%d_%d_%d.mat',subj,sess,mov);
 
 if(not(exist(outFile_string, 'file') == 2))
