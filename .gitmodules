@@ -1,3 +1,0 @@
-[submodule "evaluation/externals/e2vid"]
-	path = evaluation/externals/e2vid
-	url = https://github.com/uzh-rpg/rpg_e2vid.git
