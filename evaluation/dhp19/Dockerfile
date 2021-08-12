@@ -6,6 +6,7 @@ FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04
 RUN apt-get update && \
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
     git \
+    vim \
     wget \
     openssh-server \
     libmysqlclient-dev
@@ -28,14 +29,22 @@ RUN echo "$ssh_prv_key" > /root/.ssh/id_rsa && \
     chmod 600 /root/.ssh/id_rsa.pub
 
 
-###############
-# setup e2vid #
-###############
+##################
+# setup anaconda #
+##################
 
 # install anaconda
 RUN wget https://repo.anaconda.com/archive/Anaconda3-2021.05-Linux-x86_64.sh && \
     chmod +x Anaconda3-2021.05-Linux-x86_64.sh && \
-    bash Anaconda3-2021.05-Linux-x86_64.sh -b -p $HOME/anaconda
+    bash Anaconda3-2021.05-Linux-x86_64.sh -b -p /root/anaconda && \
+    rm Anaconda3-2021.05-Linux-x86_64.sh
+
+# make non-activate conda commands available
+ENV CONDA_DIR /root/anaconda
+ENV PATH=$CONDA_DIR/bin:$PATH
+
+# make conda activate command available from /bin/bash --interative shells
+RUN conda init
 
 RUN eval "$(/root/anaconda/bin/conda shell.bash hook)" && \
     conda create -n hpe-core && \
@@ -44,27 +53,35 @@ RUN eval "$(/root/anaconda/bin/conda shell.bash hook)" && \
     conda install -c conda-forge opencv && \
     conda install -c anaconda scipy
 
+RUN echo "conda activate hpe-core" >> ~/.bashrc
+
+
+###############
+# setup e2vid #
+###############
+
 # download hpe-core repository
-RUN git clone git@github.com:event-driven-robotics/hpe-core.git
+RUN git clone git@github.com:event-driven-robotics/hpe-core.git && \
+    cd hpe-core && \
+    git checkout docker_e2vid
 
 # download e2vid repository
-RUN cd hpe-core/evaluation/convert_DHP19 && \
-    git clone git@github.com:uzh-rpg/rpg_e2vid.git
+RUN cd hpe-core/evaluation/dhp19 && \
+    git clone git@github.com:uzh-rpg/rpg_e2vid.git && \
 
-# fix e2vid incompatibility with recent pytorch versions (https://github.com/uzh-rpg/rpg_e2vid/issues/5) \
-RUN cd rpg_e2vid && \
-    sed -ie 's/index=xs[valid_indices]/index=(xs[valid_indices]/g' utils/inference_utils.py \
-    sed -ie 's/tis_long[valid_indices] * width * height/tis_long[valid_indices] * width * height).type(torch.cuda.LongTensor)/g' utils/inference_utils.py \
-    sed -ie 's/tis_long[valid_indices] + 1) * width * height/tis_long[valid_indices] + 1) * width * height).type(torch.cuda.LongTensor)/g' utils/inference_utils.py
+    # fix e2vid incompatibility with recent pytorch versions (https://github.com/uzh-rpg/rpg_e2vid/issues/5) \
+    cd rpg_e2vid && \
+    sed -ie 's/index=xs[valid_indices]/index=(xs[valid_indices]/g' utils/inference_utils.py && \
+    sed -ie 's/tis_long[valid_indices] * width * height/tis_long[valid_indices] * width * height).type(torch.cuda.LongTensor)/g' utils/inference_utils.py && \
+    sed -ie 's/tis_long[valid_indices] + 1) * width * height/tis_long[valid_indices] + 1) * width * height).type(torch.cuda.LongTensor)/g' utils/inference_utils.py && \
 
-# download e2vid pretrained model
-RUN wget "http://rpg.ifi.uzh.ch/data/E2VID/models/E2VID_lightweight.pth.tar" -O pretrained/E2VID_lightweight.pth.tar
+    # download e2vid pretrained model
+    wget "http://rpg.ifi.uzh.ch/data/E2VID/models/E2VID_lightweight.pth.tar" -O pretrained/E2VID_lightweight.pth.tar
 
+WORKDIR hpe-core/evaluation/dhp19/rpg_e2vid
 
 # create grayscale frames using e2vid
 RUN cp ../run_e2vid.py . && \
     cp ../utils/mat_files.py . && \
     cp ../create_grayscale_frames.sh . && \
     chmod +x create_grayscale_frames.sh
-
-WORKDIR hpe-core/evaluation/convert_DHP19/rpg_e2vid
