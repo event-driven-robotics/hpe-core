@@ -20,7 +20,6 @@ if __name__ == "__main__":
     parser.add_argument('-sh', '--sensor_height', default=260, type=int, help='height of the sensor')
     parser.add_argument('-cid', '--cam_id', default=0, type=int, help='id of the DVS camera')
     parser.add_argument('-ie', '--events_file', required=True, type=str)
-    parser.add_argument('-iv', '--vicon_file', required=True, type=str)
     parser.add_argument('--fixed_duration', dest='fixed_duration', action='store_true')
     parser.set_defaults(fixed_duration=False)
     parser.add_argument('-N', '--window_size', default=7500, type=int,
