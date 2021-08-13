@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# activate anaconda environment
-conda activate hpe-core
-
 # read cmd line arguments
 while getopts ":i:o:" opt; do
   case $opt in
