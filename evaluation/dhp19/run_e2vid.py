@@ -1,16 +1,15 @@
 
-import torch
-from utils.loading_utils import load_model, get_device
-import numpy as np
 import argparse
-from utils.event_readers import FixedSizeEventReader, FixedDurationEventReader
-from utils.inference_utils import events_to_voxel_grid, events_to_voxel_grid_pytorch
-from utils.timers import Timer
-import time
-from image_reconstructor import ImageReconstructor
-from options.inference_options import set_inference_options
+import os
+import stat
+import torch
 
+from image_reconstructor import ImageReconstructor
 from mat_files import Dhp19EventsIterator, loadmat
+from options.inference_options import set_inference_options
+from utils.inference_utils import events_to_voxel_grid, events_to_voxel_grid_pytorch
+from utils.loading_utils import load_model, get_device
+from utils.timers import Timer
 
 
 if __name__ == "__main__":
@@ -38,22 +37,12 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # get sensor size
-    # load and set the model
-    # open .mat file
     # for every channel
     #     for every event window
     #         run e2vid
     #         save frame
     #         (save pose? check if they are already available)
     #         (save frames and poses in .h5 files?)
-
-    # data_events = loadmat(args.events_file)
-    # data_vicon = loadmat(args.vicon_file)
-    #
-    # iter = Dhp19EventsIterator(data=data_events, cam_id=0, window_size=7500)
-    # for events in iter:
-    #     print(events.shape[0])
 
     width = args.sensor_width
     height = args.sensor_height
@@ -63,6 +52,7 @@ if __name__ == "__main__":
     subfolder_path = f'{args.output_folder}/{args.cam_id}'
     args.output_folder = subfolder_path
     try:
+        os.umask(0)
         os.makedirs(subfolder_path)
     except FileExistsError:
         print(f'Folder {subfolder_path} already exists')
@@ -114,7 +104,6 @@ if __name__ == "__main__":
     #     event_window_iterator = FixedSizeEventReader(args.events_file, num_events=N, start_index=start_index)
 
     data_events = loadmat(args.events_file)
-    data_vicon = loadmat(args.vicon_file)
 
     event_window_iterator = Dhp19EventsIterator(data=data_events, cam_id=args.cam_id, window_size=7500)
 
