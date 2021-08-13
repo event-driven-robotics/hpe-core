@@ -1,7 +1,6 @@
 
 import argparse
 import os
-import stat
 import torch
 
 from image_reconstructor import ImageReconstructor

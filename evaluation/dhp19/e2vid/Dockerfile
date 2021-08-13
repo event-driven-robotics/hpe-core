@@ -68,7 +68,7 @@ RUN git clone git@github.com:event-driven-robotics/hpe-core.git && \
     git checkout docker_e2vid
 
 # download e2vid repository
-RUN cd hpe-core/evaluation/dhp19 && \
+RUN cd hpe-core/evaluation/dhp19/e2vid && \
     git clone git@github.com:uzh-rpg/rpg_e2vid.git && \
 
     # fix e2vid incompatibility with recent pytorch versions (https://github.com/uzh-rpg/rpg_e2vid/issues/5) \
@@ -80,10 +80,10 @@ RUN cd hpe-core/evaluation/dhp19 && \
     # download e2vid pretrained model
     wget "http://rpg.ifi.uzh.ch/data/E2VID/models/E2VID_lightweight.pth.tar" -O pretrained/E2VID_lightweight.pth.tar
 
-WORKDIR hpe-core/evaluation/dhp19/rpg_e2vid
+WORKDIR hpe-core/evaluation/dhp19/e2vid/rpg_e2vid
 
 # setup scripts for creating grayscale frames
 RUN cp ../run_e2vid.py . && \
-    cp ../utils/mat_files.py . && \
+    cp ../../utils/mat_files.py . && \
     cp ../create_grayscale_frames.sh . && \
     chmod +x create_grayscale_frames.sh
