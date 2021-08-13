@@ -9,7 +9,8 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y \
     vim \
     wget \
     openssh-server \
-    libmysqlclient-dev
+    libmysqlclient-dev \
+    ffmpeg libsm6 libxext6
 
 #######################
 # set github ssh keys #
@@ -50,6 +51,7 @@ RUN eval "$(/root/anaconda/bin/conda shell.bash hook)" && \
     conda create -n hpe-core && \
     conda activate hpe-core && \
     conda install pytorch torchvision cudatoolkit=10.0 -c pytorch && \
+    conda install pandas && \
     conda install -c conda-forge opencv && \
     conda install -c anaconda scipy
 
@@ -80,7 +82,7 @@ RUN cd hpe-core/evaluation/dhp19 && \
 
 WORKDIR hpe-core/evaluation/dhp19/rpg_e2vid
 
-# create grayscale frames using e2vid
+# setup scripts for creating grayscale frames
 RUN cp ../run_e2vid.py . && \
     cp ../utils/mat_files.py . && \
     cp ../create_grayscale_frames.sh . && \
