@@ -60,6 +60,18 @@ if __name__ == "__main__":
     height = args.sensor_height
     print('Sensor size: {} x {}'.format(width, height))
 
+    # create subfolder for the selected cam
+    subfolder_path = f'{args.output_folder}/{args.cam_id}'
+    args.output_folder = subfolder_path
+    try:
+        os.makedirs(subfolder_path)
+    except FileExistsError:
+        print(f'Folder {subfolder_path} already exists')
+        exit(0)
+    except:
+        print(f'Could not create folder {subfolder_path}')
+        exit(0)
+
     # Load model
     model = load_model('pretrained/E2VID_lightweight.pth.tar')
     device = get_device(args.use_gpu)
