@@ -1,0 +1,1 @@
+/usr/bin/gcc     -v CMakeFiles/cmTC_36498.dir/CMakeCCompilerABI.c.o  -o cmTC_36498 

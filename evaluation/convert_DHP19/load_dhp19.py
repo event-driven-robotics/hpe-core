@@ -26,7 +26,7 @@ sys.path.insert(0, mustard_path)
 datadir = '/home/fdipietro/hpe-data'
 
 # Selected recording
-subj, sess, mov = 1, 2, 1
+subj, sess, mov = 1, 1, 1
 datafile = 'S{}_{}_{}'.format(subj, sess, mov)+'.mat'
 
 
@@ -418,6 +418,69 @@ plt.show()
 plt.tight_layout()
 
 
+# %% Plot events every 2 ms
+import matplotlib.pyplot as plt
+from PIL import Image
+
+
+# evs
+t = container['data']['ch'+str(ch)]['dhp19']['ts']
+x = container['data']['ch'+str(ch)]['dhp19']['x']
+y = container['data']['ch'+str(ch)]['dhp19']['y']
+# extract events inside roi(t)
+tprev = 0
+xev = np.array([])
+yev = np.array([])
+# tev = np.array([])
+# pic = np.histogram2d()
+# fig = plt.subplots(figsize =(10, 7))
+
+w, h = 346, 260
+data = np.zeros((h, w, 3), dtype=np.uint8)
+# data[25:50, 0:25] = [255, 0, 0] # red patch in upper left
+img = Image.fromarray(data, 'RGB')
+img.save('my.png')
+img.show()
+
+for i in range(22, 22+int(len(t)/1e1)):
+    if(t[i] < tprev + 50e-2):
+        # xev = np.append(xev, x[i])
+        # yev = np.append(yev, y[i])
+        # tev = np.append(tev, t[i])
+        data[y[i], x[i]] = [255, 255, 255] # red patch in upper left
+    else:
+        print(tprev)
+        img = Image.fromarray(data, 'RGB')
+        img.save('my.png')
+        img.show()
+        tprev = t[i]
+        data = np.zeros((h, w, 3), dtype=np.uint8)
+        # xev = np.array([])
+        # yev = np.array([])
+
+# for i in range(len(t)):
+#     if(t[i] < tprev + 2e-3):
+#         xev = np.append(xev, x[i])
+#         yev = np.append(yev, y[i])
+#         # tev = np.append(tev, t[i])
+#     else:
+#         tprev = t[i]
+#         xev = np.array([])
+#         yev = np.array([])
+#         # tev = np.array([])
+#         # plt.hist2d(xev, yev)
+        
+#         # # pic = np.histogram2d(xev,yev, bins=[260, 240], range=[[0, 260 - 1], [0, 340 - 1]])
+#         # # plt.imshow(pic)
+#         # plt.show()
+#         # plt.pause(0.1)
+
+#         # print(tprev)
+
+
+
+
+
 # %% Generate a second skeleton with noise to see if comparisson works
 import copy
 
@@ -457,6 +520,28 @@ app.setData(container)
 # app.setData(contCh3)
 
 
+# %% Build YARP(DVS+GT) container
+for ch in range(4):
+    # Change dvs data to dhp19
+    #container['data']['ch'+str(ch)]['dhp19'] = container['data']['ch'+str(ch)].pop('dvs')
+    # Add GT data
+    container['data']['ch'+str(ch)+'GT'] = {}
+    container['data']['ch'+str(ch)+'GT']['skeleton'] = {}
+    container['data']['ch'+str(ch)+'GT']['skeleton'] = joints['ch'+str(ch)]
+
+# %% Generate a second skeleton with noise to see if comparisson works
+import copy
+
+noisySkt = copy.deepcopy(joints)
+for ch in range(4):
+    for key in noisySkt['ch'+str(ch)]:
+        if key != 'ts':
+            noise = np.int_(np.random.normal(0, 1,  noisySkt['ch'+str(ch)][key].shape))
+            noisySkt['ch'+str(ch)][key] =  noisySkt['ch'+str(ch)][key] + noise
+
+for ch in range(4):
+    container['data']['ch'+str(ch)+'estimate'] = {}
+    container['data']['ch'+str(ch)+'estimate']['skeleton'] = noisySkt['ch'+str(ch)]
 
 # %% Export to yarp (only DVS)
 from bimvee import exportIitYarp
@@ -468,5 +553,5 @@ datafile = 'S{}_{}_{}'.format(subj, sess, mov)
 #               pathForPlayback= '/home/fdipietro/hpe-data/yarp/'+datafile,
 #               protectedWrite = False)
 exportIitYarp.exportIitYarp(container, 
-              exportFilePath= '/home/fdipietro/hpe-data/yarp/'+datafile,
+              exportFilePath= '/home/fdipietro/hpe-data/test2/'+datafile,
               protectedWrite = False)
