@@ -135,11 +135,11 @@ for ch in range(4):
 
 # %% Build  DVS+GT container
 for ch in range(4):
-    # Change dvs data to dhp19
-    container['data']['ch' + str(ch)]['dhp19'] = container['data']['ch' + str(ch)].pop('dvs')
+    # Change dvs data to hpe
+    container['data']['ch' + str(ch)]['hpe'] = container['data']['ch' + str(ch)].pop('dvs')
     # Add GT data
-    container['data']['ch' + str(ch)]['dhp19']['skeleton'] = {}
-    container['data']['ch' + str(ch)]['dhp19']['skeleton']['gt'] = joints['ch' + str(ch)]
+    container['data']['ch' + str(ch)]['hpe']['skeleton'] = {}
+    container['data']['ch' + str(ch)]['hpe']['skeleton']['gt'] = joints['ch' + str(ch)]
 
 # %% Plot joints vs t
 import matplotlib.pyplot as plt
@@ -191,9 +191,9 @@ def findNearest(array, value):
 
 
 # evs
-t = container['data']['ch' + str(ch)]['dhp19']['ts']
-x = container['data']['ch' + str(ch)]['dhp19']['x']
-y = container['data']['ch' + str(ch)]['dhp19']['y']
+t = container['data']['ch' + str(ch)]['hpe']['ts']
+x = container['data']['ch' + str(ch)]['hpe']['x']
+y = container['data']['ch' + str(ch)]['hpe']['y']
 # extract events inside roi(t)
 for idx, roi in enumerate(RoI):
     prev = -1
@@ -263,9 +263,9 @@ def findNearest(array, value):
 
 
 # evs
-t = container['data']['ch' + str(ch)]['dhp19']['ts']
-x = container['data']['ch' + str(ch)]['dhp19']['x']
-y = container['data']['ch' + str(ch)]['dhp19']['y']
+t = container['data']['ch' + str(ch)]['hpe']['ts']
+x = container['data']['ch' + str(ch)]['hpe']['x']
+y = container['data']['ch' + str(ch)]['hpe']['y']
 # extract events inside roi(t)
 prev = -1
 xev = np.array([])
@@ -406,7 +406,7 @@ for ch in range(4):
             noisySkt['ch' + str(ch)][key] = noisySkt['ch' + str(ch)][key] + noise
 
 for ch in range(4):
-    container['data']['ch' + str(ch)]['dhp19']['skeleton']['test'] = noisySkt['ch' + str(ch)]
+    container['data']['ch' + str(ch)]['hpe']['skeleton']['test'] = noisySkt['ch' + str(ch)]
 
 # %% Container with just one channel
 contCh3 = {}
