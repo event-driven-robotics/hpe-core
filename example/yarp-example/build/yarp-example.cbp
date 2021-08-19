@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6"/>
+	<Project>
+		<Option title="yarp-example"/>
+		<Option makefile_is_custom="1"/>
+		<Option compiler="gcc"/>
+		<Option virtualFolders="CMake Files\;CMake Files\..\;CMake Files\..\..\;CMake Files\..\..\..\;CMake Files\..\..\..\..\;CMake Files\..\..\..\..\..\;CMake Files\..\..\..\..\..\..\;CMake Files\..\..\..\..\..\..\usr\;CMake Files\..\..\..\..\..\..\usr\share\;CMake Files\..\..\..\..\..\..\usr\share\cmake\;CMake Files\..\..\..\..\..\..\usr\share\cmake\YCM\;CMake Files\..\..\..\..\..\..\usr\share\YCM\;CMake Files\..\..\..\..\..\..\usr\share\YCM\modules\;CMake Files\..\..\..\..\..\..\usr\share\YCM\find-modules\;CMake Files\..\..\..\..\..\..\usr\lib\;CMake Files\..\..\..\..\..\..\usr\lib\x86_64-linux-gnu\;CMake Files\..\..\..\..\..\..\usr\lib\x86_64-linux-gnu\cmake\;CMake Files\..\..\..\..\..\..\usr\lib\x86_64-linux-gnu\cmake\opencv4\;CMake Files\..\..\..\..\yarp-install\;CMake Files\..\..\..\..\yarp-install\lib\;CMake Files\..\..\..\..\yarp-install\lib\cmake\;CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP\;CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_os\;CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_conf\;CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_sig\;CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_math\;CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_dev\;CMake Files\..\..\..\..\yarp-install\lib\cmake\event-driven\;CMake Files\..\..\..\..\yarp-install\share\;CMake Files\..\..\..\..\yarp-install\share\yarp\;CMake Files\..\..\..\..\yarp-install\share\yarp\cmake\;"/>
+		<Build>
+			<Target title="all">
+				<Option working_dir="/home/fdipietro/projects/hpe-core/example/yarp-example/build"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="install/strip">
+				<Option working_dir="/home/fdipietro/projects/hpe-core/example/yarp-example/build"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 install/strip"/>
+					<CompileFile command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="install/local">
+				<Option working_dir="/home/fdipietro/projects/hpe-core/example/yarp-example/build"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 install/local"/>
+					<CompileFile command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="install">
+				<Option working_dir="/home/fdipietro/projects/hpe-core/example/yarp-example/build"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 install"/>
+					<CompileFile command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="list_install_components">
+				<Option working_dir="/home/fdipietro/projects/hpe-core/example/yarp-example/build"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 list_install_components"/>
+					<CompileFile command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/home/fdipietro/projects/hpe-core/example/yarp-example/build"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/home/fdipietro/projects/hpe-core/example/yarp-example/build"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="yarp-example">
+				<Option output="/home/fdipietro/projects/hpe-core/example/yarp-example/build/yarp-example" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/fdipietro/projects/hpe-core/example/yarp-example/build"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add option="-DUSING_DEPRECATED_UPPERCASE_YARP_OS_TARGET"/>
+					<Add directory="/home/fdipietro/yarp-install/include"/>
+					<Add directory="/usr/include/opencv4"/>
+					<Add directory="/usr/include/c++/9"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/9"/>
+					<Add directory="/usr/include/c++/9/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/9/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 yarp-example"/>
+					<CompileFile command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="yarp-example/fast">
+				<Option output="/home/fdipietro/projects/hpe-core/example/yarp-example/build/yarp-example" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/fdipietro/projects/hpe-core/example/yarp-example/build"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add option="-DUSING_DEPRECATED_UPPERCASE_YARP_OS_TARGET"/>
+					<Add directory="/home/fdipietro/yarp-install/include"/>
+					<Add directory="/usr/include/opencv4"/>
+					<Add directory="/usr/include/c++/9"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/9"/>
+					<Add directory="/usr/include/c++/9/backward"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/9/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 yarp-example/fast"/>
+					<CompileFile command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j12 -f &quot;/home/fdipietro/projects/hpe-core/example/yarp-example/build/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/src/yarp-example.cpp">
+			<Option target="yarp-example"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/src/yarp-example.h">
+			<Option target="yarp-example"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../../../usr/share/cmake/YCM/YCMConfig.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\usr\share\cmake\YCM\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../../../usr/share/cmake/YCM/YCMConfigVersion.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\usr\share\cmake\YCM\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../../../usr/share/YCM/modules/AddInstallRPATHSupport.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\usr\share\YCM\modules\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../../../usr/share/YCM/find-modules/FindOpenCV.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\usr\share\YCM\find-modules\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../../../usr/lib/x86_64-linux-gnu/cmake/opencv4/OpenCVConfig-version.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\usr\lib\x86_64-linux-gnu\cmake\opencv4\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../../../usr/lib/x86_64-linux-gnu/cmake/opencv4/OpenCVConfig.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\usr\lib\x86_64-linux-gnu\cmake\opencv4\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../../../usr/lib/x86_64-linux-gnu/cmake/opencv4/OpenCVModules-release.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\usr\lib\x86_64-linux-gnu\cmake\opencv4\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../../../usr/lib/x86_64-linux-gnu/cmake/opencv4/OpenCVModules.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\..\..\usr\lib\x86_64-linux-gnu\cmake\opencv4\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP/YARPConfig.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP/YARPConfigVersion.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_os/YARP_osConfig.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_os\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_os/YARP_osConfigVersion.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_os\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_os/YARP_osTargets-release.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_os\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_os/YARP_osTargets.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_os\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_conf/YARP_confConfig.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_conf\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_conf/YARP_confConfigVersion.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_conf\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_conf/YARP_confTargets.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_conf\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_sig/YARP_sigConfig.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_sig\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_sig/YARP_sigConfigVersion.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_sig\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_sig/YARP_sigTargets-release.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_sig\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_sig/YARP_sigTargets.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_sig\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_math/YARP_mathConfig.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_math\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_math/YARP_mathConfigVersion.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_math\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_math/YARP_mathTargets-release.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_math\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_math/YARP_mathTargets.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_math\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_dev/YARP_devConfig.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_dev\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_dev/YARP_devConfigVersion.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_dev\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_dev/YARP_devTargets-release.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_dev\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/YARP_dev/YARP_devTargets.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\YARP_dev\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/event-driven/event-driven-config-version.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\event-driven\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/event-driven/event-driven-config.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\event-driven\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/event-driven/event-driven-targets-release.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\event-driven\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/lib/cmake/event-driven/event-driven-targets.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\lib\cmake\event-driven\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/share/yarp/cmake/YarpInstallationHelpers.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\share\yarp\cmake\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/share/yarp/cmake/YarpPlugin.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\share\yarp\cmake\"/>
+		</Unit>
+		<Unit filename="/home/fdipietro/projects/hpe-core/example/yarp-example/../../../../yarp-install/share/yarp/cmake/YarpPrintFeature.cmake">
+			<Option virtualFolder="CMake Files\..\..\..\..\yarp-install\share\yarp\cmake\"/>
+		</Unit>
+	</Project>
+</CodeBlocks_project_file>
