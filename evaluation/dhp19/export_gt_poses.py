@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 from utils import mat_files
-from evaluation.utils.hpe_metrics import DHP19_BODY_PARTS
+from evaluation.utils import DHP19_BODY_PARTS
 
 
 def extract_2d_poses(data_events, data_vicon, projection_mat, camera_id, window_size):
