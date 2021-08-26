@@ -8,7 +8,8 @@ import numpy as np
 from pathlib import Path
 
 from evaluation.utils import metrics, plots
-from evaluation.utils import DHP19_BODY_PARTS, openpose_to_dhp19, parse_openpose_keypoints_json
+from evaluation.dhp19.utils import DHP19_BODY_PARTS, openpose_to_dhp19
+from evaluation.utils import parse_openpose_keypoints_json
 
 
 # def evaluate_openpose():

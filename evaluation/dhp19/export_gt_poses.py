@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 from utils import mat_files
-from evaluation.utils import DHP19_BODY_PARTS
+import evaluation.dhp19.utils as dhp19_utils
 
 
 def extract_2d_poses(data_events, data_vicon, projection_mat, camera_id, window_size):
@@ -43,8 +43,8 @@ def extract_3d_poses(data_events, data_vicon, camera_id, window_size):
     ##################################################################
 
     # compute average 3d poses
-    event_window_iterator = mat_files.Dhp19EventsIterator(data=data_events, cam_id=camera_id, window_size=window_size)
-    avg_poses_3d = np.zeros(shape=(len(event_window_iterator), len(DHP19_BODY_PARTS), 3))
+    event_window_iterator = dhp19_utils.Dhp19EventsIterator(data=data_events, cam_id=camera_id, window_size=window_size)
+    avg_poses_3d = np.zeros(shape=(len(event_window_iterator), len(dhp19_utils.DHP19_BODY_PARTS), 3))
     for wi, event_window in enumerate(event_window_iterator):
 
         # TODO: what if event_window is empty?
@@ -56,9 +56,9 @@ def extract_3d_poses(data_events, data_vicon, camera_id, window_size):
         # find closest ones...
 
         # compute the average 3d pose
-        for body_part in DHP19_BODY_PARTS:
+        for body_part in dhp19_utils.DHP19_BODY_PARTS:
             coords = data_vicon['XYZPOS'][body_part][poses_start_ind:poses_end_ind, :]
-            avg_poses_3d[wi, DHP19_BODY_PARTS[body_part], :] = np.nanmean(coords, axis=0)
+            avg_poses_3d[wi, dhp19_utils.DHP19_BODY_PARTS[body_part], :] = np.nanmean(coords, axis=0)
 
     return avg_poses_3d
 
@@ -71,15 +71,15 @@ def project_poses_to_2d(poses_3d, projection_mat):
     coord_pix_homog_norm = coord_pix_homog / np.reshape(coord_pix_homog[:, :, -1], (len(poses_3d), 13, 1))
 
     u = coord_pix_homog_norm[:, :, 0]
-    v = mat_files.DHP19_SENSOR_HEIGHT - coord_pix_homog_norm[:, :, 1]  # flip v coordinate to match the image direction
+    v = dhp19_utils.DHP19_SENSOR_HEIGHT - coord_pix_homog_norm[:, :, 1]  # flip v coordinate to match the image direction
 
     # mask is used to make sure that pixel positions are in frame range.
     mask = np.ones(u.shape).astype(np.float32)
     mask[np.isnan(u)] = 0
     mask[np.isnan(v)] = 0
-    mask[u > mat_files.DHP19_SENSOR_WIDTH] = 0
+    mask[u > dhp19_utils.DHP19_SENSOR_WIDTH] = 0
     mask[u <= 0] = 0
-    mask[v > mat_files.DHP19_SENSOR_HEIGHT] = 0
+    mask[v > dhp19_utils.DHP19_SENSOR_HEIGHT] = 0
     mask[v <= 0] = 0
 
     # pixel coordinates
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--vicon_file_path', help='', required=True)
     parser.add_argument('-c', '--camera_id', help='', required=True, type=int)
     parser.add_argument('-p', '--projection_matrix_file_path', help='', required=True)
-    parser.add_argument('-w', '--window_size', help='', default=mat_files.DHP19_CAM_FRAME_EVENTS_NUM)
+    parser.add_argument('-w', '--window_size', help='', default=dhp19_utils.DHP19_CAM_FRAME_EVENTS_NUM)
     parser.add_argument('-o', '--output_folder', help='', required=True)
     parser.add_argument('-td', '--two_dimensional', dest='two_dimensional', help='', action='store_true')
     parser.set_defaults(two_dimensional=True)

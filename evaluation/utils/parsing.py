@@ -3,23 +3,6 @@ import json
 import numpy as np
 
 
-# map from body parts to indices for dhp19
-DHP19_BODY_PARTS = {
-    'head': 0,
-    'shoulderR': 1,
-    'shoulderL': 2,
-    'elbowR': 3,
-    'elbowL': 4,
-    'hipL': 5,
-    'hipR': 6,
-    'handR': 7,
-    'handL': 8,
-    'kneeR': 9,
-    'kneeL': 10,
-    'footR': 11,
-    'footL': 12
-}
-
 # map from indices to body parts for openpose
 OPENPOSE_BODY_PARTS_25 = {
     0: "Nose",
@@ -50,29 +33,7 @@ OPENPOSE_BODY_PARTS_25 = {
     25: "Background"
 }
 
-OPENPOSE_TO_DHP19_INDICES = np.array([
-    # TODO: compute head
-    [0, 0],  # head
-    [2, 1],  # shoulderR
-    [5, 2],  # shoulderL
-    [3, 3],  # elbowR
-    [6, 4],  # elbowL
-    [12, 5],  # hipL
-    [9, 6],  # hipR
-    [4, 7],  # handR
-    [7, 8],  # handL
-    [10, 9],  # kneeR
-    [13, 10],  # kneeL
-    [11, 11],  # footR
-    [14, 12]  # footL
-])
-
 JOINT_NOT_PRESENT = np.zeros(2)
-
-
-def openpose_to_dhp19(pose_op):
-    # TODO: compute dhp19's head joints from openpose
-    return pose_op[OPENPOSE_TO_DHP19_INDICES[:, 0], :]
 
 
 def parse_openpose_keypoints_json(json_path):
