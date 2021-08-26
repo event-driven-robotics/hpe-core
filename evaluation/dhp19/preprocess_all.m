@@ -7,7 +7,7 @@ outFolder = '/home/fdipietro/hpe-data/DVS';
 
 addpath(fullfile(rootCodeFolder));
 addpath(fullfile(rootCodeFolder, 'evaluation/dhp19/'));
-addpath(fullfile(rootCodeFolder, 'evaluation/dhp19/utils/'));
+addpath(fullfile(rootCodeFolder, 'evaluation/dhp19/utils/matlab'));
 
 DVSrecFolder = fullfile(rootDataFolder,'DVS_movies/');
 numSubjects = 17;
