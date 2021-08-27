@@ -4,5 +4,5 @@
 #include <tuple>
 
 namespace hpecore {
-using skeleton = std::tuple<double, double>;
+using skeleton = std::vector<std::tuple<double, double>>;
 }
