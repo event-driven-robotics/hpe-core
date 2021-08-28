@@ -1,15 +1,14 @@
 
 import argparse
-import os
-
 import cv2
 import numpy as np
+import os
 
 from pathlib import Path
 
-from evaluation.utils import metrics, plots
-from evaluation.dhp19.utils import DHP19_BODY_PARTS, openpose_to_dhp19
-from evaluation.utils import parse_openpose_keypoints_json
+from utils import metrics, plots
+from utils import parse_openpose_keypoints_json
+from dhp19.utils import DHP19_BODY_PARTS, openpose_to_dhp19
 
 
 # def evaluate_openpose():
@@ -17,9 +16,10 @@ from evaluation.utils import parse_openpose_keypoints_json
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-gt', '--ground_truth_path', help='Path to the .npy file containing the ground truth poses for every frame', required=True)
-    parser.add_argument('-p', '--predictions_folder', help='Path to the folder containing the .json files (one for each frame) with predicted poses', required=True)
+    parser = argparse.ArgumentParser(description='Evaluate OpenPose on DHP19, plotting predicted and ground-truth poses \
+                                                 on input frames and computing Mean Per Joint Position Error metric')
+    parser.add_argument('-gt', '--ground_truth_path', help='Path to the .npy file containing the ground truth poses for every frame (computed using dhp19/extract_gt_poses.py)', required=True)
+    parser.add_argument('-p', '--predictions_folder', help='Path to the folder containing the .json files (one for each frame) with predicted poses (computed using OpenPose)', required=True)
     parser.add_argument('-if', '--images_folder', help='Path to the folder containing the image frames')
     parser.add_argument('-o', '--output_folder', help='Path to the folder where evaluation results will be saved', required=True)
     args = parser.parse_args()
@@ -39,7 +39,7 @@ if __name__ == '__main__':
         op_pose = parse_openpose_keypoints_json(path)
         poses_pred[pi, :] = openpose_to_dhp19(op_pose)
 
-    os.makedirs(args.output_folder)
+    os.makedirs(args.output_folder, exist_ok=True)
 
     # compute metrics
     mpjpe = metrics.compute_mpjpe(poses_pred, poses_gt)

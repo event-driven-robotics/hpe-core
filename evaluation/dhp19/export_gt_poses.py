@@ -2,8 +2,8 @@ import argparse
 import numpy as np
 import os
 
+import utils as dhp19_utils
 from utils import mat_files
-import evaluation.dhp19.utils as dhp19_utils
 
 
 def extract_2d_poses(data_events, data_vicon, projection_mat, window_size):
@@ -185,28 +185,30 @@ def project_poses_to_2d(poses_3d, projection_mat):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Extract 2D or 3D ground truth poses from DHP19 preprocessed data files \
+    parser = argparse.ArgumentParser(description='Extract 2D or 3D ground-truth poses from DHP19 preprocessed data files \
                                                  and save them to .npy files')
     parser.add_argument('-e', '--events_file_path', help='path to preprocessed events .mat file', required=True)
     parser.add_argument('-v', '--vicon_file_path', help='path to Vicon .mat files', required=True)
     parser.add_argument('-c', '--camera_id', help='integer [0, 3] specifying the camera id', required=True, type=int)
-    parser.add_argument('-p', '--projection_matrix_file_path', help='', required=True)
-    parser.add_argument('-w', '--window_size', help='', default=dhp19_utils.DHP19_CAM_FRAME_EVENTS_NUM)
-    parser.add_argument('-o', '--output_folder', help='', required=True)
-    parser.add_argument('-td', '--two_dimensional', dest='two_dimensional', help='', action='store_true')
-    parser.set_defaults(two_dimensional=True)
+    parser.add_argument('-p', '--projection_matrix_file_path', help='path to the projection matrix .npy file used for extracting 2D poses (use P4.npy for cam_id 0, P1 for cam_id 1, P3 for cam_id 2 and P2 for cam_id 3)', required=True)
+    parser.add_argument('-w', '--window_size', help=f'approximate number of events used to compute an event frame (default value for DHP19 is {dhp19_utils.DHP19_CAM_FRAME_EVENTS_NUM})', default=dhp19_utils.DHP19_CAM_FRAME_EVENTS_NUM)
+    parser.add_argument('-o', '--output_folder', help='path to the folder where output .npy file will be saved; if not present, the folder will be created', required=True)
+    parser.add_argument('-td', '--two_dimensional', dest='two_dimensional', help='flag specifying if 2D poses will be extracted; if not specified, 3D poses will be extracted', action='store_true')
+    parser.set_defaults(two_dimensional=False)
     args = parser.parse_args()
 
     # read data from .mat files
     data_events = mat_files.loadmat(args.events_file_path)
     data_vicon = mat_files.loadmat(args.vicon_file_path)
-    proj_mat = np.load(args.projection_matrix_file_path)
 
     if args.two_dimensional:
+        proj_mat = np.load(args.projection_matrix_file_path)
         poses = extract_2d_poses(data_events, data_vicon, proj_mat, args.window_size)
         file_name = f'2d_poses_cam_{args.camera_id}_{args.window_size}_events.npy'
     else:
         poses = extract_3d_poses(data_events, data_vicon, args.window_size)
         file_name = f'3d_poses_cam_{args.camera_id}_{args.window_size}_events.npy'
+
+    os.makedirs(args.output_folder, exist_ok=True)
 
     np.save(os.path.join(args.output_folder, file_name), poses, allow_pickle=False)
