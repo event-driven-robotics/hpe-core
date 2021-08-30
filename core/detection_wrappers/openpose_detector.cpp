@@ -1,15 +1,16 @@
 
 #include "openpose_detector.h"
 
+using namespace hpecore;
 
-OpenPoseDetector::OpenPoseDetector(std::string modelsPath, std::string poseModel)
+bool OpenPoseDetector::init(std::string models_path, std::string pose_model)
 {
     try
     {
         // description of detector's parameters can be found at
         // https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/include/openpose/flags.hpp
         const auto poseMode = op::flagsToPoseMode(1);  // body keypoints detection
-        const auto poseModel = op::flagsToPoseModel(op::String(poseModel));  // 'BODY_25', 25 keypoints, fastest with CUDA, most accurate, includes foot keypoints
+        const auto poseModel = op::flagsToPoseModel(op::String(pose_model));  // 'BODY_25', 25 keypoints, fastest with CUDA, most accurate, includes foot keypoints
                                                                              // 'COCO', 18 keypoints
                                                                              // 'MPI', 15 keypoints, least accurate model but fastest on CPU
                                                                              // 'MPI_4_layers', 15 keypoints, even faster but less accurate
@@ -40,13 +41,14 @@ OpenPoseDetector::OpenPoseDetector(std::string modelsPath, std::string poseModel
         const auto prototxt_path = "";
         const auto caffemodel_path = "";
         const auto upsampling_ratio = 0.;
-        const auto disable_multi_thread = false;
+        const auto disable_multi_thread = false;    /////////////////////////////////
+        // process_real_time  ////////////////////////////////////////
 
         const op::WrapperStructPose wrapperStructPose{
             poseMode, netInputSize, 1., outputSize, keypointScaleMode, num_gpu,
             num_gpu_start, scale_number, (float)scale_gap,
             op::flagsToRenderMode(render_pose, multipleView), poseModel, !disable_blending,
-            (float)alpha_pose, (float)alpha_heatmap, part_to_show, op::String(modelsPath),
+            (float)alpha_pose, (float)alpha_heatmap, part_to_show, op::String(models_path),
             heatMapTypes, heatMapScaleMode, part_candidates, (float)render_threshold,
             number_people_max, maximize_positives, fps_max, op::String(prototxt_path),
             op::String(caffemodel_path), (float)upsampling_ratio, enableGoogleLogging};
@@ -60,7 +62,10 @@ OpenPoseDetector::OpenPoseDetector(std::string modelsPath, std::string poseModel
     {
         op::error(e.what(), __LINE__, __FUNCTION__, __FILE__);
         // TODO: print error on stdout
+        return false;
     }
+
+    return true;
 }
 
 
@@ -78,23 +83,21 @@ skeleton OpenPoseDetector::detect(cv::Mat &image)
 
             // return empty skeleton
             for (auto ji = 0; ji < poseJointsNum; ji++)
-                pose.add(std::make_tuple(0., 0.));
-            return pose
+                pose.push_back(std::make_tuple(0., 0.));
+            return pose;
         }
 
         // parse and return keypoints
-        const auto& poseKeypoints = datumsPtr->at(0)->poseKeypoints;
+        const auto& poseKeypoints = datumProcessed->at(0)->poseKeypoints;
         // for (auto person = 0; person < poseKeypoints.getSize(0); person++)
         // {
 
-        // TODO: code assumes openpose returns only one pose
-        // make it compatible with multiple poses
+        // TODO: code assumes openpose returns only one pose, make it compatible with multiple poses
         for (auto bodyPart = 0; bodyPart < poseKeypoints.getSize(1); bodyPart++)
         {
-            std::string valueToPrint;
-            for (auto xyscore = 0; xyscore < poseKeypoints.getSize(2); xyscore++)
-                std::tuple<double, double> joint = std::make_tuple(poseKeypoints[{0, bodyPart, xyscore}][0], poseKeypoints[{0, bodyPart, xyscore}][1]);
-                pose.add(joint);
+            // get (x, y) coords
+            std::tuple<double, double> joint = std::make_tuple(poseKeypoints[{0, bodyPart, 0}], poseKeypoints[{0, bodyPart, 1}]);
+            pose.push_back(joint);
         }
 
         // }
@@ -106,7 +109,7 @@ skeleton OpenPoseDetector::detect(cv::Mat &image)
 
         // return empty skeleton
         for (auto ji = 0; ji < poseJointsNum; ji++)
-            pose.add(std::make_tuple(0., 0.));
+            pose.push_back(std::make_tuple(0., 0.));
     }
 
     return pose;

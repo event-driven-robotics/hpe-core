@@ -1,15 +1,20 @@
 
+#include "utility.h"
+#include <opencv2/opencv.hpp>
 #include <openpose/headers.hpp>
 
-#include "../utility/utility.h"
 
+#pragma once
+namespace hpecore {
 
 class OpenPoseDetector {
 
-    op::Wrapper detector;
+    op::Wrapper detector{op::ThreadManagerMode::Asynchronous};
     int poseJointsNum;
 
   public:
-    OpenPoseDetector(std::string poseModel, poseMode);
-    skeleton detect(cv::Mat image);
+    bool init(std::string poseModel, std::string poseMode);
+    skeleton detect(cv::Mat &image);
+};
+
 }

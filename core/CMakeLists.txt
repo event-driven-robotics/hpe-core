@@ -1,7 +1,7 @@
 # Copyright: (C) 2021 EDPR - Istituto Italiano di Tecnologia
 # Authors: Arren Glover
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16.0)
 project(hpe-core
         LANGUAGES CXX
         VERSION 0.1)
@@ -54,12 +54,18 @@ find_package(OpenCV)
 #    message(STATUS "Found OpenCV: (found version ${OpenCV_VERSION})")
 #endif()
 
+find_package(OpenPose REQUIRED)
+
+
 set( folder_source
   detection_wrappers/detection.cpp
+  detection_wrappers/openpose_detector.cpp
 )
 
 set( folder_header
+  utility/utility.h
   detection_wrappers/detection.h
+  detection_wrappers/openpose_detector.h
 )
 
 add_library(${PROJECT_NAME} ${folder_source} ${folder_header})
@@ -68,12 +74,13 @@ set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "${folder_header}
                                                           VERSION ${hpe-core_VERSION}
                                                           SOVERSION 2)
 
-target_include_directories(${PROJECT_NAME} PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+target_include_directories(${PROJECT_NAME} PRIVATE utility
+                                           PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
                                                   "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>") # FIXME INSTALL PATH
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC ${OpenCV_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PUBLIC ${OpenCV_LIBRARIES} ${OpenPose_LIBRARIES})
 
 install(TARGETS ${PROJECT_NAME}
         EXPORT hpecore
