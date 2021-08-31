@@ -84,12 +84,46 @@ public:
 
         m.lock();
 
+        int count_unique = 0;
         for(auto &v : window_queue) 
         {
-            image(v.x, v.y) = 255;
+            PixelMono &p = image(v.x, v.y);
+            if(p == 0) count_unique++;
+            p += 1;
         }
 
         m.unlock();
+
+        //count unique pixels
+        double mean_pval = (double)window_queue.size() / count_unique;
+
+        double var = 0;
+        for(auto x = 0; x < res.width; x++) {
+            for(auto y = 0; y < res.height; y++) {
+                PixelMono &p = image(x, y);
+                if(p > 0) {
+                    double e = p - mean_pval;
+                    var += e*e;
+                }
+            }
+        }
+        var /= count_unique;
+        double sigma = sqrt(var);
+        constexpr double threshold = 0.1/255;
+        if(sigma < threshold) sigma = threshold;
+        double scale_factor = 255.0 / (3.0 * sigma);
+
+        for (auto x = 0; x < res.width; x++) {
+            for(auto y = 0; y < res.height; y++) {
+                PixelMono &p = image(x, y);
+                if(p > 0) {
+                    double v = p * scale_factor;
+                    if(v > 255.0) v = 255.0;
+                    if(v < 0.0) v = 0.0;
+                    p = (unsigned char)v;
+                }
+            }
+        }
 
         output_port.write();
         return Thread::isRunning();
