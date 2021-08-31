@@ -33,3 +33,6 @@
 
 core/build/
 core/.vscode/
+
+.idea
+venv/
