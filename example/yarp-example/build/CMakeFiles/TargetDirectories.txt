@@ -1,7 +1,0 @@
-/home/fdipietro/projects/hpe-core/example/yarp-example/build/CMakeFiles/install/strip.dir
-/home/fdipietro/projects/hpe-core/example/yarp-example/build/CMakeFiles/install/local.dir
-/home/fdipietro/projects/hpe-core/example/yarp-example/build/CMakeFiles/install.dir
-/home/fdipietro/projects/hpe-core/example/yarp-example/build/CMakeFiles/list_install_components.dir
-/home/fdipietro/projects/hpe-core/example/yarp-example/build/CMakeFiles/rebuild_cache.dir
-/home/fdipietro/projects/hpe-core/example/yarp-example/build/CMakeFiles/edit_cache.dir
-/home/fdipietro/projects/hpe-core/example/yarp-example/build/CMakeFiles/yarp-example.dir
