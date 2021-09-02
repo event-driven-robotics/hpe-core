@@ -1,10 +1,10 @@
 
+#pragma once
+
 #include "utility.h"
 #include <opencv2/opencv.hpp>
 #include <openpose/headers.hpp>
 
-
-#pragma once
 namespace hpecore {
 
 class OpenPoseDetector {
@@ -15,6 +15,7 @@ class OpenPoseDetector {
   public:
     bool init(std::string poseModel, std::string poseMode);
     skeleton detect(cv::Mat &image);
+    void stop();
 };
 
 }

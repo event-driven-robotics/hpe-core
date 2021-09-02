@@ -35,18 +35,18 @@ public:
         setName((rf.check("name", Value("/op_detector_example_module")).asString()).c_str());
 
         //open io ports
-        if(!input_port.open(getName() + "/AE:i")) {
+        if(!input_port.open(getName() + "/img:i")) {
             yError() << "Could not open input port";
             return false;
         }
 
-        if(!output_port.open(getName() + "/AE:o")) {
+        if(!output_port.open(getName() + "/img:o")) {
             yError() << "Could not open input port";
             return false;
         }
 
         //read flags and parameters
-        std::string default_models_path = "";
+        std::string default_models_path = "/openpose/models";
         models_path = rf.check("models_path", Value(default_models_path)).asString();
 
         std::string default_pose_model = "BODY_25";  // TODO: get the default string from openpose header files
@@ -71,17 +71,19 @@ public:
     {
         //if the module is asked to stop ask the asynchronous thread to stop
         input_port.interrupt();
+        output_port.interrupt();
         return true;
     }
 
     bool close()
     {
         //when the asynchronous thread is asked to stop, close ports and do other clean up
+        detector.stop();
         yInfo() << "Closing the module ...";
         input_port.close();
         output_port.close();
         yInfo() << "Module closed!";
-        return RFModule::close();
+        return true;
     }
 
     //synchronous thread
@@ -99,10 +101,14 @@ public:
         cv::cvtColor(img_cv, rgbimage, cv::COLOR_GRAY2BGR);
 //        yInfo() << "yarp image converted to cv::Mat";
 
+        cv::imshow("input", rgbimage);
+        cv::waitKey(5);
+
         // read image from directory
         //cv::Mat img_cv = cv::imread("/workspace/data/dhp19/events_preprocessed/S1_1_1/0/reconstruction/frame_0000003065.png");
         hpecore::skeleton pose = detector.detect(rgbimage);
-        yInfo() << "pose detector has finished" << pose.size();
+        hpecore::print_skeleton(pose);
+        yInfo() << "pose detector has finished";
 //        std::cout << "pose detected" << std::endl;
 //        std::cout << pose << std::endl;
 

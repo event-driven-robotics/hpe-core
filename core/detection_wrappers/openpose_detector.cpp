@@ -71,6 +71,10 @@ bool OpenPoseDetector::init(std::string models_path, std::string pose_model)
     return true;
 }
 
+void OpenPoseDetector::stop()
+{
+    detector.stop();
+}
 
 skeleton OpenPoseDetector::detect(cv::Mat &image)
 {
