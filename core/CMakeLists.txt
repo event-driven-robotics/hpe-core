@@ -54,19 +54,22 @@ find_package(OpenCV)
 #    message(STATUS "Found OpenCV: (found version ${OpenCV_VERSION})")
 #endif()
 
-find_package(OpenPose REQUIRED)
-
-
 set( folder_source
   detection_wrappers/detection.cpp
-  detection_wrappers/openpose_detector.cpp
 )
 
 set( folder_header
   utility/utility.h
   detection_wrappers/detection.h
-  detection_wrappers/openpose_detector.h
 )
+
+find_package(OpenPose)
+if( OpenPose_FOUND )
+  list(APPEND folder_source detection_wrappers/openpose_detector.cpp)
+  list(APPEND folder_header detection_wrappers/openpose_detector.h)
+endif()
+
+
 
 add_library(${PROJECT_NAME} ${folder_source} ${folder_header})
 

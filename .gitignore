@@ -31,6 +31,3 @@
 *.out
 *.app
 
-core/build/
-core/.vscode/
-example/op_detector_example_module/build
