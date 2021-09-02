@@ -53,10 +53,13 @@ bool OpenPoseDetector::init(std::string models_path, std::string pose_model)
             number_people_max, maximize_positives, fps_max, op::String(prototxt_path),
             op::String(caffemodel_path), (float)upsampling_ratio, enableGoogleLogging};
         detector.configure(wrapperStructPose);
+        
 
         // Set to single-thread (for sequential processing and/or debugging and/or reducing latency)
         if (disable_multi_thread)
             detector.disableMultiThreading();
+        
+        detector.start();
     }
     catch (const std::exception& e)
     {

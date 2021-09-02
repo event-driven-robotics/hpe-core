@@ -3,12 +3,9 @@
 #include <yarp/cv/Cv.h>
 #include <yarp/os/all.h>
 #include <yarp/sig/Image.h>
-#include <event-driven/all.h>
-
 #include <hpe-core/openpose_detector.h>
 #include <hpe-core/utility.h>
 
-using namespace ev;
 using namespace yarp::os;
 using namespace yarp::sig;
 
@@ -16,8 +13,8 @@ class OPDetectorExampleModule : public RFModule {
 
 private:
 
-    BufferedPort<ImageOf<PixelRgb>> input_port;
-    BufferedPort<ImageOf<PixelRgb>> output_port;
+    BufferedPort<ImageOf<PixelMono>> input_port;
+    BufferedPort<ImageOf<PixelRgb> > output_port;
 
     std::string models_path;
     std::string pose_model;
@@ -30,6 +27,10 @@ public:
 
     virtual bool configure(yarp::os::ResourceFinder& rf)
     {
+        if (!yarp::os::Network::checkNetwork(2.0)) {
+            std::cout << "Could not connect to YARP" << std::endl;
+            return false;
+        }
         //set the module name used to name ports
         setName((rf.check("name", Value("/op_detector_example_module")).asString()).c_str());
 
@@ -52,6 +53,8 @@ public:
         pose_model = rf.check("pose_model", Value(default_pose_model)).asString();
 
         detector.init(models_path, pose_model);
+
+        return true;
 //        if(detector.init(models_path, pose_model))
 //            //start the asynchronous and synchronous threads
 //            return Thread::start();
@@ -67,9 +70,8 @@ public:
     bool interruptModule()
     {
         //if the module is asked to stop ask the asynchronous thread to stop
-//        return Thread::stop();
-        yInfo() << "Interrupting module ...";
-        return RFModule::interruptModule();
+        input_port.interrupt();
+        return true;
     }
 
     bool close()
@@ -85,26 +87,29 @@ public:
     //synchronous thread
     virtual bool updateModule()
     {
-//        ImageOf<PixelRgb>* img_yarp = input_port.read();
-//        if (img_yarp == nullptr)
-//        {
-//            yError() << "Failed to read yarp image";
-//        }
+       ImageOf<PixelMono>* img_yarp = input_port.read();
+       if (img_yarp == nullptr)
+       {
+           return false;
+       }
 //
-//        cv::Mat img_cv = toCvMat(*img_yarp);
+        cv::Mat img_cv = yarp::cv::toCvMat(*img_yarp);
+
+        cv::Mat rgbimage;
+        cv::cvtColor(img_cv, rgbimage, cv::COLOR_GRAY2BGR);
 //        yInfo() << "yarp image converted to cv::Mat";
 
         // read image from directory
-        cv::Mat img_cv = cv::imread("/workspace/data/dhp19/events_preprocessed/S1_1_1/0/reconstruction/frame_0000003065.png");
-        hpecore::skeleton pose = detector.detect(img_cv);
-        yInfo() << "pose detector has finished";
+        //cv::Mat img_cv = cv::imread("/workspace/data/dhp19/events_preprocessed/S1_1_1/0/reconstruction/frame_0000003065.png");
+        hpecore::skeleton pose = detector.detect(rgbimage);
+        yInfo() << "pose detector has finished" << pose.size();
 //        std::cout << "pose detected" << std::endl;
 //        std::cout << pose << std::endl;
 
         // TODO: plot pose onto image
 
-        output_port.prepare().copy(yarp::cv::fromCvMat<PixelBgr>(img_cv));
-        output_port.write();
+        //output_port.prepare().copy(yarp::cv::fromCvMat<PixelBgr>(img_cv));
+        //output_port.write();
 
 //        return Thread::isRunning();
         return true;
@@ -120,18 +125,9 @@ public:
 
 int main(int argc, char * argv[])
 {
-    /* initialize yarp network */
-    yarp::os::Network yarp;
-    if(!yarp.checkNetwork(2)) {
-        std::cout << "Could not connect to YARP" << std::endl;
-        return false;
-    }
-
     /* prepare and configure the resource finder */
     yarp::os::ResourceFinder rf;
     rf.setVerbose( false );
-    rf.setDefaultContext( "eventdriven" );
-    rf.setDefaultConfigFile( "op_detector_example_module.ini" );
     rf.configure( argc, argv );
 
     /* create the module */
