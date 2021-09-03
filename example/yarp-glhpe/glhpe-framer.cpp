@@ -48,8 +48,8 @@ public:
 
         //read flags and parameters
         window_size = rf.check("window", Value(7500)).asInt();
-        res.height = rf.check("height", Value(344)).asInt();
-        res.width = rf.check("width", Value(360)).asInt();
+        res.height = rf.check("height", Value(260)).asInt();
+        res.width = rf.check("width", Value(346)).asInt();
 
         //start the asynchronous and synchronous threads
         return Thread::start();

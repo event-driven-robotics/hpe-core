@@ -1,8 +1,9 @@
-import yarp
 import sys
+import yarp
 import numpy as np
 import cv2
 
+sys.path.append('/home/ggoyal/code/gl_hpe/')
 import experimenting
 import event_library as el
 import torch
@@ -19,30 +20,33 @@ import matplotlib.pyplot as plt
 
 
 # setting the directories and variables
-hw = el.utils.get_hw_property('dvs')
-datadir = "/media/ggoyal/Shared/data/dhp19_sample/"
-dhpcore = experimenting.dataset.DHP19Core('test', data_dir=join(datadir,'time_count_dataset/movements_per_frame'), joints_dir=join(datadir,"time_count_dataset/labels_full_joints/"), hm_dir="",  labels_dir="", preload_dir="", n_joints=13, n_classes=33, partition='cross-subject', n_channels=1, cams=[1, 3], movements=None, test_subjects=[6, 7])
-P_mat_dir = join(datadir, 'P_matrices/')
-checkpoint_path = "/media/ggoyal/Shared/data/checkpoint_dhp19"
-resultsPath = join(datadir, 'outputs/')
 
-ch_idx = 3 # Depends on the input camera!
+
+
+# Depends on the input camera!
 
 
 class ExampleModule(yarp.RFModule):
 
     def __init__(self):
         yarp.RFModule.__init__(self)
-        self.image = np.zeros((344, 260)) # Change???
-        # self.image_buf = np.zeros((344, 260)) # Change??????? 344x260
-        self.input_port = yarp.BufferedPortImage(Mono)
-# alternative buffered port classes depending on the underlying data type:
-# - yarp.BufferedPortImage(Rgb|Rgba|Mono|Mono16|Int|Float|RgbFloat)
-        cv2.namedWindow("events", cv2.WINDOW_NORMAL)
+        self.input_port = yarp.BufferedPortImageMono()
+        self.counter = 0
+        self.image_w = 346
+        self.image_h = 260
+        self.np_input = np.ones((self.image_h, self.image_w), dtype=np.uint8)
+        self.yarp_image = yarp.ImageMono()
+        self.datadir = "/media/ggoyal/Shared/data/dhp19_sample/"
+        self.ch_idx = 3
+        self.P_mat_dir = join(self.datadir, 'P_matrices/')
+        self.checkpoint_path = "/media/ggoyal/Shared/data/checkpoint_dhp19"
+        self.resultsPath = join(self.datadir, 'outputs/')
+        self.model = None
+        self.read_image = None
 
     def configure(self, rf):
 
-            # Initialise YARP
+        # Initialise YARP
         yarp.Network.init()
         if not yarp.Network.checkNetwork(2):
             print("Could not find network! Run yarpserver and try again.")
@@ -53,22 +57,32 @@ class ExampleModule(yarp.RFModule):
 
 
         # open io ports
-        if not self.input_port.open(self.getName() + "/yarp-example/AE:o"):
+        if not self.input_port.open(self.getName() + "/img:i"):
             print("Could not open input port")
             return False
-        self.input_port.setStrict()
+
+        # Preparing input image buffer
+        self.yarp_image.resize(self.image_w, self.image_h)
+        self.yarp_image.setExternal(self.np_input.data, self.np_input.shape[1], self.np_input.shape[0])
 
         # read flags and parameters
-        example_flag = rf.check("example_flag") and rf.check("example_flag", yarp.Value(True)).asBool()
-        default_value = 0.1
-        example_parameter = rf.check("example_parameter", yarp.Value(default_value)).asDouble()
+        self.dhpcore = experimenting.dataset.DHP19Core('test', data_dir=join(self.datadir,'time_count_dataset/movements_per_frame'),\
+                                                       joints_dir=join(self.datadir,"time_count_dataset/labels_full_joints/"), \
+                                                       hm_dir="",  labels_dir="", preload_dir="", n_joints=13, n_classes=33,\
+                                                       partition='cross-subject', n_channels=1, cams=[1, 3], movements=None, test_subjects=[6, 7])
 
-        # do any other set-up required here
-        self.model = utilities.load_model(checkpoint_path, "MargiposeEstimator", core=dhpcore).eval().double()
-        if ch_idx==0: self.P_mat_cam = np.load(join(P_mat_dir,'P1.npy'))
-        elif ch_idx==3: self.P_mat_cam = np.load(join(P_mat_dir,'P2.npy'))
-        elif ch_idx==2: self.P_mat_cam = np.load(join(P_mat_dir,'P3.npy'))
-        elif ch_idx==1: self.P_mat_cam = np.load(join(P_mat_dir,'P4.npy'))
+
+
+        # example_flag = rf.check("example_flag") and rf.check("example_flag", yarp.Value(True)).asBool()
+        # default_value = 0.1
+        # example_parameter = rf.check("example_parameter", yarp.Value(default_value)).asDouble()
+        #
+        # # do any other set-up required here
+        self.model = utilities.load_model(self.checkpoint_path, "MargiposeEstimator", core=self.dhpcore).eval().double()
+        if self.ch_idx==0: self.P_mat_cam = np.load(join(self.P_mat_dir,'P1.npy'))
+        elif self.ch_idx==3: self.P_mat_cam = np.load(join(self.P_mat_dir,'P2.npy'))
+        elif self.ch_idx==2: self.P_mat_cam = np.load(join(self.P_mat_dir,'P3.npy'))
+        elif self.ch_idx==1: self.P_mat_cam = np.load(join(self.P_mat_dir,'P4.npy'))
         self.extrinsics_matrix, self.camera_matrix = utils.decompose_projection_matrix(self.P_mat_cam)
 
         return True
@@ -89,38 +103,40 @@ class ExampleModule(yarp.RFModule):
 
     def updateModule(self):
         # synchronous update called every get period seconds.
+        print("Press space at the image window to end the program.")
 
-        yarp.image = self.input_port.read()
-        b_x = np.array(yarp.image)
-        preds, outs = self.model(b_x.permute(0, -1, 1, 2))
-        pred_sk = Skeleton(preds[0].detach().numpy()).denormalize(260, 346, camera=torch.tensor(self.camera_matrix)).reproject_onto_world(torch.tensor(self.extrinsics_matrix))
-        # TODO: PLOT pred_sk in rt?
+        # Read the image
+        self.read_image = self.input_port.read()
+        self.counter +=1
+        self.yarp_image.copy(self.read_image)
+        input_image = np.copy(self.np_input) / 255.0
+        if len(input_image.shape) == 2:
+            input_image = np.expand_dims(input_image, -1)
+            input_image = np.expand_dims(input_image, 0)
 
-        plt.figure()
-        plt.imshow(self.yarp, cmap='gray')
-        plt.plot(y_2d[:,0], y_2d[:,1], '.', c='red', label='gt')
+        # Predict the pose
+        torch_image = torch.from_numpy(input_image)
+        preds, outs = self.model(torch_image.permute(0, -1, 1, 2))
+        pred_sk = Skeleton(preds[0].detach().numpy()).denormalize(260, 346, camera=torch.tensor(self.camera_matrix)).\
+            reproject_onto_world(torch.tensor(self.extrinsics_matrix))
+        pred_joints = pred_sk.get_2d_points(260, 346, p_mat=torch.tensor(\
+            self.P_mat_cam))
 
-        # %% 3D
-        from mpl_toolkits.mplot3d import Axes3D
+        # Obtain the 2D prediction as an image
+        fig2D = plot_skeleton_2d(input_image[0].squeeze(), pred_joints, return_figure=True)
+        fig2D.canvas.draw()
+        img = np.fromstring(fig2D.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+        img = img.reshape(fig2D.canvas.get_width_height()[::-1] + (3,))
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
-        x = Sklt[:,0]
-        y = Sklt[:,1]
-        z = Sklt[:,2]
-        fig = plt.figure()
-        ax = Axes3D(fig)
-        ax.scatter(x, y, z, zdir='z', s=20, c='red', marker='o', depthshade=True)
-        lines_skeleton=skeleton(x,y,z)
-        for l in range(len(lines_skeleton)):
-            ax.plot(lines_skeleton[l,0,:],lines_skeleton[l,1,:],lines_skeleton[l,2,:], c='red')
-        # Limits used for GT plots
-        ax.set_xlim3d([-600, 600])
-        ax.set_ylim3d([-600, 600])
-        ax.set_zlim3d([0, 1400])
-        plt.show()
-        # Put visualization, debug prints, etc... here
-        cv2.imshow("events", self.image)
-        cv2.waitKey(10)
-        return True
+        cv2.imshow("events", self.np_input)
+        cv2.imshow("output", img)
+        k = cv2.waitKey(0)
+        # if k==32:
+        #     return False
+        if self.counter == 20:
+            return False
+        return False
     # def load_model(self):
     #     self.model = utilities.load_model(checkpoint_path, "MargiposeEstimator", core=dhpcore).eval().double()
     #     factory = MinimalConstructor()#Joints3DConstructor()
@@ -135,7 +151,7 @@ if __name__ == '__main__':
     rf = yarp.ResourceFinder()
     rf.setVerbose(False)
     rf.setDefaultContext("event-driven")
-    rf.setDefaultConfigFile("exampleModule.ini")
+    # rf.setDefaultConfigFile("exampleModule.ini")
     rf.configure(sys.argv)
 
     # create the module
