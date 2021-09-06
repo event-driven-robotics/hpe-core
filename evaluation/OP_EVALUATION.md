@@ -17,6 +17,7 @@ DHP19 events.
               -c <cam_id>
               -p /path/to/P_matrices/P%d.npy
               -o /path/to/output_folder
+              -td
   ```
 
   where
@@ -37,7 +38,11 @@ and build the Docker image
   ```shell
   $ xhost +
   $ docker run -it -v /tmp/.X11-unix/:/tmp/.X11-unix -v /path/to/grayscale/frames:/data -e DISPLAY=unix$DISPLAY --runtime=nvidia <image_id>
-  $ ./pose_detector_json -input_folder /path/to/grayscale/frames -output_folder /path/to/output/folder --write_json /path/to/output/folder --model-folder /openpose/models
+  $ ./pose_detector_json
+              -input_folder /path/to/grayscale/frames
+              -output_folder /path/to/output/folder
+              --write_json /path/to/output/folder
+              --model-folder /openpose/models
   ```
 OpenPose will create in `/path/to/output/folder` one `.json` file for each input frame.
 
