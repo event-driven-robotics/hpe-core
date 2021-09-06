@@ -81,7 +81,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE utility
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC ${OpenCV_LIBRARIES} ${OpenPose_LIBS})
+target_link_libraries(${PROJECT_NAME} PUBLIC ${OpenPose_LIBS} ${OpenCV_LIBRARIES})
 
 install(TARGETS ${PROJECT_NAME}
         EXPORT hpecore
@@ -96,6 +96,6 @@ install_basic_package_files(${PROJECT_NAME}
                             VERSION ${${PROJECT_NAME}_VERSION}
                             COMPATIBILITY SameMajorVersion
                             LOWERCASE_FILENAMES
-                            NAMESPACE hpecore::
+                            NAMESPACE hpe-core::
                             DEPENDENCIES OpenCV OpenPose)
 include(AddUninstallTarget)
