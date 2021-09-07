@@ -16,33 +16,25 @@ from experimenting.utils import utilities
 from experimenting import utils
 import matplotlib.pyplot as plt
 
-
-
-
-# setting the directories and variables
-
-
-
-# Depends on the input camera!
-
-
 class ExampleModule(yarp.RFModule):
 
     def __init__(self):
         yarp.RFModule.__init__(self)
         self.input_port = yarp.BufferedPortImageMono()
         self.counter = 0
-        self.image_w = 346
-        self.image_h = 260
-        self.np_input = np.ones((self.image_h, self.image_w), dtype=np.uint8)
+        self.image_w = 400
+        self.image_h = 300
+        # self.np_input = None
         self.yarp_image = yarp.ImageMono()
         self.datadir = "/media/ggoyal/Shared/data/dhp19_sample/"
         self.ch_idx = 3
         self.P_mat_dir = join(self.datadir, 'P_matrices/')
         self.checkpoint_path = "/media/ggoyal/Shared/data/checkpoint_dhp19"
         self.resultsPath = join(self.datadir, 'outputs/')
-        self.model = None
-        self.read_image = None
+        self.image_w_model = 346
+        self.image_h_model = 260
+        # self.model = None
+        # self.read_image = None
 
     def configure(self, rf):
 
@@ -55,23 +47,16 @@ class ExampleModule(yarp.RFModule):
         # set the module name used to name ports
         self.setName((rf.check("name", yarp.Value("/exampleModule")).asString()))
 
-
         # open io ports
         if not self.input_port.open(self.getName() + "/img:i"):
             print("Could not open input port")
             return False
-
-        # Preparing input image buffer
-        self.yarp_image.resize(self.image_w, self.image_h)
-        self.yarp_image.setExternal(self.np_input.data, self.np_input.shape[1], self.np_input.shape[0])
-
+        #
         # read flags and parameters
         self.dhpcore = experimenting.dataset.DHP19Core('test', data_dir=join(self.datadir,'time_count_dataset/movements_per_frame'),\
                                                        joints_dir=join(self.datadir,"time_count_dataset/labels_full_joints/"), \
                                                        hm_dir="",  labels_dir="", preload_dir="", n_joints=13, n_classes=33,\
                                                        partition='cross-subject', n_channels=1, cams=[1, 3], movements=None, test_subjects=[6, 7])
-
-
 
         # example_flag = rf.check("example_flag") and rf.check("example_flag", yarp.Value(True)).asBool()
         # default_value = 0.1
@@ -105,11 +90,15 @@ class ExampleModule(yarp.RFModule):
         # synchronous update called every get period seconds.
         print("Press space at the image window to end the program.")
 
+        # Preparing input image buffer
+        np_input = np.ones((self.image_h, self.image_w), dtype=np.uint8)
+        self.yarp_image.resize(self.image_w, self.image_h)
+        self.yarp_image.setExternal(np_input.data, np_input.shape[1], np_input.shape[0])
         # Read the image
-        self.read_image = self.input_port.read()
-        self.counter +=1
-        self.yarp_image.copy(self.read_image)
-        input_image = np.copy(self.np_input) / 255.0
+        read_image = self.input_port.read()
+        self.counter +=1 # can be used to interrupt the program
+        self.yarp_image.copy(read_image)
+        input_image = np.copy(np_input[:self.image_h_model, :self.image_w_model]) / 255.0
         if len(input_image.shape) == 2:
             input_image = np.expand_dims(input_image, -1)
             input_image = np.expand_dims(input_image, 0)
@@ -119,8 +108,7 @@ class ExampleModule(yarp.RFModule):
         preds, outs = self.model(torch_image.permute(0, -1, 1, 2))
         pred_sk = Skeleton(preds[0].detach().numpy()).denormalize(260, 346, camera=torch.tensor(self.camera_matrix)).\
             reproject_onto_world(torch.tensor(self.extrinsics_matrix))
-        pred_joints = pred_sk.get_2d_points(260, 346, p_mat=torch.tensor(\
-            self.P_mat_cam))
+        pred_joints = pred_sk.get_2d_points(260, 346, p_mat=torch.tensor(self.P_mat_cam))
 
         # Obtain the 2D prediction as an image
         fig2D = plot_skeleton_2d(input_image[0].squeeze(), pred_joints, return_figure=True)
@@ -129,19 +117,14 @@ class ExampleModule(yarp.RFModule):
         img = img.reshape(fig2D.canvas.get_width_height()[::-1] + (3,))
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
-        cv2.imshow("events", self.np_input)
+        # Visualize the result
         cv2.imshow("output", img)
-        k = cv2.waitKey(0)
-        # if k==32:
+        k = cv2.waitKey(10)
+        if k==32: return False
+        # if self.counter == 20:
         #     return False
-        if self.counter == 20:
-            return False
-        return False
-    # def load_model(self):
-    #     self.model = utilities.load_model(checkpoint_path, "MargiposeEstimator", core=dhpcore).eval().double()
-    #     factory = MinimalConstructor()#Joints3DConstructor()
-    #     factory.set_dataset_core(dhpcore)
-    #     tester= factory.get_dataset()
+        return True
+
 
 
 
