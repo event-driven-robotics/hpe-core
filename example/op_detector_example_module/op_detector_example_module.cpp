@@ -49,22 +49,19 @@ public:
         std::string default_models_path = "/openpose/models";
         models_path = rf.check("models_path", Value(default_models_path)).asString();
 
-        std::string default_pose_model = "BODY_25";  // TODO: get the default string from openpose header files
+        std::string default_pose_model = "BODY_25";
         pose_model = rf.check("pose_model", Value(default_pose_model)).asString();
 
         detector.init(models_path, pose_model);
 
         return true;
-//        if(detector.init(models_path, pose_model))
-//            //start the asynchronous and synchronous threads
-//            return Thread::start();
-//        else
-//            Thread::stop();
     }
 
     virtual double getPeriod()
     {
-        return 1.0; //period of synchronous thread
+        //run the module as fast as possible. Only as fast as new images are
+        //available and then limited by how fast OpenPose takes to run
+        return 0; 
     }
 
     bool interruptModule()
@@ -79,54 +76,45 @@ public:
     {
         //when the asynchronous thread is asked to stop, close ports and do other clean up
         detector.stop();
-        yInfo() << "Closing the module ...";
         input_port.close();
         output_port.close();
-        yInfo() << "Module closed!";
         return true;
     }
 
     //synchronous thread
-    virtual bool updateModule()
-    {
-       ImageOf<PixelMono>* img_yarp = input_port.read();
-       if (img_yarp == nullptr)
-       {
-           return false;
-       }
-//
-        cv::Mat img_cv = yarp::cv::toCvMat(*img_yarp);
+    virtual bool updateModule() {
+        //read greyscale image from yarp
+        ImageOf<PixelMono>* img_yarp = input_port.read();
+        if (img_yarp == nullptr)
+            return false;
 
+        double tic = Time::now();
+        static double t_accum = 0.0;
+        static int t_count = 0;
+
+        //convert image to OpenCV RGB format
+        cv::Mat img_cv = yarp::cv::toCvMat(*img_yarp);
         cv::Mat rgbimage;
         cv::cvtColor(img_cv, rgbimage, cv::COLOR_GRAY2BGR);
-//        yInfo() << "yarp image converted to cv::Mat";
 
-        cv::imshow("input", rgbimage);
-        cv::waitKey(5);
-
-        // read image from directory
-        //cv::Mat img_cv = cv::imread("/workspace/data/dhp19/events_preprocessed/S1_1_1/0/reconstruction/frame_0000003065.png");
+        //call the openpose detector
         hpecore::skeleton pose = detector.detect(rgbimage);
-        hpecore::print_skeleton(pose);
-        yInfo() << "pose detector has finished";
-//        std::cout << "pose detected" << std::endl;
-//        std::cout << pose << std::endl;
 
-        // TODO: plot pose onto image
+        //calculate the running frequency
+        t_accum += Time::now() - tic;
+        t_count++;
+        if(t_accum > 2.0) {
+            yInfo() << "Running happily at an upper bound of" << (int)(t_count / t_accum) << "Hz";
+            t_accum = 0.0;
+            t_count = 0;
+        }
 
-        //output_port.prepare().copy(yarp::cv::fromCvMat<PixelBgr>(img_cv));
-        //output_port.write();
+        //visualisation
+        cv::imshow("OpenPose", rgbimage);
+        cv::waitKey(1);
 
-//        return Thread::isRunning();
         return true;
     }
-
-//    void run()
-//    {
-//
-//        while(true) {
-//        }
-//    }
 };
 
 int main(int argc, char * argv[])

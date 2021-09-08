@@ -97,5 +97,5 @@ install_basic_package_files(${PROJECT_NAME}
                             COMPATIBILITY SameMajorVersion
                             LOWERCASE_FILENAMES
                             NAMESPACE hpe-core::
-                            DEPENDENCIES OpenCV OpenPose)
+                            DEPENDENCIES OpenCV)
 include(AddUninstallTarget)

@@ -28,7 +28,7 @@ bool OpenPoseDetector::init(std::string models_path, std::string pose_model)
         const auto num_gpu_start = 0;
         const auto scale_number = 1;
         const auto scale_gap = 0.25;
-        const auto render_pose = 0;
+        const auto render_pose = -1;
         const auto disable_blending = false;
         const auto alpha_pose = 0.6;
         const auto alpha_heatmap = 0.7;
@@ -76,13 +76,13 @@ void OpenPoseDetector::stop()
     detector.stop();
 }
 
-skeleton OpenPoseDetector::detect(cv::Mat &image)
+skeleton OpenPoseDetector::detect(cv::Mat &input)
 {
     skeleton pose;
 
     try
     {
-        const op::Matrix imageToProcess = OP_CV2OPCONSTMAT(image);
+        const op::Matrix imageToProcess = OP_CV2OPCONSTMAT(input);
         auto datumProcessed = detector.emplaceAndPop(imageToProcess);
         if (datumProcessed == nullptr)
         {
@@ -93,11 +93,17 @@ skeleton OpenPoseDetector::detect(cv::Mat &image)
                 pose.push_back(std::make_tuple(0., 0.));
             return pose;
         }
+        input = OP_OP2CVCONSTMAT(datumProcessed->at(0)->cvOutputData);
+        //cv::imshow("inlib", temp);
+        //cv::waitKey(1);
+
 
         // parse and return keypoints
         const auto& poseKeypoints = datumProcessed->at(0)->poseKeypoints;
         // for (auto person = 0; person < poseKeypoints.getSize(0); person++)
         // {
+
+
 
         // TODO: code assumes openpose returns only one pose, make it compatible with multiple poses
         for (auto bodyPart = 0; bodyPart < poseKeypoints.getSize(1); bodyPart++)
