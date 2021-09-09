@@ -1,0 +1,37 @@
+<application>
+<name> yarp-glhpe </name>
+
+<dependencies>
+</dependencies>
+
+<module>
+   <name> yarpview </name>
+   <parameters>--name /view_out --synch </parameters>
+   <node> localhost </node>
+</module>
+
+<module>
+   <name> /home/ggoyal/code/hpe-core/example/yarp-glhpe/build/./glhpe-framer </name>
+   <parameters>--name /glhpe-framer --synch </parameters>
+   <node> localhost </node>
+</module>
+
+<connection>
+  <from>/file/ch2dvs:o</from>
+  <to>/glhpe-framer/AE:i</to>
+  <protocol> fast_tcp </protocol>
+</connection>  
+
+<connection>
+  <from>/glhpe-framer/img:o</from>
+  <to>/glHpeModule/img:i</to>
+  <protocol> fast_tcp </protocol>
+</connection>
+
+<connection>
+  <from>/glhpe-framer/img:o</from>
+  <to>/view_out</to>
+  <protocol>fast_tcp</protocol>
+</connection>
+
+</application>

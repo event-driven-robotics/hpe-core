@@ -5,18 +5,14 @@ import cv2
 
 sys.path.append('/home/ggoyal/code/gl_hpe/')
 import experimenting
-import event_library as el
 import torch
 from os.path import join
-from experimenting.utils.visualization import plot_skeleton_2d, plot_skeleton_3d
+from experimenting.utils.visualization import plot_skeleton_2d, plot_skeleton_3d, plot_skeleton_2d_lined
 from experimenting.utils.skeleton_helpers import Skeleton
-from experimenting.dataset.factory import Joints3DConstructor, BaseDataFactory, SimpleReadConstructor, \
-    MinimalConstructor
 from experimenting.utils import utilities
 from experimenting import utils
-import matplotlib.pyplot as plt
 
-class ExampleModule(yarp.RFModule):
+class GlHpeModule(yarp.RFModule):
 
     def __init__(self):
         yarp.RFModule.__init__(self)
@@ -45,7 +41,7 @@ class ExampleModule(yarp.RFModule):
             exit(-1)
 
         # set the module name used to name ports
-        self.setName((rf.check("name", yarp.Value("/exampleModule")).asString()))
+        self.setName((rf.check("name", yarp.Value("/glHpeModule")).asString()))
 
         # open io ports
         if not self.input_port.open(self.getName() + "/img:i"):
@@ -111,7 +107,7 @@ class ExampleModule(yarp.RFModule):
         pred_joints = pred_sk.get_2d_points(260, 346, p_mat=torch.tensor(self.P_mat_cam))
 
         # Obtain the 2D prediction as an image
-        fig2D = plot_skeleton_2d(input_image[0].squeeze(), pred_joints, return_figure=True)
+        fig2D = plot_skeleton_2d_lined(input_image[0].squeeze(), pred_joints, return_figure=True)
         fig2D.canvas.draw()
         img = np.fromstring(fig2D.canvas.tostring_rgb(), dtype=np.uint8, sep='')
         img = img.reshape(fig2D.canvas.get_width_height()[::-1] + (3,))
@@ -138,5 +134,5 @@ if __name__ == '__main__':
     rf.configure(sys.argv)
 
     # create the module
-    module = ExampleModule()
+    module = GlHpeModule()
     module.runModule(rf)
