@@ -13,7 +13,7 @@ The software was tested on Ubuntu 20.04.2 LTS with an Nvidia GPU.
     ```shell
     $ cd <workspace>
     $ git clone git@github.com:event-driven-robotics/hpe-core.git
-    $ cd <hpe-core/example/op_detector_example_module>
+    $ cd hpe-core/example/op_detector_example_module
     $ docker build -t op-yarp --ssh default --build-arg ssh_pub_key="$(cat ~/.ssh/<publicKeyFile>)" --build-arg ssh_prv_key="$(cat ~/.ssh/<privateKeyFile>)" - < Dockerfile
     ```
 :bulb: `<workspace>` is the parent directory in which the repository is cloned
@@ -26,7 +26,7 @@ The software was tested on Ubuntu 20.04.2 LTS with an Nvidia GPU.
 - Run the Docker container and, inside it, run the pose detector
     ```shell
     $ xhost +
-    $ docker run -it -v /tmp/.X11-unix/:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY --runtime=nvidia -v <workspace/hpe-core/example/test_dataset:/usr/data op-yarp
+    $ docker run -it -v /tmp/.X11-unix/:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY --runtime=nvidia op-yarp
     ```
   
 - At the terminal inside the container run the following commands
@@ -37,7 +37,7 @@ The software was tested on Ubuntu 20.04.2 LTS with an Nvidia GPU.
   ```
   :warning: the `&` runs the process in the background enabling a single terminal to run all three processes.
 
-- In the `yarpdataplayer` GUI use the drop-down menus to load the test dataset at `/usr/data`
+- In the `yarpdataplayer` GUI use the drop-down menus to load the test dataset at `<workspace>/hpe-core/example/test_dataset`
 
 - Connect the output port of the `yarpdatplayer` to the input port of the `op_detector_example_module`
   ```shell 
