@@ -30,7 +30,7 @@
 
 <connection>
   <from>/file/ch3dvs:o</from>
-  <to></to>
+  <to>/glhpe-framer/AE:i</to>
   <protocol> fast_tcp </protocol>
 </connection>  
 
