@@ -86,8 +86,8 @@ RUN echo "$ssh_prv_key" > /root/.ssh/id_ed25519 && \
 ############
 #   YARP   #
 ############
-#
-# RUN echo "*************** building yarp ****************"
+
+RUN echo "*************** building yarp ****************"
 
 ARG EVENT_DRIVEN_VERSION=1.5
 ARG YARP_VERSION=3.4.4
@@ -131,6 +131,7 @@ RUN apt install -y \
         qml-module-qtquick-dialogs \
         qml-module-qtquick-controls
 
+
 RUN cd $SOURCE_FOLDER && \
     git clone https://github.com/robotology/ycm.git && \
     cd ycm && \
@@ -170,8 +171,8 @@ RUN cd $SOURCE_FOLDER && \
           .. && \
     make install -j$(nproc)
 
+RUN echo "*************** building hpe-core ****************"
 
-#
 # Install hpe-core
 RUN cd $SOURCE_FOLDER && \
     git clone git@github.com:event-driven-robotics/hpe-core.git && \
@@ -193,9 +194,9 @@ RUN cd $SOURCE_FOLDER && \
 ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
 
 
-############
-# OPENPOSE #
-############
+#####################
+# OPENPOSE DOWNLOADS#
+#####################
 
 # download models from google drive (https://drive.google.com/file/d/1QCSxJZpnWvM00hx49CJ2zky7PWGzpcEh/view)
 # see https://github.com/CMU-Perceptual-Computing-Lab/openpose/issues/1602#issuecomment-641653411
@@ -211,21 +212,5 @@ RUN unzip models.zip && \
     rm models.zip
 
 
+WORKDIR $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/build
 
-
-#################
-# POSE DETECTOR #
-#################
-
-#ARG APP_FOLDER=EDPR-APRIL
-
-# download repository and compile the pose detector
-#ARG CODE_FILE_NAME=APRIL_WP61a_demo
-#WORKDIR /
-#RUN git clone git@github.com:event-driven-robotics/EDPR-APRIL.git && \
-#    cd EDPR-APRIL && \
-#    git checkout openpose-yarp-docker && \
-#    cd code && mkdir build && \
-#    cmake .. && make
-
-#WORKDIR /EDPR-APRIL/code/build
