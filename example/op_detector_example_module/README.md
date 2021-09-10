@@ -12,7 +12,7 @@ The software was tested on Ubuntu 20.04.2 LTS with an Nvidia GPU.
 - Download the repository and build the Docker image
     ```shell
     $ cd /path/to/repository/folder
-    $ docker build -t op-yarp --ssh default --build-arg ssh_pub_key="$(cat ~/.ssh/<<publicKeyFile>>)" --build-arg ssh_prv_key="$(cat ~/.ssh/<<privateKeyFile>>)" - < Dockerfile
+    $ docker build -t op-yarp --ssh default --build-arg ssh_pub_key="$(cat ~/.ssh/<publicKeyFile>)" --build-arg ssh_prv_key="$(cat ~/.ssh/<privateKeyFile>)" - < Dockerfile
     ```
 Note: Ensure your ssh key is built without a passphrase.
 
@@ -20,7 +20,7 @@ Note: Ensure your ssh key is built without a passphrase.
 - Run the Docker container and, inside it, run the pose detector
     ```shell
     $ xhost +
-    $ docker run -it -v /tmp/.X11-unix/:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY --runtime=nvidia -v PATH/TO/DATASET/:/usr/data op-yarp
+    $ docker run -it -v /tmp/.X11-unix/:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY --runtime=nvidia -v </path_to_dataset>:/usr/data op-yarp
     ```
   
 - At the terminal inside the container run the following commands
