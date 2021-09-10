@@ -14,7 +14,7 @@ The software was tested on Ubuntu 20.04.2 LTS with an Nvidia GPU.
     $ cd <workspace>
     $ git clone git@github.com:event-driven-robotics/hpe-core.git
     $ cd hpe-core/example/op_detector_example_module
-    $ docker build -t op-yarp --ssh default --build-arg ssh_pub_key="$(cat ~/.ssh/<publicKeyFile>)" --build-arg ssh_prv_key="$(cat ~/.ssh/<privateKeyFile>)" - < Dockerfile
+    $ docker build -t op-yarp --ssh default --build-arg ssh_pub_key="$(cat ~/.ssh/<publicKeyFile>)" --build-arg ssh_prv_key="$(cat ~/.ssh/<privateKeyFile>.pub)" - < Dockerfile
     ```
 :bulb: `<workspace>` is the parent directory in which the repository is cloned
 
