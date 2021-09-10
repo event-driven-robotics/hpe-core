@@ -11,13 +11,25 @@
 </module>
 
 <module>
-   <name> /home/ggoyal/code/hpe-core/example/yarp-glhpe/build/./glhpe-framer </name>
-   <parameters>--name /glhpe-framer --synch </parameters>
+   <name> /usr/local/hpe-core/example/yarp-glhpe/build/./glhpe-framer </name>
+   <parameters>--name /glhpe-framer </parameters>
+   <node> localhost </node>
+</module>
+
+<module>
+   <name> /usr/local/hpe-core/example/yarp-glhpe/python3 run-model.py </name>
+   <parameters>--name /run-model </parameters>
+   <node> localhost </node>
+</module>
+
+<module>
+   <name> yarpdataplayer </name>
+   <parameters>--name /yarpdataplayer </parameters>
    <node> localhost </node>
 </module>
 
 <connection>
-  <from>/file/ch2dvs:o</from>
+  <from>/file/ch3dvs:o</from>
   <to>/glhpe-framer/AE:i</to>
   <protocol> fast_tcp </protocol>
 </connection>  
