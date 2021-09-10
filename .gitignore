@@ -33,3 +33,5 @@
 
 core/build/
 core/.vscode/
+evaluation/dhp19/utils/__pycache__/
+evaluation/utils/__pycache__/
