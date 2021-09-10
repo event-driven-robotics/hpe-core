@@ -2,6 +2,7 @@ import sys
 import yarp
 import numpy as np
 import cv2
+import os
 
 sys.path.append('/home/ggoyal/code/gl_hpe/')
 import experimenting
@@ -18,17 +19,19 @@ class GlHpeModule(yarp.RFModule):
         yarp.RFModule.__init__(self)
         self.input_port = yarp.BufferedPortImageMono()
         self.counter = 0
-        self.image_w = 400
-        self.image_h = 300
+        self.image_w = 400 # Size of image expected from the framer.
+        self.image_h = 300 #
         # self.np_input = None
         self.yarp_image = yarp.ImageMono()
-        self.datadir = "/media/ggoyal/Shared/data/dhp19_sample/"
+        self.datadir = "/usr/local/data/dhp19_sample/"
+        # self.datadir = "/media/ggoyal/Shared/data/dhp19_sample/"
         self.ch_idx = 3
         self.P_mat_dir = join(self.datadir, 'P_matrices/')
-        self.checkpoint_path = "/media/ggoyal/Shared/data/checkpoint_dhp19"
+        self.checkpoint_path = "/usr/local/code/gl_hpe/checkpoint"
+        # self.checkpoint_path = "/media/ggoyal/Shared/data/checkpoint_dhp19"
         self.resultsPath = join(self.datadir, 'outputs/')
-        self.image_w_model = 346
-        self.image_h_model = 260
+        self.image_w_model = 346 # Size of the image expected by the model
+        self.image_h_model = 260 #
         # self.model = None
         # self.read_image = None
 
@@ -116,12 +119,12 @@ class GlHpeModule(yarp.RFModule):
         # Visualize the result
         cv2.imshow("output", img)
         k = cv2.waitKey(10)
+        cv2.imwrite(os.path.join(self.resultsPath,'input_'+str(self.counter),'.png'), input_image)
+        cv2.imwrite(os.path.join(self.resultsPath,'output_2D_'+str(self.counter),'.png'), img)
         if k==32: return False
         # if self.counter == 20:
         #     return False
         return True
-
-
 
 
 if __name__ == '__main__':
