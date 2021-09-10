@@ -1,7 +1,8 @@
 # Copyright: (C) 2021 EDPR - Istituto Italiano di Tecnologia
 # Authors: Arren Glover
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16.0)
+
 project(hpe-core
         LANGUAGES CXX
         VERSION 0.1)
@@ -23,12 +24,20 @@ endif()
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(BUILD_SHARED_LIBS "Build libraries as shared as opposed to static" ON)
+
 find_package(YCM)
 #set_package_properties(YCM PROPERTIES TYPE RECOMMENDED)
 
 #if(NOT YCM_FOUND)
 #  list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 #endif()
+
+include(AddInstallRPATHSupport)
+add_install_rpath_support(BIN_DIRS "${CMAKE_INSTALL_FULL_BINDIR}"
+                          LIB_DIRS "${CMAKE_INSTALL_FULL_LIBDIR}"
+                          INSTALL_NAME_DIR "${CMAKE_INSTALL_FULL_LIBDIR}"
+                          USE_LINK_PATH)
 
 if(NOT CMAKE_CONFIGURATION_TYPES)
     if(NOT CMAKE_BUILD_TYPE)
@@ -38,42 +47,41 @@ if(NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 find_package(OpenCV)
-#set_package_properties(OpenCV PROPERTIES TYPE OPTIONAL)
-
-#if(OpenCV_FOUND)
-#    set(OpenCV_dep OpenCV)
-#    find_package(YARP COMPONENTS os sig math dev cv REQUIRED)
-#else()
-#    set(OpenCV_dep "")
-#    find_package(YARP COMPONENTS os sig math dev REQUIRED)
-#endif()
-#yarp_configure_external_installation(event-driven)
-
-
-#if(OpenCV_FOUND)
-#    message(STATUS "Found OpenCV: (found version ${OpenCV_VERSION})")
-#endif()
+if(OpenCV_FOUND)
+    message(STATUS "Found OpenCV: (found version ${OpenCV_VERSION})")
+endif()
 
 set( folder_source
   detection_wrappers/detection.cpp
 )
 
 set( folder_header
+  utility/utility.h
   detection_wrappers/detection.h
 )
+
+find_package(OpenPose)
+if( OpenPose_FOUND )
+  message(STATUS "Found Openpose: (found version ${OpenPose_VERSION})")
+  list(APPEND folder_source detection_wrappers/openpose_detector.cpp)
+  list(APPEND folder_header detection_wrappers/openpose_detector.h)
+endif()
+
+
 
 add_library(${PROJECT_NAME} ${folder_source} ${folder_header})
 
 set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "${folder_header}"
                                                           VERSION ${hpe-core_VERSION}
-                                                          SOVERSION 2)
+                                                          SOVERSION 2)                                               
 
-target_include_directories(${PROJECT_NAME} PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+target_include_directories(${PROJECT_NAME} PRIVATE utility
+                                           PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
                                                   "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>") # FIXME INSTALL PATH
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC ${OpenCV_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PUBLIC ${OpenPose_LIBS} ${OpenCV_LIBRARIES})
 
 install(TARGETS ${PROJECT_NAME}
         EXPORT hpecore
@@ -88,5 +96,6 @@ install_basic_package_files(${PROJECT_NAME}
                             VERSION ${${PROJECT_NAME}_VERSION}
                             COMPATIBILITY SameMajorVersion
                             LOWERCASE_FILENAMES
-                            NAMESPACE hpecore::)
+                            NAMESPACE hpe-core::
+                            DEPENDENCIES OpenCV)
 include(AddUninstallTarget)

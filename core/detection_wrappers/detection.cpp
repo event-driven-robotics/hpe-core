@@ -8,5 +8,6 @@ using std::tuple;
 
 skeleton detect(Mat image)
 {
-    return {0.0, 0.0};
+    skeleton pose(1, {0.0, 0.0});
+    return pose;
 }
