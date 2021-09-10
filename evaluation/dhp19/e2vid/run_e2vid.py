@@ -4,7 +4,8 @@ import os
 import torch
 
 from image_reconstructor import ImageReconstructor
-from mat_files import Dhp19EventsIterator, loadmat
+from mat_files import loadmat
+from parsing import Dhp19EventsIterator
 from options.inference_options import set_inference_options
 from utils.inference_utils import events_to_voxel_grid, events_to_voxel_grid_pytorch
 from utils.loading_utils import load_model, get_device

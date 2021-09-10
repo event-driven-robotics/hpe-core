@@ -64,8 +64,7 @@ RUN echo "conda activate hpe-core" >> ~/.bashrc
 
 # download hpe-core repository
 RUN git clone git@github.com:event-driven-robotics/hpe-core.git && \
-    cd hpe-core && \
-    git checkout docker_e2vid
+    cd hpe-core
 
 # download e2vid repository
 RUN cd hpe-core/evaluation/dhp19/e2vid && \
@@ -85,5 +84,6 @@ WORKDIR hpe-core/evaluation/dhp19/e2vid/rpg_e2vid
 # setup scripts for creating grayscale frames
 RUN cp ../run_e2vid.py . && \
     cp ../../utils/mat_files.py . && \
+    cp ../../utils/parsing.py . && \
     cp ../create_grayscale_frames.sh . && \
     chmod +x create_grayscale_frames.sh
