@@ -37,11 +37,11 @@ The software was tested on Ubuntu 20.04.2 LTS with an Nvidia GPU.
   ```
   :warning: the `&` runs the process in the background enabling a single terminal to run all three processes.
 
-- In the `yarpdataplayer` GUI use the drop-down menus to load the test dataset at `<workspace>/hpe-core/example/test_dataset`
+- In the `yarpdataplayer` GUI use the drop-down menus to load the test dataset at `/usr/local/hpe-core/example/test_dataset`
 
 - Connect the output port of the `yarpdatplayer` to the input port of the `op_detector_example_module`
   ```shell 
-  $ yarp connect /ATIS/img:o /op_detector_example_module/img:i fast_tcp
+  $ yarp connect /file/ch3frames:o /op_detector_example_module/img:i fast_tcp
   ```
 
 - Press play on the `yarpdataplayer` and the `op_detector_example_module` should display the detected skeleton overlaid on the images
