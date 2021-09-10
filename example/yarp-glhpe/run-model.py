@@ -18,6 +18,7 @@ class GlHpeModule(yarp.RFModule):
     def __init__(self):
         yarp.RFModule.__init__(self)
         self.input_port = yarp.BufferedPortImageMono()
+        self.output_port = yarp.BufferedPortImageMono()
         self.counter = 0
         self.image_w = 400 # Size of image expected from the framer.
         self.image_h = 300 #
