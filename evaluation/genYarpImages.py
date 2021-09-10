@@ -62,7 +62,7 @@ for ch in range(4):
     # datafile.log
     lines = [None] * len(t_op)
     for i in range(len(t_op)):
-         lines[i] = str(i+1) + ' ' + str(t_op[i]) + ' ' + str(filenames[i]) + '  [rgb]'
+         lines[i] = str(i+1) + ' ' + str(t_op[i]) + ' ' + str(filenames[i]) + '  [mono]'
     
     dataFile = directory + '/data.log'
     with open(dataFile, 'w') as f:

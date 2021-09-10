@@ -23,14 +23,14 @@ def extract_2d_poses(data_events, data_vicon, projection_mat, window_size):
         a numpy array with shape (num_of_windows, num_of_dhp19_joints, 2) containing the 2d poses
     """
 
-    avg_poses_3d = extract_3d_poses(data_events, data_vicon, window_size)
+    avg_poses_3d, ts = extract_3d_poses(data_events, data_vicon, window_size)
 
     avg_poses_2d = project_poses_to_2d(avg_poses_3d, np.transpose(projection_mat))
 
     # is this needed?
     # avg_poses_2d = avg_poses_2d.astype(np.uint16)
 
-    return avg_poses_2d
+    return avg_poses_2d, ts
 
 
 def extract_3d_poses(data_events, data_vicon, window_size):
@@ -62,6 +62,7 @@ def extract_3d_poses(data_events, data_vicon, window_size):
     # compute average 3d poses
     windows_num = int(np.ceil(len(timestamps) / window_size))
     avg_poses_3d = np.zeros(shape=(windows_num, len(dhp19_utils.DHP19_BODY_PARTS), 3))
+    ts = np.zeros(shape=(windows_num))
     start_ts_ind = 0
     curr_window_ind = 0
     while True:
@@ -80,7 +81,7 @@ def extract_3d_poses(data_events, data_vicon, window_size):
         for body_part in dhp19_utils.DHP19_BODY_PARTS:
             coords = data_vicon['XYZPOS'][body_part][poses_start_ind:poses_end_ind, :]
             avg_poses_3d[curr_window_ind, dhp19_utils.DHP19_BODY_PARTS[body_part], :] = np.nanmean(coords, axis=0)
-
+        ts[curr_window_ind] = (window_timestamps[-1] - start_time) * 1e-6
         curr_window_ind += 1
 
         if end_ts_ind >= timestamps.shape[0]:
@@ -88,7 +89,7 @@ def extract_3d_poses(data_events, data_vicon, window_size):
         else:
             start_ts_ind = end_ts_ind
 
-    return avg_poses_3d
+    return avg_poses_3d, ts
 
 
 def project_poses_to_2d(poses_3d, projection_mat):
@@ -147,12 +148,15 @@ if __name__ == '__main__':
 
     if args.two_dimensional:
         proj_mat = np.load(args.projection_matrix_file_path)
-        poses = extract_2d_poses(data_events, data_vicon, proj_mat, args.window_size)
+        poses, ts = extract_2d_poses(data_events, data_vicon, proj_mat, args.window_size)
         file_name = f'2d_poses_cam_{args.camera_id}_{args.window_size}_events.npy'
+        ts_file_name = f'2d_poses_cam_{args.camera_id}_{args.window_size}_ts.npy'
     else:
-        poses = extract_3d_poses(data_events, data_vicon, args.window_size)
+        poses, ts = extract_3d_poses(data_events, data_vicon, args.window_size)
         file_name = f'3d_poses_cam_{args.camera_id}_{args.window_size}_events.npy'
+        ts_file_name = f'3d_poses_cam_{args.camera_id}_{args.window_size}_ts.npy'
 
     os.makedirs(args.output_folder, exist_ok=True)
 
     np.save(os.path.join(args.output_folder, file_name), poses, allow_pickle=False)
+    np.save(os.path.join(args.output_folder, ts_file_name), ts, allow_pickle=False)

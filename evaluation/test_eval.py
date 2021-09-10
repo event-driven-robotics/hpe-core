@@ -5,9 +5,8 @@ from pathlib import Path
 from utils import metrics
 from utils import parse_openpose_keypoints_json
 from dhp19.utils import DHP19_BODY_PARTS, openpose_to_dhp19
-from dhp19.utils import mat_files
 
-# Selected recording
+# selected recording
 subj, sess, mov = 1, 1, 1
 recording = 'S{}_{}_{}'.format(subj, sess, mov)
 cam = str(3)
@@ -16,24 +15,12 @@ cam = str(3)
 poses_gt = np.load('/home/fdipietro/hpe-data/2d_Nicolo/' + recording +'/2d_poses_cam_3_7500_events.npy')
 poses_pred_files = sorted(Path('/home/fdipietro/hpe-data/open-pose/' + recording).glob('*.json'))
 image_files = sorted(Path('/home/fdipietro/hpe-data/grayscale/' + recording +'/' + cam +'/reconstruction').glob('*.png'))
-
-data_events = mat_files.loadmat('/home/fdipietro/hpe-data/DVS/' + recording +'.mat')
-startTime = data_events['out']['extra']['startTime']
-t_op = np.loadtxt('/home/fdipietro/hpe-data/grayscale/' + recording +'/' + cam +'/reconstruction/timestamps.txt', dtype = np.float64)
-t_op = (t_op-startTime)*1e-6
-
-# Frame rate
-diff = np.ediff1d(t_op)
-print('Mean freq = ', 1/np.mean(diff))
-print('Min freq = ', 1/np.max(diff))
-print('Max freq = ', 1/np.min(diff))
-print('\n')
-
+t_op = np.load('/home/fdipietro/hpe-data/2d_Nicolo/' + recording +'/2d_poses_cam_3_7500_ts.npy')
 gt2Dfile = '/home/fdipietro/hpe-data/gt2D/' + recording +'.pkl'
 with open(gt2Dfile, 'rb') as f:
     data = pickle.load(f)
     
-# build GT
+# build full GT (for plots)
 L = len(data['ch3']['ts'])
 gt = np.empty([L,13,2])
 for j in range(L):
@@ -43,6 +30,13 @@ for j in range(L):
             gt[j,i,:] = value[j]
             i=i+1
 t_gt = np.array(data['ch3']['ts'])
+
+# Frame rate information
+diff = np.ediff1d(t_op)
+print('Mean freq = ', 1/np.mean(diff))
+print('Min freq = ', 1/np.max(diff))
+print('Max freq = ', 1/np.min(diff))
+print('\n')
 
 # check if the number of images, gt and predicted poses is the same
 assert len(poses_gt) == len(poses_pred_files)
@@ -54,25 +48,18 @@ for pi, path in enumerate(poses_pred_files):
     op_pose = parse_openpose_keypoints_json(path)
     poses_pred[pi, :] = openpose_to_dhp19(op_pose)
 
-# os.makedirs('/home/fdipietro/hpe-data/op-eval_Franco/' + recording, exist_ok=True)
 
 # compute metrics
-poses_gt_flip = np.array(poses_gt)
+poses_gt_flip = np.array(poses_gt) # bug: x and y are fliped for some reason -> should be fixed
 for i in range(len(poses_gt)):
     poses_gt_flip[i,:,:] = np.fliplr(poses_gt[i,:,:])
 
 mpjpe = metrics.compute_mpjpe(poses_pred, poses_gt_flip)
 metrics.print_mpjpe(mpjpe, list(DHP19_BODY_PARTS.keys()))
 
+# save metric for bar graph plots
 np.save('/home/fdipietro/hpe-data/op-eval_Franco/m_' +  recording + '.npy', mpjpe, allow_pickle=False)
 
-# TODO: plot some examples (good and bad based on metrics?)
-
-# # plot predictions and gt
-# for i, path in enumerate(image_files):
-#     img = cv2.imread(str(path))
-#     plots.plot_poses(img, poses_gt[i], poses_pred[i])
-#     cv2.imwrite(os.path.join('/home/fdipietro/hpe-data/op-eval/S1_1_1_TEST', path.name), img)
 
 # %% Plot joint vs t (one joint per figure)
 import matplotlib.pyplot as plt
@@ -111,13 +98,10 @@ for i in range(len(J)):
     coord=1
     ax.plot(t_op, poses_pred[:,J[i],coord], marker = ".", markersize=12, linestyle = 'None', label ='OP [y]')    
     ax.plot(t_op, poses_gt[:,J[i],coord], marker = ".", markersize=12, linestyle = 'None', label ='OP [y]')    
-
     plt.xlabel('time [sec]', fontsize=14, labelpad=5)
     plt.ylabel('x/y coordinate [px]', fontsize=14, labelpad=5)
     ax.legend(fontsize=12, loc = 'lower right')
     fig.suptitle('Recording: ' + recording + ' - Joint: ' + list(DHP19_BODY_PARTS.keys())[list(DHP19_BODY_PARTS.values()).index(J[i])], fontsize=18, y=0.92)
-    
-    # fig.tight_layout()
     plt.show()
     # plt.savefig('/home/fdipietro/hpe-data/op-eval_Franco/' + recording + '_' + list(DHP19_BODY_PARTS.keys())[list(DHP19_BODY_PARTS.values()).index(J[i])] + '.png', bbox_inches='tight')
 
