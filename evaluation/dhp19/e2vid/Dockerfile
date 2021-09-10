@@ -64,8 +64,7 @@ RUN echo "conda activate hpe-core" >> ~/.bashrc
 
 # download hpe-core repository
 RUN git clone git@github.com:event-driven-robotics/hpe-core.git && \
-    cd hpe-core && \
-    git checkout hpe_metrics
+    cd hpe-core
 
 # download e2vid repository
 RUN cd hpe-core/evaluation/dhp19/e2vid && \
