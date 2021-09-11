@@ -24,10 +24,10 @@ class GlHpeModule(yarp.RFModule):
         self.image_h = 300 #
         # self.np_input = None
         self.yarp_image = yarp.ImageMono()
-        self.datadir = "/usr/local/data/dhp19_sample/"
+        self.datadir = "/usr/local/code/"
         # self.datadir = "/media/ggoyal/Shared/data/dhp19_sample/"
         self.ch_idx = 3
-        self.P_mat_dir = join(self.datadir, 'P_matrices/')
+        self.P_mat_dir = join(self.datadir, 'gl_hpe/P_matrices/')
         self.checkpoint_path = "/usr/local/code/gl_hpe/checkpoint"
         # self.checkpoint_path = "/media/ggoyal/Shared/data/checkpoint_dhp19"
         self.resultsPath = join(self.datadir, 'outputs/')
