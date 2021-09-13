@@ -18,7 +18,7 @@
 
 <module>
    <name> python3 /usr/local/code/hpe-core/example/yarp-glhpe/run-model.py </name>
-   <parameters>--name /run-model </parameters>
+   <parameters>--name /glhpe-module </parameters>
    <node> localhost </node>
 </module>
 
@@ -36,7 +36,7 @@
 
 <connection>
   <from>/glhpe-framer/img:o</from>
-  <to>/glHpeModule/img:i</to>
+  <to>/glhpe-module/img:i</to>
   <protocol> fast_tcp </protocol>
 </connection>
 
