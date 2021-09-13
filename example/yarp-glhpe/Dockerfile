@@ -208,6 +208,6 @@ RUN git clone git@github.com:event-driven-robotics/hpe-core.git && \
 ENV PYTHONPATH $PYTHONPATH:/usr/local/code/yarp/build/lib/python3
 
 
-
+RUN rm -r /root/.ssh
 
 
