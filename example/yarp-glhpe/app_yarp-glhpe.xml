@@ -18,14 +18,8 @@
 
 <module>
    <name> python3 /usr/local/code/hpe-core/example/yarp-glhpe/run-model.py </name>
-   <parameters>--name /run-model </parameters>
+   <parameters>--name /glhpeModule </parameters>
    <node> localhost </node>
-</module>
-
-<module>
-    <name> vFramerLite </name>
-    <parameters> --displays "(/vis (F AE ISO))" --height 480 --width 640  </parameters>
-    <node> localhost </node>
 </module>
 
 <module>
@@ -36,30 +30,18 @@
 
 <connection>
   <from>/file/ch3dvs:o</from>
-  <to>/glhpe-framer/img:i</to>
+  <to>/glhpe-framer/AE:i</to>
   <protocol> fast_tcp </protocol>
 </connection>  
 
 <connection>
   <from>/glhpe-framer/img:o</from>
-  <to>/glHpeModule/img:i</to>
+  <to>/glhpeModule/img:i</to>
   <protocol> fast_tcp </protocol>
 </connection>
 
 <connection>
-  <from>/glHpeModule/img:o</from>
-  <to>/vFramer/vis/frame:i</to>
-  <protocol> fast_tcp </protocol>
-</connection>
-
-<connection>
-  <from>/file/ch3dvs:o</from>
-  <to>/vFramer/vis/AE:i</to>
-  <protocol> fast_tcp </protocol>
-</connection>
-
-<connection>
-  <from>/vFramer/vis/image:o</from>
+  <from>/glhpe-framer/img:o</from>
   <to>/view_out</to>
   <protocol>fast_tcp</protocol>
 </connection>
