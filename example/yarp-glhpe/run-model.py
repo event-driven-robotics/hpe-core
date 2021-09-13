@@ -143,7 +143,7 @@ class GlHpeModule(yarp.RFModule):
         # cv2.imwrite(os.path.join(self.resultsPath,'input_'+str(self.counter),'.png'), input_image)
         # cv2.imwrite(os.path.join(self.resultsPath,'output_2D_'+str(self.counter),'.png'), img)
 
-        np_output[:, :] = img
+#        np_output[:, :] = img
         # self.output_port.write(self.yarp_image_out)
 
         if k == 32:
