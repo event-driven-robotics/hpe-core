@@ -23,6 +23,12 @@
 </module>
 
 <module>
+    <name> vFramerLite </name>
+    <parameters> --displays "(/vis (F AE ISO))" --height 480 --width 640  </parameters>
+    <node> localhost </node>
+</module>
+
+<module>
    <name> yarpdataplayer </name>
    <parameters>--name /yarpdataplayer </parameters>
    <node> localhost </node>
@@ -30,7 +36,7 @@
 
 <connection>
   <from>/file/ch3dvs:o</from>
-  <to>/glhpe-framer/AE:i</to>
+  <to>/glhpe-framer/img:i</to>
   <protocol> fast_tcp </protocol>
 </connection>  
 
@@ -41,7 +47,19 @@
 </connection>
 
 <connection>
-  <from>/glhpe-framer/img:o</from>
+  <from>/glHpeModule/img:o</from>
+  <to>/vFramer/vis/frame:i</to>
+  <protocol> fast_tcp </protocol>
+</connection>
+
+<connection>
+  <from>/file/ch3dvs:o</from>
+  <to>/vFramer/vis/AE:i</to>
+  <protocol> fast_tcp </protocol>
+</connection>
+
+<connection>
+  <from>/vFramer/vis/image:o</from>
   <to>/view_out</to>
   <protocol>fast_tcp</protocol>
 </connection>
