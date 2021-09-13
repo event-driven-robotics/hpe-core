@@ -11,13 +11,13 @@
 </module>
 
 <module>
-   <name> /usr/local/hpe-core/example/yarp-glhpe/build/./glhpe-framer </name>
+   <name> /usr/local/code/hpe-core/example/yarp-glhpe/build/./glhpe-framer </name>
    <parameters>--name /glhpe-framer </parameters>
    <node> localhost </node>
 </module>
 
 <module>
-   <name> python3 /usr/local/hpe-core/example/yarp-glhpe/run-model.py </name>
+   <name> python3 /usr/local/code/hpe-core/example/yarp-glhpe/run-model.py </name>
    <parameters>--name /run-model </parameters>
    <node> localhost </node>
 </module>

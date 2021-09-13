@@ -41,29 +41,21 @@ RUN echo "$ssh_prv_key" > /root/.ssh/id_ed25519 && \
 RUN echo "*************** building dependencies for gl-hpe ****************"
 
 
-ARG SOURCE_FOLDER=/usr/local
+ARG SOURCE_FOLDER=/usr/local/code
 ARG GLHPE_BRANCH=load_new_object
 ARG HPE_VERSION=cpp-tests
 # GL-HPE requirements 
 
 # # Directories
 
-RUN mkdir $SOURCE_FOLDER/code
+RUN mkdir $SOURCE_FOLDER
 
-RUN mkdir $SOURCE_FOLDER/data
-
-RUN mkdir $SOURCE_FOLDER/data/DHP19
-
-RUN mkdir $SOURCE_FOLDER/data/checkpoint
-
-WORKDIR $SOURCE_FOLDER/code/
+WORKDIR $SOURCE_FOLDER
 
 # # Packages
 
-RUN apt-get install -y --no-install-recommends python3.8 python3-pip git python3-dev
-RUN apt-get install -y swig
-
-RUN apt-get install -y python3-opencv
+RUN apt-get install -y --no-install-recommends python3.8 python3-pip \
+    git python3-dev swig python3-opencv
 
 RUN pip install albumentations==1.0.3 \
 h5py==3.1.0 \
@@ -92,30 +84,21 @@ comet_ml
 
 # RUN sudo apt-get install nvidia-cuda-toolkit
 
-WORKDIR $SOURCE_FOLDER/code/
-
-
-
-
 # Install GL-HPE program
 RUN git clone git@github.com:gaurvigoyal/gl_hpe.git
 RUN cd gl_hpe && pwd && \
 git status && git checkout load_new_object
-ENV PYTHONPATH $PYTHONPATH:$SOURCE_FOLDER/code/gl_hpe
-
-
+ENV PYTHONPATH $PYTHONPATH:$SOURCE_FOLDER/gl_hpe
 
 # download models from google drive (https://drive.google.com/file/d/1z1XLPWMVsTpSZnXP8ERXHcR0dss_dhwy/view?usp=sharing)
 
-RUN cd $SOURCE_FOLDER/code/gl_hpe && \
-    mkdir checkpoint && \
-    cd checkpoint && \
+RUN mkdir gl_hpe/checkpoint && \
+    cd gl_hpe/checkpoint && \
     git clone git@github.com:chentinghao/download_google_drive.git && \
     pip install requests && \
     cd download_google_drive && \
     python3 download_gdrive.py 1z1XLPWMVsTpSZnXP8ERXHcR0dss_dhwy ../epoch=19-val_loss=0.09.ckpt && \
     cd .. && rm -r download_google_drive
-
 
 ############
 #   YARP   #
@@ -127,7 +110,6 @@ ARG EVENT_DRIVEN_VERSION=1.5
 ARG YARP_VERSION=3.4.3
 ARG YCM_VERSION=0.13.0
 ARG BUILD_TYPE=Release
-ARG SOURCE_FOLDER=/usr/local
 ARG OPENGL=0
 
 ENV DEBIAN_FRONTEND noninteractive 
@@ -169,8 +151,8 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 57A5ACB6110576A6
 RUN apt-get update
 RUN apt install -y icub-common
 
-RUN cd $SOURCE_FOLDER
-RUN    git clone git@github.com:robotology/ycm.git && \
+
+RUN git clone git@github.com:robotology/ycm.git && \
     cd ycm && \
     git checkout v$YCM_VERSION && \
     mkdir build && cd build && \
@@ -179,8 +161,7 @@ RUN    git clone git@github.com:robotology/ycm.git && \
 
 
 # Install YARP
-RUN cd $SOURCE_FOLDER && \
-    git clone git@github.com:robotology/yarp.git &&\
+RUN git clone git@github.com:robotology/yarp.git &&\
     cd yarp && \
     apt-get install -y python3-dev && \
     git checkout v$YARP_VERSION && \
@@ -199,8 +180,7 @@ ENV QT_X11_NO_MITSHM 1
 
 
 # Install event-driven
-RUN cd $SOURCE_FOLDER && \
-    git clone git@github.com:robotology/event-driven.git && \
+RUN git clone git@github.com:robotology/event-driven.git && \
     cd event-driven && \
     git checkout v$EVENT_DRIVEN_VERSION && \
     mkdir build && cd build && \
@@ -212,8 +192,7 @@ RUN cd $SOURCE_FOLDER && \
 RUN echo "*************** building hpe-core ****************"
 
 # Install hpe-core
-RUN cd $SOURCE_FOLDER && \
-    git clone git@github.com:event-driven-robotics/hpe-core.git && \
+RUN git clone git@github.com:event-driven-robotics/hpe-core.git && \
     cd hpe-core && \
     git checkout $HPE_VERSION && \
     cd core && \
@@ -225,12 +204,8 @@ RUN cd $SOURCE_FOLDER && \
     cmake .. && \
     make install -j$(nproc)
 
-# add /usr/local/lib to the library path, so that libcaffe.so compiled with openpose will be used
-# instead of the one provided by the nvidia/cuda docker image
-ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
-
 # Adding yarp python file to the pythonpath
-ENV PYTHONPATH $PYTHONPATH:/usr/local/yarp/build/lib/python3
+ENV PYTHONPATH $PYTHONPATH:/usr/local/code/yarp/build/lib/python3
 
 
 

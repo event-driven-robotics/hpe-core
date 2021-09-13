@@ -24,7 +24,7 @@ class GlHpeModule(yarp.RFModule):
         self.image_h = 300 #
         # self.np_input = None
         self.yarp_image = yarp.ImageMono()
-        self.datadir = "/usr/local/data/dhp19_sample/"
+        self.datadir = "/usr/local/data"
         # self.datadir = "/media/ggoyal/Shared/data/dhp19_sample/"
         self.ch_idx = 3
         self.P_mat_dir = join(self.datadir, 'P_matrices/')
@@ -120,8 +120,8 @@ class GlHpeModule(yarp.RFModule):
         # Visualize the result
         cv2.imshow("output", img)
         k = cv2.waitKey(10)
-        cv2.imwrite(os.path.join(self.resultsPath,'input_'+str(self.counter),'.png'), input_image)
-        cv2.imwrite(os.path.join(self.resultsPath,'output_2D_'+str(self.counter),'.png'), img)
+        # cv2.imwrite(os.path.join(self.resultsPath,'input_'+str(self.counter),'.png'), input_image)
+        # cv2.imwrite(os.path.join(self.resultsPath,'output_2D_'+str(self.counter),'.png'), img)
         if k==32: return False
         # if self.counter == 20:
         #     return False
