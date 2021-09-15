@@ -6,7 +6,7 @@
 
 <module>
    <name> yarpview </name>
-   <parameters>--name /view_out --synch </parameters>
+   <parameters>--name /yarpview/img:i --synch </parameters>
    <node> localhost </node>
 </module>
 
@@ -42,7 +42,7 @@
 
 <connection>
   <from>/glhpe-framer/img:o</from>
-  <to>/view_out</to>
+  <to>/yarpview/img:i</to>
   <protocol>fast_tcp</protocol>
 </connection>
 

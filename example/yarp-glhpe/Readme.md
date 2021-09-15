@@ -13,7 +13,7 @@ The software was tested on Ubuntu 20.04.2 LTS without GPU support.
     $ cd <workspace>
     $ git clone git@github.com:event-driven-robotics/hpe-core.git
     $ cd hpe-core/example/yarp_glhpe
-    $ docker build -t gl_hpe:yarp --ssh default --build-arg ssh_pub_key="$(cat ~/.ssh/<publicKeyFile>)" --build-arg ssh_prv_key="$(cat ~/.ssh/<privateKeyFile>.pub)" - < Dockerfile
+    $ docker build -t gl_hpe:yarp --ssh default --build-arg ssh_pub_key="$(cat ~/.ssh/<publicKeyFile>.pub)" --build-arg ssh_prv_key="$(cat ~/.ssh/<privateKeyFile>)" - < Dockerfile
     ```
 :bulb: `<workspace>` is the parent directory in which the repository is cloned
 

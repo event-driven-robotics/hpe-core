@@ -24,6 +24,7 @@ class GlHpeModule(yarp.RFModule):
         self.image_h = 300 #
         # self.np_input = None
         self.yarp_image = yarp.ImageMono()
+        self.yarp_image_out = yarp.ImageRgb()
         self.datadir = "/usr/local/code/"
         # self.datadir = "/media/ggoyal/Shared/data/dhp19_sample/"
         self.ch_idx = 3
@@ -108,9 +109,9 @@ class GlHpeModule(yarp.RFModule):
         self.yarp_image.resize(self.image_w, self.image_h)
         self.yarp_image.setExternal(np_input.data, np_input.shape[1], np_input.shape[0])
 
-        np_output = np.ones((self.output_h, self.output_w, 3), dtype=np.uint8)
-        self.yarp_image_out.resize(self.output_w, self.output_h)
-        self.yarp_image_out.setExternal(np_output.data, np_output.shape[1], np_output.shape[0])
+        # np_output = np.ones((self.output_h, self.output_w, 3), dtype=np.uint8)
+        # self.yarp_image_out.resize(self.output_w, self.output_h)
+        # self.yarp_image_out.setExternal(np_output.data, np_output.shape[1], np_output.shape[0])
 
         # Read the image
         read_image = self.input_port.read()

@@ -43,7 +43,7 @@ RUN echo "*************** building dependencies for gl-hpe ****************"
 
 ARG SOURCE_FOLDER=/usr/local/code
 ARG GLHPE_BRANCH=load_new_object
-ARG HPE_VERSION=cpp-tests
+ARG HPE_VERSION=main
 # GL-HPE requirements 
 
 # # Directories
@@ -76,8 +76,6 @@ matplotlib==3.4.2 \
 segmentation_models_pytorch==0.2.0 \
 sklearn \
 -e git+https://github.com/anibali/pose3d-utils#egg=pose3d_utils \
-#-e git+https://github.com/IIT-PAVIS/event_library#egg=event_library \
-#-e git+https://github.com/gaurvigoyal/gl_hpe@load_new_object#egg=gl_hpe \
 comet_ml 
 
 # NVIDIA INSTALLATIONS- TO TEST
