@@ -1,0 +1,24 @@
+# requires minimum cmake version
+cmake_minimum_required(VERSION 3.5)
+
+# produce the cmake var PROJECT_NAME
+project(joint_track)
+
+#find_package(YCM REQUIRED)
+find_package(YARP COMPONENTS OS sig REQUIRED)
+find_package(hpe-core REQUIRED)
+find_package(event-driven REQUIRED)
+
+#default the install location to that of event-driven
+
+add_executable(${PROJECT_NAME} joint_tracking_example.cpp
+                                roiq.cpp
+                                roiq.h)
+
+target_link_libraries(${PROJECT_NAME}   hpe-core::hpe-core
+                                        YARP::YARP_os
+                                        YARP::YARP_init
+                                        ev::event-driven)
+
+install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
+
