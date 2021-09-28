@@ -3,7 +3,9 @@
 using namespace cv;
 using namespace std;
 
-void hpecore::varianceNormalisation(cv::Mat &input) 
+namespace hpecore {
+
+void varianceNormalisation(cv::Mat &input) 
 {
     constexpr double threshold = 0.1 / 255;
 
@@ -39,4 +41,23 @@ void hpecore::varianceNormalisation(cv::Mat &input)
             }
         }
     }
+}
+
+point_flow estimateVisualFlow(pixel_3d px3, const camera_velocity &vcam, const camera_params &pcam) 
+{
+    
+    double f_inv = 1.0 / pcam.f;
+    double x = px3.x - pcam.cx;
+    double y = px3.y - pcam.cy;
+    point_flow flow;
+    flow.udot = (x * y * f_inv)*vcam[3] + -(pcam.f + pow(x, 2) * f_inv)*vcam[4] +  y*vcam[5];
+    flow.vdot = (pcam.f + pow(y, 2) * f_inv)*vcam[3] + (-x * y * f_inv)*vcam[4] + -x*vcam[5];
+
+    if (px3.d) {
+        flow.udot = flow.udot + (-pcam.f / px3.d) * vcam[0] + x / px3.d * vcam[2];
+        flow.vdot = flow.vdot + (-pcam.f / px3.d) * vcam[1] + y / px3.d * vcam[2];
+    }
+    return flow;
+}
+
 }

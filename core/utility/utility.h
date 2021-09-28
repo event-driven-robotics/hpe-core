@@ -15,8 +15,14 @@ typedef struct pixel_event
     int _f1:1;
     int y:9;
     int _f:11;
-    int ts:32;
+    int stamp:32;
 } pixel_event;
+
+typedef struct point_flow
+{
+    float udot;
+    float vdot;
+} point_flow;
 
 using skeleton = std::vector<std::tuple<double, double>>;
 
