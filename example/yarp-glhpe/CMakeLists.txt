@@ -5,8 +5,9 @@ cmake_minimum_required(VERSION 3.5)
 project(glhpe-framer)
 
 #find_package(YCM REQUIRED)
-find_package(YARP COMPONENTS OS sig REQUIRED)
+find_package(YARP COMPONENTS os sig REQUIRED)
 find_package(event-driven REQUIRED)
+find_package(hpe-core REQUIRED)
 
 #default the install location to that of event-driven
 
@@ -14,7 +15,8 @@ add_executable(${PROJECT_NAME} glhpe-framer.cpp)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE YARP::YARP_os
                                               YARP::YARP_init
-                                              ev::event-driven)
+                                              ev::event-driven
+                                              hpe-core::hpe-core)
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
 

@@ -53,11 +53,13 @@ endif()
 
 set( folder_source
   detection_wrappers/detection.cpp
+  event_volumes/volumes.cpp
 )
 
 set( folder_header
   utility/utility.h
   detection_wrappers/detection.h
+  event_volumes/volumes.h
 )
 
 find_package(OpenPose)
