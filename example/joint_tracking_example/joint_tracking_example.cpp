@@ -26,8 +26,8 @@ private:
     skeleton pose, dpose;
     hpecore::jointMotionEstimator tracker;
     roiq qROI;
-    int roiWidth = 4;
-    int roiHeight = 4;
+    int roiWidth = 5;
+    int roiHeight = 5;
     
 public:
 
@@ -90,6 +90,7 @@ public:
         //other clean up
         input_port.close();
         input_sklt.close();
+        output_writer.close();
         // output_port.close();
     }
 
@@ -108,49 +109,6 @@ public:
     //synchronous thread
     virtual bool updateModule()
     {
-        // Stamp skltStamp;
-        // Bottle* bot_sklt;
-        // double skltTs = 0.0;
-        
-        // m.lock();
-     
-        // bot_sklt = input_sklt.read(); // read full skeleteon
-        // input_sklt.getEnvelope(skltStamp); // get timestamp
-        // skltTs = skltStamp.getTime();
-        
-        // m.unlock();
-        
-        // yInfo() << "\tSKLT @ " << skltTs; 
-        // Value& coords = (*bot_sklt).get(1);
-        // Bottle* sklt_lst = coords.asList();
-        // hpecore::skeleton builtPose = buildSkeleton(*sklt_lst);
-
-        // pose = tracker.jointMotionEstimator::estimateMotion(builtPose);
-        // // pose = builtPose;
-
-        // //write output to file
-        // output_writer << skltTs << " ";
-        // for(auto &t : pose)
-        //     output_writer << std::get<0>(t) << " " << std::get<1>(t)<< " " ;
-        // output_writer << std::endl;
-        // // tracker.estimateMotion();
-        // // tracker.test();
-
-
-        // // print_test();
-
-        // print_skeleton(pose);
-
-        // m.lock();
-        // if(!evs_queue.empty()) yInfo() << "\tEvs from " <<  evs_queue.front().stamp * vtsHelper::tsscaler << " to "<< evs_queue.back().stamp * vtsHelper::tsscaler;
-        // while(!evs_queue.empty())
-        // {
-        //     // yInfo() <<" "<< evs_queue.front().stamp * vtsHelper::tsscaler;
-        //     evs_queue.pop_front();
-        // }
-        // m.unlock();
-
-        // std::cout << std::endl;
         
         return Thread::isRunning();
     }
@@ -170,7 +128,7 @@ public:
             skltTs = skltStamp.getTime(); // get timestamp
             if(bot_sklt)
             {
-                yInfo() << "\tSKLT @ " << skltTs; 
+                // yInfo() << "\tSKLT @ " << skltTs; 
                 Value& coords = (*bot_sklt).get(1);
                 Bottle* sklt_lst = coords.asList();
                 skeleton builtPose = buildSkeleton(*sklt_lst); // build skeleton from reading
@@ -191,21 +149,30 @@ public:
                     qROI.add(qi);
                 }
             }
-            qROI.setSize(qROI.q.size() / 3);
-            dpose = tracker.estimateVelocity(); // should return zero skeleton (zero veocities)
+            qROI.setSize((qROI.roi[1]-qROI.roi[0])*(qROI.roi[3]-qROI.roi[2])/3);
+
+            if(pose.size())
+            {
+                if(np && qROI.q.size())
+                {
+                    dpose = tracker.estimateVelocity(); // should return zero skeleton (zero veocities)
+                    // dpose = tracker.estimateVelocity(qROI.q); // should return zero skeleton (zero veocities)
+                    tracker.fusion(&pose, dpose); // should integrate from pose eith new velocity
+                    //write output to file
+                    output_writer << qROI.q.front().stamp* vtsHelper::tsscaler << " ";
+                    for(auto &t : pose)
+                        output_writer << std::get<0>(t) << " " << std::get<1>(t)<< " " ;
+                    output_writer << std::endl;
+                }
+                else if(bot_sklt)
+                {
+                    output_writer << skltTs << " ";
+                    for(auto &t : pose)
+                        output_writer << std::get<0>(t) << " " << std::get<1>(t)<< " " ;
+                    output_writer << std::endl;
+                } 
+            }
             
-            // yInfo() << "POSE AND VELOCITY";
-            // print_skeleton(pose);
-            // print_skeleton(dpose);
-
-            // dpose = tracker.estimateVelocity(qROI.q); // should return zero skeleton (zero veocities)
-            tracker.fusion(&pose, dpose); // should integrate from pose eith new velocity
-            yInfo() << "UPDATED POSE";
-            print_skeleton(pose);
-
-            
-
-            // tracker.testFunction();
         }
     }
 };

@@ -22,8 +22,9 @@ skeleton jointMotionEstimator::estimateVelocity()
 
 void jointMotionEstimator::fusion(skeleton *pose, skeleton dpose)
 {
-    for (int i = 0; i < 1; i++)
+    for (size_t i = 0; i < (*pose).size(); i++)
     {
-        
+        std::get<0>((*pose).at(i)) += std::get<0>((dpose).at(i));
+        std::get<1>((*pose).at(i)) += std::get<0>((dpose).at(i));
     }
 }
