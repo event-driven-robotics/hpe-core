@@ -95,7 +95,7 @@ ARG YCM_VERSION=0.12.1
 ARG BUILD_TYPE=Release
 ARG SOURCE_FOLDER=/usr/local
 ARG OPENGL=0
-ARG HPE_VERSION=main
+ARG HPE_BRANCH=online_e2vid
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -171,46 +171,132 @@ RUN cd $SOURCE_FOLDER && \
           .. && \
     make install -j$(nproc)
 
-RUN echo "*************** building hpe-core ****************"
 
-# Install hpe-core
+#############
+#   E2VID   #
+#############
+
+RUN echo "*************** installing e2vid ****************"
+
+# install anaconda
+RUN wget https://repo.anaconda.com/archive/Anaconda3-2021.05-Linux-x86_64.sh && \
+    chmod +x Anaconda3-2021.05-Linux-x86_64.sh && \
+    bash Anaconda3-2021.05-Linux-x86_64.sh -b -p /root/anaconda && \
+    rm Anaconda3-2021.05-Linux-x86_64.sh
+
+# make non-activate conda commands available
+ENV CONDA_DIR /root/anaconda
+ENV PATH=$CONDA_DIR/bin:$PATH
+
+# make conda activate command available from /bin/bash --interative shells
+RUN conda init
+
+RUN eval "$(/root/anaconda/bin/conda shell.bash hook)" && \
+
+#    conda create -n e2vid python=3.7 && \
+#    conda activate e2vid && \
+#    conda install pytorch torchvision cudatoolkit=10.0 -c pytorch && \
+#    conda install pandas && \
+#    conda install -c conda-forge opencv && \
+#    conda install -c anaconda scipy
+
+    conda create -n e2vid && \
+    conda activate e2vid && \
+    conda install pytorch torchvision cudatoolkit=10.0 -c pytorch && \
+    conda install pandas && \
+    conda install -c anaconda scipy && \
+    conda install -c conda-forge opencv
+
+RUN echo "conda activate e2vid" >> ~/.bashrc
+
+#ENV PYTHONHOME=/root/anaconda/bin
+#ENV PYTHONPATH=/root/anaconda/lib:/root/anaconda/lib/python3.8:/root/anaconda/lib/python3.8/site-packages
+#ENV PATH=$PYTHONHOME:$PATH
+
 RUN cd $SOURCE_FOLDER && \
     git clone git@github.com:event-driven-robotics/hpe-core.git && \
     cd hpe-core && \
-    git checkout $HPE_VERSION && \
-    cd core && \
-    mkdir build && cd build && \
-    cmake .. && \
-    make install -j$(nproc) && \
-    cd ../.. && cd example/op_detector_example_module/ && \
-    mkdir build && cd build && \
-    cmake .. && \
-    make install -j$(nproc)
+    git checkout $HPE_BRANCH
+
+RUN cd hpe-core/evaluation/dhp19/e2vid && \
+    git clone git@github.com:uzh-rpg/rpg_e2vid.git && \
+
+    # fix e2vid incompatibility with recent pytorch versions (https://github.com/uzh-rpg/rpg_e2vid/issues/5) \
+    cd rpg_e2vid && \
+    sed -ie 's/index=xs[valid_indices]/index=(xs[valid_indices]/g' utils/inference_utils.py && \
+    sed -ie 's/tis_long[valid_indices] * width * height/tis_long[valid_indices] * width * height).type(torch.cuda.LongTensor)/g' utils/inference_utils.py && \
+    sed -ie 's/tis_long[valid_indices] + 1) * width * height/tis_long[valid_indices] + 1) * width * height).type(torch.cuda.LongTensor)/g' utils/inference_utils.py && \
+
+    # download e2vid pretrained model
+    wget "http://rpg.ifi.uzh.ch/data/E2VID/models/E2VID_lightweight.pth.tar" -O pretrained/E2VID_lightweight.pth.tar
+
+WORKDIR hpe-core/evaluation/dhp19/e2vid/rpg_e2vid
+
+# setup scripts for creating grayscale frames
+RUN cp ../run_e2vid.py . && \
+    cp ../../utils/mat_files.py . && \
+    cp ../../utils/parsing.py . && \
+    cp ../create_grayscale_frames.sh . && \
+    chmod +x create_grayscale_frames.sh
 
 
+#################
+##   HPE-CORE   #
+#################
+#
+#RUN echo "*************** building hpe-core ****************"
+#
+## Install hpe-core
+#RUN cd $SOURCE_FOLDER && \
+#    git clone git@github.com:event-driven-robotics/hpe-core.git && \
+#    cd hpe-core && \
+#    git checkout $HPE_VERSION && \
+#    cd core && \
+#    mkdir build && cd build && \
+#    cmake .. && \
+#    make install -j$(nproc) && \
+#    cd ../.. && cd example/op_detector_example_module/ && \
+#    mkdir build && cd build && \
+#    cmake .. && \
+#    make install -j$(nproc)
+#
+#
+#
+## add /usr/local/lib to the library path, so that libcaffe.so compiled with openpose will be used
+## instead of the one provided by the nvidia/cuda docker image
+#ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
+#
+#
+######################
+## OPENPOSE DOWNLOADS#
+######################
+#
+## download models from google drive (https://drive.google.com/file/d/1QCSxJZpnWvM00hx49CJ2zky7PWGzpcEh/view)
+## see https://github.com/CMU-Perceptual-Computing-Lab/openpose/issues/1602#issuecomment-641653411
+#WORKDIR /openpose/tmp
+#RUN git clone https://github.com/chentinghao/download_google_drive.git && \
+#    pip3 install requests tqdm && \
+#    cd download_google_drive && \
+#    python3 download_gdrive.py 1QCSxJZpnWvM00hx49CJ2zky7PWGzpcEh ../../models.zip
+#
+## extract downloaded models
+#WORKDIR /openpose
+#RUN unzip models.zip && \
+#    rm models.zip
+#
+#
+#WORKDIR $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/build
 
-# add /usr/local/lib to the library path, so that libcaffe.so compiled with openpose will be used
-# instead of the one provided by the nvidia/cuda docker image
-ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
+#- INCLUDE E2VID DEPENDENCIES IN DOCKER
+#  - install e2vid vith anaconda
+#  - make anaconda's python the default one that will be used from C++
+#    $ export PYTHONHOME="/root/anaconda/bin"
+#    $ export PYTHONPATH="/root/anaconda/lib:/root/anaconda/lib/python3.8:/root/anaconda/lib/python3.8/site-packages"
+#    $ export PATH=$PYTHONHOME:$PATH
 
+#- WRITE C++ YARP COMPONENT THAT CALLS PYTHON INTERPRETER
+#  - print python version (must match anaconda's)
 
-#####################
-# OPENPOSE DOWNLOADS#
-#####################
-
-# download models from google drive (https://drive.google.com/file/d/1QCSxJZpnWvM00hx49CJ2zky7PWGzpcEh/view)
-# see https://github.com/CMU-Perceptual-Computing-Lab/openpose/issues/1602#issuecomment-641653411
-WORKDIR /openpose/tmp
-RUN git clone https://github.com/chentinghao/download_google_drive.git && \
-    pip3 install requests tqdm && \
-    cd download_google_drive && \
-    python3 download_gdrive.py 1QCSxJZpnWvM00hx49CJ2zky7PWGzpcEh ../../models.zip
-
-# extract downloaded models
-WORKDIR /openpose
-RUN unzip models.zip && \
-    rm models.zip
-
-
-WORKDIR $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/build
-
+#- CREATE DATA STRUCTURE FOR READ EVENTS (NUMPY?)
+#- PASS EVENTS TO E2VID
+#- MAKE E2VID SEND FRAME TO OPENPOSE OR THE C++ YARP COMPONENT?
