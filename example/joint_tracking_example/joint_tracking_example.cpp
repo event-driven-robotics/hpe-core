@@ -5,6 +5,7 @@
 #include <hpe-core/utility.h>
 #include <hpe-core/jointMotionEstimator.h>
 #include "roiq.h"
+#include <array>
 
 using namespace ev;
 using namespace yarp::os;
@@ -23,11 +24,14 @@ private:
     std::ofstream  output_writer;
     deque<AE> evs_queue;
     std::mutex m;
-    skeleton pose, dpose;
+    // skeleton pose, dpose;
+    sklt pose, dpose;
     hpecore::jointMotionEstimator tracker;
     roiq qROI;
-    int roiWidth = 5;
-    int roiHeight = 5;
+    int roiWidth = 10;
+    int roiHeight = 10;
+
+
     
 public:
 
@@ -106,10 +110,23 @@ public:
         return newPose;
     }
 
+    sklt buildSklt(Bottle& readBottle)
+    {
+        sklt newPose;
+        for (size_t i = 0; i < readBottle.size(); i = i+2)
+        {
+            Value& u = readBottle.get(i);
+            Value& v = readBottle.get(i+1);
+            newPose[i/2].u = u.asInt32();
+            newPose[i/2].v = v.asInt32();
+        }
+        return newPose;
+    }
+
     //synchronous thread
     virtual bool updateModule()
     {
-        
+  
         return Thread::isRunning();
     }
 
@@ -123,22 +140,26 @@ public:
 
         while (true)
         {
-            bot_sklt = input_sklt.read(false); // read full skeleteon
+            // read detections
+            bot_sklt = input_sklt.read(false);
             input_sklt.getEnvelope(skltStamp); 
-            skltTs = skltStamp.getTime(); // get timestamp
-            if(bot_sklt)
+            skltTs = skltStamp.getTime();
+            if(bot_sklt) // there is a detection
             {
-                // yInfo() << "\tSKLT @ " << skltTs; 
+                // yInfo() << "\tSKLT @ " << skltTs;
                 Value& coords = (*bot_sklt).get(1);
                 Bottle* sklt_lst = coords.asList();
-                skeleton builtPose = buildSkeleton(*sklt_lst); // build skeleton from reading
+                // build skeleton from reading
+                // skeleton builtPose = buildSkeleton(*sklt_lst); // using tuples
+                sklt builtPose = buildSklt(*sklt_lst); // using array
                 pose = tracker.resetPose(builtPose); // reset pose
-                int x = std::get<0>(builtPose.at(4));
-                int y = std::get<1>(builtPose.at(4));
-                qROI.setROI(x, x + roiWidth, y, y + roiHeight);
+                // set roi for just one joint (left hand)
+                int x = builtPose[handL].u;
+                int y = builtPose[handL].v;
+                qROI.setROI(x-roiWidth/2, x + roiWidth/2, y-roiHeight/2, y + roiHeight/2);
             }
             
-
+            // read events
             int np = input_port.queryunprocessed();
             for(int i = 0; i < np; i++)
             {
@@ -151,24 +172,37 @@ public:
             }
             qROI.setSize((qROI.roi[1]-qROI.roi[0])*(qROI.roi[3]-qROI.roi[2])/3);
 
-            if(pose.size())
+            // Process data for tracking
+            if(pose.size()) // a pose has been detected before
             {
-                if(np && qROI.q.size())
+                if(np && qROI.q.size()) // there are events to process
                 {
-                    dpose = tracker.estimateVelocity(); // should return zero skeleton (zero veocities)
+                    std::deque<joint> evs;
+                    std::deque<double> evsTs;
+                    tracker.getEventsUV(qROI.q, evs, evsTs, vtsHelper::tsscaler); // get events u,v coords
+                    dpose = tracker.estimateVelocity(evs, evsTs); // should return zero skeleton (zero veocities)
+                    // print_sklt(dpose);
                     // dpose = tracker.estimateVelocity(qROI.q); // should return zero skeleton (zero veocities)
-                    tracker.fusion(&pose, dpose); // should integrate from pose eith new velocity
-                    //write output to file
+                    // double dt = (qROI.q.front().stamp - qROI.q.back().stamp)* vtsHelper::tsscaler * 0.5;
+                    // yInfo() << dt;
+                    double dt = 1;
+                    tracker.fusion(&pose, dpose, dt); // should integrate from pose eith new velocity
+                    //write integrated output to file
                     output_writer << qROI.q.front().stamp* vtsHelper::tsscaler << " ";
                     for(auto &t : pose)
-                        output_writer << std::get<0>(t) << " " << std::get<1>(t)<< " " ;
+                        output_writer << t.u << " " << t.v << " " ;
                     output_writer << std::endl;
+                    // update roi
+                    int x = pose[handL].u;
+                    int y = pose[handL].v;
+                    qROI.setROI(x-roiWidth/2, x + roiWidth/2, y-roiHeight/2, y + roiHeight/2);
                 }
-                else if(bot_sklt)
+                else if(bot_sklt) // there weren't events to process but a detection occured
                 {
+                    //write detected output to file
                     output_writer << skltTs << " ";
                     for(auto &t : pose)
-                        output_writer << std::get<0>(t) << " " << std::get<1>(t)<< " " ;
+                        output_writer << t.u << " " << t.v << " " ;
                     output_writer << std::endl;
                 } 
             }
