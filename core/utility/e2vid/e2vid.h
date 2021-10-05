@@ -27,7 +27,7 @@ class E2Vid {
 
   public:
     // TODO: default values
-    bool init(int sensor_height, int sensor_width, int window_size, float events_per_pixel, bool use_gpu);
+    bool init(int sensor_height, int sensor_width, int window_size, float events_per_pixel);
     bool predict_grayscale_frame(vector<AE> &input, cv::Mat &output);
 };
 

@@ -5,10 +5,10 @@
 
 using namespace hpecore;
 
-bool E2Vid::init(int sensor_height, int sensor_width, int window_size, float events_per_pixel, bool use_gpu)
+bool E2Vid::init(int sensor_height, int sensor_width, int window_size, float events_per_pixel)
 {
     m_argc = 1;
-    m_argv[0] = strdup("crack_detector");
+    m_argv[0] = strdup("e2vid");
 
     // init python interpreter
     Py_Initialize();
