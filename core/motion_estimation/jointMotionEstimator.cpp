@@ -18,7 +18,8 @@ sklt jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<do
         vel[i].v = 0;
     }
     // calculate velocity for hand L joint
-    double dtx = 0.0, dty = 0.0;
+    double dtx = 0.0, dty = 0.0, k=1e3;
+    long int nx = 0, ny = 0;
     for(std::size_t i = 0; i < evs.size()-1; i++)
     {
         // std::cout << evsTs[i] << " ";
@@ -27,24 +28,40 @@ sklt jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<do
             if(evs[i].v == evs[j].v)// same y value
             {
                 if(evs[i].u == evs[j].u+1)
+                {
                     dtx += (evsTs[i] - evsTs[j]);
+                    nx++;
+                }
                 else if(evs[i].u == evs[j].u-1)
+                {
                     dtx -= (evsTs[i] - evsTs[j]);
+                    nx++;
+                }    
             }
             if(evs[i].u == evs[j].u)// same x value
             {
                 if(evs[i].v == evs[j].v+1)
+                {
                     dty += (evsTs[i] - evsTs[j]);
+                    ny++;
+                }
+                    
                 else if(evs[i].v == evs[j].v-1)
+                {
                     dty -= (evsTs[i] - evsTs[j]);
+                    ny++;
+                }
             }
         }
     }
-    vel[8].u = dtx * 10; 
-    vel[8].v = dty * 10;
-    // double norm = 1/(dtx*dtx + dty*dty);
-    // vel[handL].u = dtx * norm;
-    // vel[handL].v = dty * norm;
+    double eps = 1e-10;
+    double norm = 1/(dtx*dtx + dty*dty + eps);
+    vel[handL].u = dtx*norm/nx*k;
+    vel[handL].v = dty*norm/ny*k;
+    double lim = 100;
+    if(std::fabs(vel[handL].u) > lim) vel[handL].u = 0;
+    if(std::fabs(vel[handL].v) > lim) vel[handL].v = 0;
+    // std::cout << vel[handL].u << " " << vel[handL].v << std::endl;
     // std::cout << std::endl;
     return vel;
 }

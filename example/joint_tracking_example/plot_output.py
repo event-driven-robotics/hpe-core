@@ -19,6 +19,7 @@ plt.close('all')
 prefix = '/home/fdipietro/projects/hpe-core/example/joint_tracking_example/build/' 
 #filename = 'pose_slow2.txt'
 filename = 'output.txt'
+# filename = 'output_tracking_v1.txt'
 
 lines = tuple(open(prefix+filename, 'r'))
 

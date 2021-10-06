@@ -7,6 +7,10 @@
 #include "roiq.h"
 #include <array>
 
+#include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+
 using namespace ev;
 using namespace yarp::os;
 using namespace yarp::sig;
@@ -28,8 +32,8 @@ private:
     sklt pose, dpose;
     hpecore::jointMotionEstimator tracker;
     roiq qROI;
-    int roiWidth = 10;
-    int roiHeight = 10;
+    int roiWidth = 20;
+    int roiHeight = 20;
 
 
     
@@ -70,6 +74,9 @@ public:
             yError() << "Could not open pose writer!!";
         else
             yInfo() << "Pose writer opened";
+
+        cv::namedWindow("DEBUG", cv::WINDOW_NORMAL);
+        cv::resizeWindow("DEBUG", 346, 260);
 
         //start the asynchronous and synchronous threads
         return Thread::start();
@@ -126,6 +133,27 @@ public:
     //synchronous thread
     virtual bool updateModule()
     {
+ 
+
+        // cv::Mat test = cv::Mat::zeros(cv::Size(346, 240), CV_32FC1);
+        // test += 2;
+        // test *= 0.2;
+        // for(auto v = qROI.q.rbegin(); v < qROI.q.rend(); v++)
+        // {
+        //     int value = v->polarity;
+        //     if(v->x<346 && v->y<240)
+        //     {
+        //         if(value > 0)
+        //             test.at<float>(v->y, v->x) = 0.0f;
+        //         if(value <= 0)
+        //             test.at<float>(v->y, v->x) = 1.0f;
+        //     }
+        // }
+        // cv::Mat frame;
+        // test.convertTo(frame, CV_8U, 255);
+        // cv::imshow("DEBUG", frame);
+        // cv::waitKey(1);
+
   
         return Thread::isRunning();
     }
@@ -180,12 +208,11 @@ public:
                     std::deque<joint> evs;
                     std::deque<double> evsTs;
                     tracker.getEventsUV(qROI.q, evs, evsTs, vtsHelper::tsscaler); // get events u,v coords
-                    dpose = tracker.estimateVelocity(evs, evsTs); // should return zero skeleton (zero veocities)
+                    dpose = tracker.estimateVelocity(evs, evsTs); // get skeleton veocities
                     // print_sklt(dpose);
-                    // dpose = tracker.estimateVelocity(qROI.q); // should return zero skeleton (zero veocities)
-                    // double dt = (qROI.q.front().stamp - qROI.q.back().stamp)* vtsHelper::tsscaler * 0.5;
+                    double dt = (qROI.q.front().stamp - qROI.q.back().stamp)* vtsHelper::tsscaler;
                     // yInfo() << dt;
-                    double dt = 1;
+                    // double dt = 1;
                     tracker.fusion(&pose, dpose, dt); // should integrate from pose eith new velocity
                     //write integrated output to file
                     output_writer << qROI.q.front().stamp* vtsHelper::tsscaler << " ";
@@ -195,7 +222,7 @@ public:
                     // update roi
                     int x = pose[handL].u;
                     int y = pose[handL].v;
-                    qROI.setROI(x-roiWidth/2, x + roiWidth/2, y-roiHeight/2, y + roiHeight/2);
+                    // qROI.setROI(x-roiWidth/2, x + roiWidth/2, y-roiHeight/2, y + roiHeight/2);
                 }
                 else if(bot_sklt) // there weren't events to process but a detection occured
                 {
