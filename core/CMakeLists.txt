@@ -117,4 +117,4 @@ include(AddUninstallTarget)
 #                ${CMAKE_CURRENT_BINARY_DIR}/input.txt)
 
 # define C++ macro specifying e2vid path that will be used at runtime
-add_compile_definitions(E2VID_PYTHON_DIR=${CMAKE_INSTALL_LIBDIR})
+add_compile_definitions(E2VID_PYTHON_DIR="$ENV{E2VID_PYTHON_DIR}")
