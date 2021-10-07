@@ -17,9 +17,13 @@ target_link_libraries(${PROJECT_NAME} YARP::YARP_OS
 
 add_executable(python_cpp_test python_cpp_test.cpp)
 
-target_link_libraries(python_cpp_test ${OpenCV_LIBRARIES} Python3::Python Python3::NumPy)  #PUBLIC??
+target_link_libraries(python_cpp_test YARP::YARP_OS
+                                      YARP::YARP_sig
+                                      hpe-core::hpe-core
+                                      ${OpenCV_LIBRARIES}
+                                      Python3::Python Python3::NumPy)  #PUBLIC??
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # define C++ macro specifying e2vid path that will be used at runtime
-add_compile_definitions(E2VID_PYTHON_DIR=$ENV{E2VID_PYTHON_DIR})
+add_compile_definitions(E2VID_PYTHON_DIR="$ENV{E2VID_PYTHON_DIR}")

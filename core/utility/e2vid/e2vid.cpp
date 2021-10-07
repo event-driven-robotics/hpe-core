@@ -41,7 +41,7 @@ bool E2Vid::init(int sensor_height, int sensor_width, int window_size, float eve
 
     // add scripts folder to the python's PATH
     PyObject *sys_path = PySys_GetObject(strdup("path"));
-    PyList_Append(sys_path, PyUnicode_FromString("hpe-core/core/utility/e2vid/python"));  // relative to the build directory
+    PyList_Append(sys_path, PyUnicode_FromString(E2VID_PYTHON_DIR));  // relative to the build directory
 
     // important, initializes several of static data structures
     import_array1(-1);
@@ -53,7 +53,7 @@ bool E2Vid::init(int sensor_height, int sensor_width, int window_size, float eve
     m_py_module = PyImport_ImportModule(py_module_name.c_str());
     if(m_py_module == NULL)
     {
-        std::cout << "Could not load Python module \"" << py_module_name << "\"!" << std::endl;
+        std::cout << "Could not load Python module \"" << py_module_name << "\"" << std::endl;
         return false;
     }
 
@@ -65,7 +65,7 @@ bool E2Vid::init(int sensor_height, int sensor_width, int window_size, float eve
     m_py_fun_predict_grayscale_frame = PyDict_GetItemString(m_PyDict, py_fun_name.c_str());
     if(m_py_fun_predict_grayscale_frame == NULL)
     {
-        std::cout << "Could not load function \"" << py_fun_name << "\" from Python module \"" << py_module_name << "\"!" << std::endl;
+        std::cout << "Could not load function \"" << py_fun_name << "\" from Python module \"" << py_module_name << "\"" << std::endl;
         return false;
     }
 

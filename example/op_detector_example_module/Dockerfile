@@ -193,15 +193,10 @@ RUN cd $SOURCE_FOLDER && \
     cd hpe-core && \
     git checkout $HPE_BRANCH
 
-# install hpe-core
-RUN cd $SOURCE_FOLDER/hpe-core/core && \
-    mkdir build && cd build && \
-    cmake .. && \
-    make install -j$(nproc) && \
-    cd ../../example/op_detector_example_module && \
-    mkdir build && cd build && \
-    cmake .. && \
-    make install -j$(nproc) \
+#RUN cd $SOURCE_FOLDER/hpe-core/example/op_detector_example_module && \
+#    mkdir build && cd build && \
+#    cmake .. && \
+#    make install -j$(nproc)
 
 # add /usr/local/lib to the library path, so that libcaffe.so compiled with openpose will be used
 # instead of the one provided by the nvidia/cuda docker image
@@ -223,6 +218,13 @@ RUN cd $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python && \
 # define a system variable with e2vid's location; it will be used by the C++ wrapper
 ENV E2VID_PYTHON_DIR $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python
 
+# compile and install hpe-core
+RUN cd $SOURCE_FOLDER/hpe-core/core && \
+    mkdir build && cd build && \
+    cmake .. && \
+    make install -j$(nproc)
+
+
 #WORKDIR $SOURCE_FOLDER/hpe-core/evaluation/dhp19/e2vid/rpg_e2vid
 
 
@@ -230,21 +232,21 @@ ENV E2VID_PYTHON_DIR $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python
 # OPENPOSE DOWNLOADS #
 ######################
 
-# download models from google drive (https://drive.google.com/file/d/1QCSxJZpnWvM00hx49CJ2zky7PWGzpcEh/view)
-# see https://github.com/CMU-Perceptual-Computing-Lab/openpose/issues/1602#issuecomment-641653411
-WORKDIR /openpose/tmp
-RUN git clone https://github.com/chentinghao/download_google_drive.git && \
-    pip3 install requests tqdm && \
-    cd download_google_drive && \
-    python3 download_gdrive.py 1QCSxJZpnWvM00hx49CJ2zky7PWGzpcEh ../../models.zip
-
-# extract downloaded models
-WORKDIR /openpose
-RUN unzip models.zip && \
-    rm models.zip
-
-
-WORKDIR $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/build
+## download models from google drive (https://drive.google.com/file/d/1QCSxJZpnWvM00hx49CJ2zky7PWGzpcEh/view)
+## see https://github.com/CMU-Perceptual-Computing-Lab/openpose/issues/1602#issuecomment-641653411
+#WORKDIR /openpose/tmp
+#RUN git clone https://github.com/chentinghao/download_google_drive.git && \
+#    pip3 install requests tqdm && \
+#    cd download_google_drive && \
+#    python3 download_gdrive.py 1QCSxJZpnWvM00hx49CJ2zky7PWGzpcEh ../../models.zip
+#
+## extract downloaded models
+#WORKDIR /openpose
+#RUN unzip models.zip && \
+#    rm models.zip
+#
+#
+#WORKDIR $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/build
 
 
 #- WRITE C++ YARP COMPONENT THAT CALLS PYTHON INTERPRETER
