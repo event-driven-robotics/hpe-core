@@ -102,7 +102,7 @@ bool E2Vid::init(int sensor_height, int sensor_width, int window_size, float eve
         return false;
     }
 
-    std::string py_fun_name = "predict_grayscale_frame";
+    py_fun_name = "predict_grayscale_frame";
     m_py_fun_predict_grayscale_frame = PyDict_GetItemString(m_PyDict, py_fun_name.c_str());
     if(m_py_fun_predict_grayscale_frame == NULL)
     {
