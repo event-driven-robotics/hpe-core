@@ -5,6 +5,36 @@
 
 using namespace hpecore;
 
+
+/*******************/
+/* PRIVATE METHODS */
+/*******************/
+
+void E2Vid::ae_vector_to_numpy(vector<AE> &events, PyArrayObject *&py_mat)
+{
+
+//    // total number of elements (here it's a grayscale 640x480)
+//    int nElem = cv_mat.rows * cv_mat.cols;
+//
+//    // create an array of apropriate datatype
+//    uchar *data = new uchar[nElem];
+//
+//    // copy the data from the cv::Mat object into the array
+//    std::memcpy(data, cv_mat.data, nElem * sizeof(uchar));
+//
+//    // the dimensions of the matrix
+//    npy_intp mdim[] = { cv_mat.rows, cv_mat.cols };
+//
+//    // convert the cv::Mat to numpy.array
+//    py_mat = (PyArrayObject *) PyArray_SimpleNewFromData(2, mdim, NPY_UINT8, (void*) data);
+//    PyArray_ENABLEFLAGS(py_mat, NPY_ARRAY_OWNDATA);
+}
+
+
+/******************/
+/* PUBLIC METHODS */
+/******************/
+
 bool E2Vid::init(int sensor_height, int sensor_width, int window_size, float events_per_pixel)
 {
     m_argc = 1;
@@ -88,34 +118,11 @@ bool E2Vid::init(int sensor_height, int sensor_width, int window_size, float eve
 }
 
 
-/*******************/
-/* PRIVATE METHODS */
-/*******************/
-
-void E2Vid::ae_vector_to_numpy(vector<AE> &events, PyArrayObject *&py_mat)
+void E2Vid::close()
 {
-
-//    // total number of elements (here it's a grayscale 640x480)
-//    int nElem = cv_mat.rows * cv_mat.cols;
-//
-//    // create an array of apropriate datatype
-//    uchar *data = new uchar[nElem];
-//
-//    // copy the data from the cv::Mat object into the array
-//    std::memcpy(data, cv_mat.data, nElem * sizeof(uchar));
-//
-//    // the dimensions of the matrix
-//    npy_intp mdim[] = { cv_mat.rows, cv_mat.cols };
-//
-//    // convert the cv::Mat to numpy.array
-//    py_mat = (PyArrayObject *) PyArray_SimpleNewFromData(2, mdim, NPY_UINT8, (void*) data);
-//    PyArray_ENABLEFLAGS(py_mat, NPY_ARRAY_OWNDATA);
+    Py_Finalize();
 }
 
-
-/******************/
-/* PUBLIC METHODS */
-/******************/
 
 bool E2Vid::predict_grayscale_frame(vector<AE> &input, cv::Mat &output)
 {
