@@ -152,6 +152,8 @@ def init_model(sensor_height, sensor_width, window_size, events_per_pixel):
     if compute_voxel_grid_on_cpu:
         print('Will compute voxel grid on CPU.')
 
+    return True
+
 
 def predict_grayscale_frame(event_window):
 
@@ -177,3 +179,5 @@ def predict_grayscale_frame(event_window):
     reconstructor.update_reconstruction(event_tensor, start_index + num_events_in_window, last_timestamp)
 
     start_index += num_events_in_window
+
+    # TODO: return predicted image!!!
