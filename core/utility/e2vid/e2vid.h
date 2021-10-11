@@ -17,6 +17,7 @@ class E2Vid {
 
     // python binding
     PyObject *m_py_module;
+    PyObject *m_py_fun_init_model;
     PyObject *m_py_fun_predict_grayscale_frame;
     bool m_py_functions_loaded;
 

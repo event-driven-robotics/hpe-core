@@ -181,6 +181,7 @@ RUN cd $SOURCE_FOLDER && \
 # install e2vid dependencies
 RUN pip3 install torch torchvision && \
     apt -y install python3-pandas && \
+    pip3 install scipy -U && \
     apt -y install python3-opencv
 
 #ENV PYTHONHOME=/root/anaconda/bin
@@ -192,11 +193,6 @@ RUN cd $SOURCE_FOLDER && \
     git clone git@github.com:event-driven-robotics/hpe-core.git && \
     cd hpe-core && \
     git checkout $HPE_BRANCH
-
-#RUN cd $SOURCE_FOLDER/hpe-core/example/op_detector_example_module && \
-#    mkdir build && cd build && \
-#    cmake .. && \
-#    make install -j$(nproc)
 
 # add /usr/local/lib to the library path, so that libcaffe.so compiled with openpose will be used
 # instead of the one provided by the nvidia/cuda docker image
@@ -224,6 +220,13 @@ RUN cd $SOURCE_FOLDER/hpe-core/core && \
     cmake .. && \
     make install -j$(nproc)
 
+# make e2vid scripts visible to python interpreter
+ENV PYTHONPATH $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python/rpg_e2vid:$PYTHONPATH
+
+#RUN cd $SOURCE_FOLDER/hpe-core/example/op_detector_example_module && \
+#    mkdir build && cd build && \
+#    cmake .. && \
+#    make install -j$(nproc)
 
 #WORKDIR $SOURCE_FOLDER/hpe-core/evaluation/dhp19/e2vid/rpg_e2vid
 

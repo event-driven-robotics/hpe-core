@@ -60,7 +60,18 @@ bool E2Vid::init(int sensor_height, int sensor_width, int window_size, float eve
     // get dictionary of available items in the module
     PyObject *m_PyDict = PyModule_GetDict(m_py_module);
 
+    ////////////////////////
     // bind python functions
+    ////////////////////////
+
+    std::string py_fun_name = "init_model";
+    m_py_fun_init_model = PyDict_GetItemString(m_PyDict, py_fun_name.c_str());
+    if(m_py_fun_init_model == NULL)
+    {
+        std::cout << "Could not load function \"" << py_fun_name << "\" from Python module \"" << py_module_name << "\"" << std::endl;
+        return false;
+    }
+
     std::string py_fun_name = "predict_grayscale_frame";
     m_py_fun_predict_grayscale_frame = PyDict_GetItemString(m_PyDict, py_fun_name.c_str());
     if(m_py_fun_predict_grayscale_frame == NULL)
