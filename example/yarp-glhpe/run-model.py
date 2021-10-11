@@ -19,23 +19,30 @@ class GlHpeModule(yarp.RFModule):
         yarp.RFModule.__init__(self)
         self.input_port = yarp.BufferedPortImageMono()
         self.output_port = yarp.BufferedPortImageMono()
+        self.stamp = yarp.Stamp()
         self.counter = 0
         self.image_w = 400 # Size of image expected from the framer.
         self.image_h = 300 #
         # self.np_input = None
         self.yarp_image = yarp.ImageMono()
         self.yarp_image_out = yarp.ImageRgb()
-        self.datadir = "/usr/local/code/"
-        # self.datadir = "/media/ggoyal/Shared/data/dhp19_sample/"
+
+        # self.datadir = "/usr/local/code/"
+        # self.checkpoint_path = "/usr/local/code/gl_hpe/checkpoint"
+        # self.P_mat_dir = join(self.datadir, 'gl_hpe/P_matrices/')
+        self.checkpoint_path = "/media/ggoyal/Shared/data/checkpoint_dhp19"
+        self.datadir = "/media/ggoyal/Shared/data/dhp19_sample/"
+        self.P_mat_dir = join(self.datadir, 'P_matrices/')
+
         self.ch_idx = 3
-        self.P_mat_dir = join(self.datadir, 'gl_hpe/P_matrices/')
-        self.checkpoint_path = "/usr/local/code/gl_hpe/checkpoint"
-        # self.checkpoint_path = "/media/ggoyal/Shared/data/checkpoint_dhp19"
-        self.resultsPath = join(self.datadir, 'outputs/')
+        self.resultsPath = join(self.datadir, 'outputs/S1_2_3/')
         self.image_w_model = 346 # Size of the image expected by the model
         self.image_h_model = 260 #
         self.output_w = 640  # Size of the image expected by yarp
         self.output_h = 480  #
+        self.fname = None
+        self.fname_ts = None
+        self.last_timestamp = 0.0
         # self.model = None
         # self.read_image = None
 
@@ -47,7 +54,11 @@ class GlHpeModule(yarp.RFModule):
             exit(-1)
 
         # set the module name used to name ports
-        self.setName((rf.check("name", yarp.Value("/glHpeModule")).asString()))
+        self.setName((rf.check("name", yarp.Value("/glhpeModule")).asString()))
+
+        # set the output file name
+        self.fname = rf.check("write_sk", yarp.Value("pred_2D.npy")).asString()
+        self.fname_ts = rf.check("write_ts", yarp.Value("pred_ts.npy")).asString()
 
         # open io ports
         if not self.input_port.open(self.getName() + "/img:i"):
@@ -115,6 +126,14 @@ class GlHpeModule(yarp.RFModule):
 
         # Read the image
         read_image = self.input_port.read()
+        self.input_port.getEnvelope(self.stamp)
+        stamp = self.stamp.getTime()
+        # print(self.stamp.getTime())
+
+        # End of input file
+        if self.last_timestamp == stamp:
+            return False
+
         self.counter += 1  # can be used to interrupt the program
         self.yarp_image.copy(read_image)
         input_image = np.copy(np_input[:self.image_h_model, :self.image_w_model]) / 255.0
@@ -131,7 +150,7 @@ class GlHpeModule(yarp.RFModule):
         pred_joints = pred_sk.get_2d_points(260, 346, p_mat=torch.tensor(self.P_mat_cam))
 
         # Obtain the 2D prediction as an image
-        fig2D = plot_skeleton_2d_lined(input_image[0].squeeze(), pred_joints, return_figure=True)
+        fig2D = plot_skeleton_2d(input_image[0].squeeze(), pred_joints, fname=os.path.join(self.resultsPath, 'output_2D_'+str(self.counter)+'.png'), return_figure=True,lines = True)
         fig2D.canvas.draw()
         img = np.fromstring(fig2D.canvas.tostring_rgb(), dtype=np.uint8, sep='')
         img = img.reshape(fig2D.canvas.get_width_height()[::-1] + (3,))
@@ -141,12 +160,16 @@ class GlHpeModule(yarp.RFModule):
         cv2.imshow("output", img)
         print(img.shape)
         k = cv2.waitKey(10)
-        # cv2.imwrite(os.path.join(self.resultsPath,'input_'+str(self.counter),'.png'), input_image)
-        # cv2.imwrite(os.path.join(self.resultsPath,'output_2D_'+str(self.counter),'.png'), img)
+        cv2.imwrite(os.path.join(self.resultsPath, 'input_'+str(self.counter),'.png'), input_image)
+        # cv2.imwrite(os.path.join(self.resultsPath, 'output_2D_'+str(self.counter),'.png'), img)
 
-#        np_output[:, :] = img
+        # write the Results into numpy arrays
+        utilities.save_2D_prediction(pred_joints, fname=join(self.resultsPath, self.fname), overwrite=False)
+        utilities.save_timestamp(stamp, fname=join(self.resultsPath, self.fname_ts), overwrite=False)
+
+        #        np_output[:, :] = img
         # self.output_port.write(self.yarp_image_out)
-
+        self.last_timestamp = stamp
         if k == 32:
             return False
         return True
