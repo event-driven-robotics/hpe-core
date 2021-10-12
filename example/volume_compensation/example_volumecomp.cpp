@@ -153,6 +153,7 @@ public:
                 yError() << "Could not open supplied writer path" << vel_dump_path;
                 return false;
             }
+            vel_writer << std::fixed << std::setprecision(6);
         }
 
         Network yarp;
@@ -281,6 +282,7 @@ public:
         scope_port.write();
 
         if (vel_writer.is_open()) {
+            vel_writer << yarpstamp_imu.getTime() << " ";
             for (auto &i : cam_vel)
                 vel_writer << i << " ";
             vel_writer << std::endl;
