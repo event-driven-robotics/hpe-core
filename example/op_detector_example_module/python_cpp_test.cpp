@@ -8,12 +8,14 @@ using namespace yarp::os;
 using namespace yarp::sig;
 
 
-class E2VidExampleModule : public RFModule {
+class E2VidExampleModule : public RFModule, public Thread {
 
 private:
 
-//    BufferedPort<vector<AE>> input_port;
-//    BufferedPort<ImageOf<PixelRgb>> output_port;
+    vReadPort<vector<AE>> input_port;
+    BufferedPort<ImageOf<PixelRgb>> output_port;
+
+    deque<AE> out_queue;
 
     int sensor_height;
     int sensor_width;
@@ -28,23 +30,19 @@ public:
 
     virtual bool configure(yarp::os::ResourceFinder& rf)
     {
-//        if (!yarp::os::Network::checkNetwork(2.0)) {
-//            std::cout << "Could not connect to YARP" << std::endl;
-//            return false;
-//        }
-//        //set the module name used to name ports
-//        setName((rf.check("name", Value("/e2vid_module")).asString()).c_str());
-//
-//        //open io ports
-//        if(!input_port.open(getName() + "/img:i")) {
-//            yError() << "Could not open input port";
-//            return false;
-//        }
-//
-//        if(!output_port.open(getName() + "/img:o")) {
-//            yError() << "Could not open input port";
-//            return false;
-//        }
+        //set the module name used to name ports
+        setName((rf.check("name", Value("/e2vid_online_module")).asString()).c_str());
+
+        //open io ports
+        if(!input_port.open(getName() + "/AE:i")) {
+            yError() << "Could not open input port";
+            return false;
+        }
+
+        if(!output_port.open(getName() + "/img:o")) {
+            yError() << "Could not open input port";
+            return false;
+        }
 
         // read flags and parameters
         int default_sensor_height = 260;
@@ -66,29 +64,42 @@ public:
 
     virtual double getPeriod()
     {
-        //run the module as fast as possible. Only as fast as new images are
-        //available and then limited by how fast OpenPose takes to run
+        // run the module as fast as possible. Only as fast as new images are
+        // available and then limited by how fast e2vid takes to run
         return 0;
     }
 
     bool interruptModule()
     {
-        //if the module is asked to stop ask the asynchronous thread to stop
-//        input_port.interrupt();
-//        output_port.interrupt();
+        // close ports
+        input_port.interrupt();
+        output_port.interrupt();
+
+        // kill python's interpreter
+        e2vid.close();
         return true;
     }
 
-    bool close()
+    void onStop()
     {
-        //when the asynchronous thread is asked to stop, close ports and do other clean up
-//        input_port.close();
-//        output_port.close();
-        return true;
+        // close ports
+        input_port.close();
+        output_port.close();
+
+        // kill python's interpreter
+        e2vid.close();
     }
 
-    //synchronous thread
+    // synchronous thread
     virtual bool updateModule() {
+
+        // TODO: check number of events in out_queue?
+
+        // run e2vid on deque of events
+        // ...
+        // out_queue.clear();
+
+
 //        //read greyscale image from yarp
 //        ImageOf<PixelMono>* img_yarp = input_port.read();
 //        if (img_yarp == nullptr)
@@ -120,6 +131,27 @@ public:
 //        cv::waitKey(1);
 
         return true;
+    }
+
+    // asynchronous thread runs forever
+    void run()
+    {
+        Stamp yarpstamp;
+
+        while(true) {
+
+            const vector<AE> * q = input_port.read(yarpstamp);
+            if(!q || Thread::isStopping()) return;
+
+            for(auto &qi : *q) {
+
+                // TODO: add check on number of events?
+                // if(out_queue.size() > max_events_num)
+                //     continue;
+
+                out_queue.push_back(qi);
+            }
+        }
     }
 };
 

@@ -24,13 +24,18 @@ class E2Vid {
     int m_argc;
     char* m_argv[1];
 
-    void ae_vector_to_numpy(vector<AE> &events, PyArrayObject *&py_mat);
+    // functions for converting from c++ to python and viceversa
+    void ae_vector_to_numpy(deque<AE> &events, PyArrayObject *&py_mat);
+    void numpy_to_1Ch_cvMat(PyObject *py_mat, cv::Mat &cv_mat);
+
+    // TODO: make the path of the trained model a parameter
+    bool init_model(int sensor_height, int sensor_width, int window_size, float events_per_pixel);
 
   public:
-    // TODO: default values
+    // TODO: default values?
     bool init(int sensor_height, int sensor_width, int window_size, float events_per_pixel);
     void close();
-    bool predict_grayscale_frame(vector<AE> &input, cv::Mat &output);
+    bool predict_grayscale_frame(deque<AE> &input, cv::Mat &output);
 };
 
 }

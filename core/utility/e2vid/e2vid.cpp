@@ -10,17 +10,14 @@ using namespace hpecore;
 /* PRIVATE METHODS */
 /*******************/
 
-void E2Vid::ae_vector_to_numpy(vector<AE> &events, PyArrayObject *&py_mat)
+// convert a deque of events to a python object representing a numpy array
+void E2Vid::ae_vector_to_numpy(deque<AE> &events, PyArrayObject *&py_mat)
 {
-
-//    // total number of elements (here it's a grayscale 640x480)
-//    int nElem = cv_mat.rows * cv_mat.cols;
-//
-//    // create an array of apropriate datatype
-//    uchar *data = new uchar[nElem];
+//    // create an array of appropriate datatype
+//    uchar *data = new uchar[events.size()];
 //
 //    // copy the data from the cv::Mat object into the array
-//    std::memcpy(data, cv_mat.data, nElem * sizeof(uchar));
+//    std::memcpy(data, cv_mat.data, events.size() * sizeof(uchar));
 //
 //    // the dimensions of the matrix
 //    npy_intp mdim[] = { cv_mat.rows, cv_mat.cols };
@@ -28,6 +25,69 @@ void E2Vid::ae_vector_to_numpy(vector<AE> &events, PyArrayObject *&py_mat)
 //    // convert the cv::Mat to numpy.array
 //    py_mat = (PyArrayObject *) PyArray_SimpleNewFromData(2, mdim, NPY_UINT8, (void*) data);
 //    PyArray_ENABLEFLAGS(py_mat, NPY_ARRAY_OWNDATA);
+}
+
+
+// convert a python object representing a numpy array to opencv mat
+void E2Vid::numpy_to_1Ch_cvMat(PyObject *py_mat, cv::Mat &cv_mat)
+{
+    // get size
+    int rows = PyArray_DIMS(py_mat)[0];
+    int cols = PyArray_DIMS(py_mat)[1];
+    void *mat_data = PyArray_DATA(py_mat);
+
+    // std::cout << "output: " << rows << "x" << cols << std::endl;
+
+    // create a cv::Mat
+    cv::Mat mat(rows, cols, CV_8UC1, mat_data);
+
+    // copy to our mat
+    mat.copyTo(cv_mat);
+}
+
+
+// call the python script that initializes e2vid's model
+bool E2Vid::init_model(int sensor_height, int sensor_width, int window_size, float events_per_pixel)
+{
+    if(!m_py_functions_loaded)
+    {
+        std::cout << "python functions not loaded" << std::endl;
+        return false;
+    }
+
+    std::string model_root = E2VID_PYTHON_DIR;
+    model_root = model_root + "/rpg_e2vid/pretrained";
+
+    // create a Python-tuple of arguments for the function call
+    PyObject* args = Py_BuildValue("(iiids)",
+                                   sensor_height,
+                                   sensor_width,
+                                   window_size,
+                                   events_per_pixel,
+                                   model_root.c_str()
+                                   );
+
+    if(args == NULL)
+    {
+        std::cout << "args are null" << std::endl;
+        return false;
+    }
+
+    // execute the function
+    PyObject* py_res = PyEval_CallObject(m_py_fun_init_model, args);
+
+//    int ok;
+//    int res_code = 0;
+//    PyObject* py_crack_;
+//    ok = PyArg_ParseTuple(py_res, "O", &res_code, &py_crack_mask);
+//
+    // decrement the object references
+//    Py_XDECREF(py_crack_mask);
+//    Py_XDECREF(py_images);
+//    Py_XDECREF(py_tile_mask);
+    Py_XDECREF(args);
+
+    return true;  // TODO: check res_code value!!!
 }
 
 
@@ -73,7 +133,7 @@ bool E2Vid::init(int sensor_height, int sensor_width, int window_size, float eve
     PyObject *sys_path = PySys_GetObject(strdup("path"));
     PyList_Append(sys_path, PyUnicode_FromString(E2VID_PYTHON_DIR));  // relative to the build directory
 
-    // important, initializes several of static data structures
+    // important, initializes numpy's data structures
     import_array1(-1);
 
     m_py_functions_loaded = false;
@@ -112,9 +172,7 @@ bool E2Vid::init(int sensor_height, int sensor_width, int window_size, float eve
 
     m_py_functions_loaded = true;
 
-    // TODO: call a script/function that initializes e2vid model with function parameters
-
-    return true;
+    return init_model(sensor_height, sensor_width, window_size, events_per_pixel);
 }
 
 
@@ -124,7 +182,7 @@ void E2Vid::close()
 }
 
 
-bool E2Vid::predict_grayscale_frame(vector<AE> &input, cv::Mat &output)
+bool E2Vid::predict_grayscale_frame(deque<AE> &input, cv::Mat &output)
 {
 //    // - convert events to numpy arr
 //    // - initialize output

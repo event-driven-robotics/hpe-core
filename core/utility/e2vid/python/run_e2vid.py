@@ -1,5 +1,6 @@
 
 import argparse
+import os
 import torch
 
 from image_reconstructor import ImageReconstructor
@@ -19,7 +20,7 @@ width = 0
 height = 0
 
 
-def init_model(sensor_height, sensor_width, window_size, events_per_pixel):
+def init_model(sensor_height, sensor_width, window_size, events_per_pixel, model_root):
 
     parser = argparse.ArgumentParser()
 
@@ -114,8 +115,7 @@ def init_model(sensor_height, sensor_width, window_size, events_per_pixel):
     print('Sensor size: {} x {}'.format(width, height))
 
     global model
-    model = load_model('pretrained/E2VID_lightweight.pth.tar')  # TODO: specify correct path for c++ wrapper
-
+    model = load_model(os.path.join(model_root, 'E2VID_lightweight.pth.tar'))
     global device
     device = get_device(args.use_gpu)
 
@@ -151,6 +151,8 @@ def init_model(sensor_height, sensor_width, window_size, events_per_pixel):
     compute_voxel_grid_on_cpu = args.compute_voxel_grid_on_cpu
     if compute_voxel_grid_on_cpu:
         print('Will compute voxel grid on CPU.')
+
+    print('model initialized')
 
     return True
 
