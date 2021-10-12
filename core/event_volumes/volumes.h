@@ -1,5 +1,6 @@
 #include <opencv2/opencv.hpp>
 #include <deque>
+#include <array>
 #include "utility.h"
 
 namespace hpecore {
@@ -17,7 +18,7 @@ inline void createCountImage(std::deque<T> &input, cv::Mat &output)
 void varianceNormalisation(cv::Mat &input);
 
 // Event warping
-using camera_velocity = double[6];
+using camera_velocity = std::array<double, 6>;
 
 typedef struct camera_params
 {

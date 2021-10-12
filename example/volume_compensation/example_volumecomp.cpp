@@ -5,14 +5,11 @@
 #include <vector>
 #include <hpe-core/volumes.h>
 #include <mutex>
-//#include <dirent.h>
-//#include <sstream>
-//#include <numeric>
-//#include <iterator>
+#include <fstream>
+
 
 #define f 274.573
 #define x0 139.228
-//#define x0 152.228
 #define y0 123.092
 
 using namespace ev;
@@ -108,24 +105,22 @@ class volumeCompensator : public RFModule,
     vReadPort< vector<IMUevent>  > imu_port;
     BufferedPort< Vector > scope_port;
 
-    vector<double> imu_state;
-    imuHelper imu_helper;
-    double period;
-    bool dof6;
-    double window_size;
+    imuAdvHelper imu_helper;
+    double period{0.1};
+    double window_size{0.1};
+    bool rot_only{false};
 
-    resolution res;
+    resolution res{304, 240};
 
     deque<AE> window;
     flowVisualiser fv;
     std::mutex m;
 
+    std::fstream vel_writer;
+
 public:
 
-    volumeCompensator()
-    {
-        imu_state.resize(10, 0.0);
-    }
+    volumeCompensator(){};
 
     virtual bool configure(yarp::os::ResourceFinder& rf)
     {
@@ -134,8 +129,9 @@ public:
             yInfo() << "--height <int>: image height";
             yInfo() << "--width <int> : image width";
             yInfo() << "--period <float>: image output rate";
-            yInfo() << "--dof6  <bool>: use all 6 DoF";
+            yInfo() << "--rot_only <bool>: use 3DoF rotation only";
             yInfo() << "--window <float>: period of data to compensate";
+            yInfo() << "--vel_dump <string>: path to file to dump velocities";
             return false;
         }
 
@@ -145,8 +141,19 @@ public:
         res.height = rf.check("height", Value(240)).asInt();
         res.width  = rf.check("width",  Value(304)).asInt();
         period = rf.check("period", Value(0.1)).asDouble();
-        dof6 = rf.check("dof6", Value(false)).asBool();
+        rot_only = rf.check("rot_only", Value(false)).asBool();
         window_size = rf.check("window", Value(0.1)).asDouble();
+        std::string vel_dump_path = "";
+        if(rf.check("vel_dump"))
+            vel_dump_path = rf.find("vel_dump").asString();
+
+        if(!vel_dump_path.empty()) {
+            vel_writer.open(vel_dump_path, std::ios_base::out|std::ios_base::trunc);
+            if(!vel_writer.is_open()) {
+                yError() << "Could not open supplied writer path" << vel_dump_path;
+                return false;
+            }
+        }
 
         Network yarp;
         if(!yarp.checkNetwork(2.0)) {
@@ -202,6 +209,7 @@ public:
         vis_port.close();
         imu_port.close();
         scope_port.close();
+        vel_writer.close();
     }
 
     //synchronous thread
@@ -216,14 +224,9 @@ public:
 
         //update the current value of the imu sensor values
         for (auto i = 0; i < n_packets; i++) {
-            // const vector<IMUevent> * q_imu = imu_port.read(yarpstamp);
-
             const vector<IMUevent> *q_imu = imu_port.read(yarpstamp_imu);
             if (!q_imu || Thread::isStopping()) return false;
-
-            for (auto &v : *q_imu) {
-                imu_state[v.sensor] = imu_helper.convertToSI(v.value, v.sensor);
-            }
+            imu_helper.addIMUPacket(*q_imu);
         }
         if(window.empty()) return true;
 
@@ -258,13 +261,12 @@ public:
         
 
         double period = vtsHelper::deltaS(window.back().stamp, window.front().stamp);
-        yInfo() << period;
-        hpecore::camera_velocity cam_vel = {0, 0, 0, imu_state[imuHelper::GYR_X], imu_state[imuHelper::GYR_Y], imu_state[imuHelper::GYR_Z]};
+        hpecore::camera_velocity cam_vel = imu_helper.extractVelocity();
         hpecore::camera_params   cam_par = {f, x0, y0};
         fv.reset();
         m.lock();
         for (auto &v : window) {
-            hpecore::point_flow pf = hpecore::estimateVisualFlow({v.x, v.y, 0}, cam_vel, cam_par);
+            hpecore::point_flow pf = hpecore::estimateVisualFlow({(double)v.x, (double)v.y, 0.0}, cam_vel, cam_par);
             auto we = hpecore::spatiotemporalWarp(v, pf, vtsHelper::deltaS(window.back().stamp, v.stamp));
             fv.addPixel(v.x, v.y, we.x, we.y, pf.udot, pf.vdot, period);
         }
@@ -277,7 +279,12 @@ public:
         for(auto i = 0; i < 6; i++)
             yarp_vel[i] = cam_vel[i];
         scope_port.write();
-        
+
+        if (vel_writer.is_open()) {
+            for (auto &i : cam_vel)
+                vel_writer << i << " ";
+            vel_writer << std::endl;
+        }
 
         return Thread::isRunning();
     }
