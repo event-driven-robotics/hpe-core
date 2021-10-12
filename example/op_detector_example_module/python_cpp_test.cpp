@@ -1,21 +1,28 @@
 
 #include <Python.h>
 #include <hpe-core/e2vid.h>
+#include <hpe-core/utility.h>
 #include <yarp/os/all.h>
 #include <yarp/sig/Image.h>
+#include <event-driven/all.h>
 
+using namespace ev;
 using namespace yarp::os;
 using namespace yarp::sig;
 
 
-class E2VidExampleModule : public RFModule, public Thread {
+class E2VidExampleModule: public RFModule, public Thread {
 
 private:
 
-    vReadPort<vector<AE>> input_port;
+    vReadPort<std::vector<AE>> input_port;
     BufferedPort<ImageOf<PixelRgb>> output_port;
 
-    deque<AE> out_queue;
+    // contrary to other module examples where out_queue is of class std::deque,
+    // here out_queue must be converted to an object representing a numpy array,
+    // and for this purpose elements must be stored contiguously in memory (possible
+    // only with std::vector)
+    std::vector<AE> out_queue;
 
     int sensor_height;
     int sensor_width;
@@ -93,6 +100,8 @@ public:
     // synchronous thread
     virtual bool updateModule() {
 
+        yInfo() << "---------------------------------- updateModule()";
+
         // TODO: check number of events in out_queue?
 
         // run e2vid on deque of events
@@ -140,8 +149,10 @@ public:
 
         while(true) {
 
-            const vector<AE> * q = input_port.read(yarpstamp);
+            const std::vector<AE> * q = input_port.read(yarpstamp);
             if(!q || Thread::isStopping()) return;
+
+            yInfo() << "******************** run() - events received - out_queue.size(): " << out_queue.size();
 
             for(auto &qi : *q) {
 
@@ -156,27 +167,16 @@ public:
 };
 
 
-int main(int argc, char *argv[]) {
+int main(int argc, char * argv[])
+{
+    /* prepare and configure the resource finder */
+    yarp::os::ResourceFinder rf;
+    rf.setVerbose( false );
+    rf.configure( argc, argv );
 
-    Py_Initialize();
-
-    printf("python home: %ls\n", Py_GetPythonHome());
-    printf("program name: %ls\n", Py_GetProgramName());
-    printf("get path: %ls\n", Py_GetPath());
-    printf("get prefix: %ls\n", Py_GetPrefix());
-    printf("get exec prefix: %ls\n", Py_GetExecPrefix());
-    printf("get prog full path: %ls\n", Py_GetProgramFullPath());
-
-    PyRun_SimpleString("import sys");
-    printf("path: ");
-    PyRun_SimpleString("print(sys.path)");
-    printf("version: ");
-    PyRun_SimpleString("print(sys.version)");
-
-    printf("E2VID_PYTHON_DIR: %s\n", E2VID_PYTHON_DIR);
-
-    hpecore::E2Vid e2vid;
-    e2vid.init(260, 346, 7500, 0.35);
+    /* create the module */
+    E2VidExampleModule instance;
+    return instance.runModule(rf);
 
     return 0;
 }

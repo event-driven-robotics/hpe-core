@@ -11,7 +11,7 @@ using namespace hpecore;
 /*******************/
 
 // convert a deque of events to a python object representing a numpy array
-void E2Vid::ae_vector_to_numpy(deque<AE> &events, PyArrayObject *&py_mat)
+void E2Vid::ae_vector_to_numpy(std::vector<AE> &events, PyArrayObject *&py_mat)
 {
 //    // create an array of appropriate datatype
 //    uchar *data = new uchar[events.size()];
@@ -20,10 +20,10 @@ void E2Vid::ae_vector_to_numpy(deque<AE> &events, PyArrayObject *&py_mat)
 //    std::memcpy(data, cv_mat.data, events.size() * sizeof(uchar));
 //
 //    // the dimensions of the matrix
-//    npy_intp mdim[] = { cv_mat.rows, cv_mat.cols };
+//    npy_intp mdim[] = { events.size(), 4 };
 //
 //    // convert the cv::Mat to numpy.array
-//    py_mat = (PyArrayObject *) PyArray_SimpleNewFromData(2, mdim, NPY_UINT8, (void*) data);
+//    py_mat = (PyArrayObject *) PyArray_SimpleNewFromData(2, mdim, NPY_FLOAT64, (void*) data);
 //    PyArray_ENABLEFLAGS(py_mat, NPY_ARRAY_OWNDATA);
 }
 
@@ -184,7 +184,7 @@ void E2Vid::close()
 }
 
 
-bool E2Vid::predict_grayscale_frame(deque<AE> &input, cv::Mat &output)
+bool E2Vid::predict_grayscale_frame(std::vector<AE> &input, cv::Mat &output)
 {
 //    // - convert events to numpy arr
 //    // - initialize output

@@ -6,7 +6,6 @@
 #include <numpy/arrayobject.h>
 #include <opencv2/opencv.hpp>
 #include <Python.h>
-#include <deque>
 
 using namespace ev;
 
@@ -25,17 +24,16 @@ class E2Vid {
     char* m_argv[1];
 
     // functions for converting from c++ to python and viceversa
-    void ae_vector_to_numpy(deque<AE> &events, PyArrayObject *&py_mat);
+    void ae_vector_to_numpy(std::vector<AE> &events, PyArrayObject *&py_mat);
     void numpy_to_1Ch_cvMat(PyObject *py_mat, cv::Mat &cv_mat);
 
-    // TODO: make the path of the trained model a parameter
     bool init_model(int sensor_height, int sensor_width, int window_size, float events_per_pixel);
 
   public:
     // TODO: default values?
     bool init(int sensor_height, int sensor_width, int window_size, float events_per_pixel);
     void close();
-    bool predict_grayscale_frame(deque<AE> &input, cv::Mat &output);
+    bool predict_grayscale_frame(std::vector<AE> &input, cv::Mat &output);
 };
 
 }
