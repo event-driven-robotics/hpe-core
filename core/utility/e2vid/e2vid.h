@@ -6,7 +6,7 @@
 #include <numpy/arrayobject.h>
 #include <opencv2/opencv.hpp>
 #include <Python.h>
-#include <vector>
+#include <deque>
 
 using namespace ev;
 

@@ -103,19 +103,21 @@ bool E2Vid::init(int sensor_height, int sensor_width, int window_size, float eve
     // init python interpreter
     Py_Initialize();
 
-    // // print python info
-    // printf("python home: %s\n", Py_GetPythonHome());
-    // printf("program name: %s\n", Py_GetProgramName());
-    // printf("get path: %s\n", Py_GetPath());
-    // printf("get prefix: %s\n", Py_GetPrefix());
-    // printf("get exec prefix: %s\n", Py_GetExecPrefix());
-    // printf("get prog full path: %s\n", Py_GetProgramFullPath());
+    // print python info
+    printf("python home: %ls\n", Py_GetPythonHome());
+    printf("program name: %ls\n", Py_GetProgramName());
+    printf("get path: %ls\n", Py_GetPath());
+    printf("get prefix: %ls\n", Py_GetPrefix());
+    printf("get exec prefix: %ls\n", Py_GetExecPrefix());
+    printf("get prog full path: %ls\n", Py_GetProgramFullPath());
 
-    // PyRun_SimpleString("import sys");
-    // printf("path: ");
-    // PyRun_SimpleString("print(sys.path)");
-    // printf("version: ");
-    // PyRun_SimpleString("print(sys.version)");
+    PyRun_SimpleString("import sys");
+    printf("path: ");
+    PyRun_SimpleString("print(sys.path)");
+    printf("version: ");
+    PyRun_SimpleString("print(sys.version)");
+
+    printf("E2VID_PYTHON_DIR: %s\n", E2VID_PYTHON_DIR);
 
     // set the command line arguments (can be crucial for some python-packages, like tensorflow)
     // PySys_SetArgv(m_argc, (wchar_t**)m_argv);
