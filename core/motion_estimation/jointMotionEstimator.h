@@ -12,7 +12,7 @@ namespace hpecore
     public:
        
       sklt resetPose(sklt detection);
-      sklt estimateVelocity(std::deque<joint> evs, std::deque<double> evsTs);
+      sklt estimateVelocity(std::deque<joint> evs, std::deque<double> evsTs, int jointName);
       void fusion(sklt *pose, sklt dpose, double dt);
 
       template <typename T>
@@ -20,9 +20,6 @@ namespace hpecore
       {
         for (auto &q : input)
         {
-          // joint j;
-          // j.u = q.x;
-          // j.v = q.y;
           joint j = {q.x, q.y};
           output.push_back(j);
           ts.push_back(q.stamp*scaler);
