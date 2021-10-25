@@ -28,13 +28,13 @@ class E2Vid:
 
     def __init__(self, options):
 
-        self.width = options.width
-        self.height = options.height
+        self.width = options.sensor_width
+        self.height = options.sensor_height
         print('Sensor size: {} x {}'.format(self.width, self.height))
 
         self.device = get_device(options.use_gpu)
 
-        self.model = load_model(os.path.join(options.model_root, 'E2VID_lightweight.pth.tar'))
+        self.model = load_model(os.path.join(os.getenv('E2VID_PYTHON_DIR'), 'pretrained/E2VID_lightweight.pth.tar'))
         self.model = self.model.to(self.device)
         self.model.eval()
 

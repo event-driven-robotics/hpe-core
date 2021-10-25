@@ -1,3 +1,4 @@
+
 sensor_width = 346  # width of the sensor
 sensor_height = 260  # height of the sensor
 fixed_duration = False

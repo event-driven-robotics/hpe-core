@@ -5,19 +5,22 @@ import numpy as np
 import threading
 import cv2
 
-import e2vid_config as conf
+import e2vid_config
+from e2vid import E2Vid
 
 
 class E2VidExampleModule(yarp.RFModule):
 
     def __init__(self):
         yarp.RFModule.__init__(self)
-        self.image = np.zeros((conf.height, conf.width))
-        self.image_buf = np.zeros((conf.height, conf.width))
+        self.image = np.zeros((e2vid_config.sensor_height, e2vid_config.sensor_width))
+        self.image_buf = np.zeros((e2vid_config.sensor_height, e2vid_config.sensor_width))
         self.input_port = yarp.BufferedPortBottle()
         self.rpc_port = yarp.RpcServer()
         cv2.namedWindow("events", cv2.WINDOW_NORMAL)
         self.mutex = threading.Lock()
+
+        self.e2vid = E2Vid(e2vid_config)
 
     def configure(self, rf):
         # set the module name used to name ports
@@ -80,21 +83,24 @@ class E2VidExampleModule(yarp.RFModule):
         while not self.isStopping():
 
             bot = self.input_port.read()
+
             # Data in the bottle is organized as <event_type> (<timestamp 1> <event 1> .... <timestamp n> <event n>)
             vType = bot.get(0).asString()
             if vType != "AE":
                 continue
             event_bottle = np.array(bot.get(1).toString().split(' ')).astype(int).reshape(-1, 2)
-            timestamps = event_bottle[:, 0]
-            events = event_bottle[:, 1]
-            x = events >> 12 & 0xFF
-            y = events >> 1 & 0x1FF
-            pol = events & 0x01
-            self.image_buf[x, y] = pol
+            print(event_bottle)
 
-            self.mutex.acquire()
-            self.image = self.image_buf.copy()  # self.image is a shared resource between threads
-            self.mutex.release()
+            # timestamps = event_bottle[:, 0]
+            # events = event_bottle[:, 1]
+            # x = events >> 12 & 0xFF
+            # y = events >> 1 & 0x1FF
+            # pol = events & 0x01
+            # self.image_buf[x, y] = pol
+            #
+            # self.mutex.acquire()
+            # self.image = self.image_buf.copy()  # self.image is a shared resource between threads
+            # self.mutex.release()
 
 
 if __name__ == '__main__':
@@ -108,7 +114,7 @@ if __name__ == '__main__':
     rf = yarp.ResourceFinder()
     rf.setVerbose(False)
     rf.setDefaultContext("eventdriven")
-    rf.setDefaultConfigFile("e2vidExampleModule.ini")
+    # rf.setDefaultConfigFile("e2vidExampleModule.ini")
     rf.configure(sys.argv)
 
     # create the module
