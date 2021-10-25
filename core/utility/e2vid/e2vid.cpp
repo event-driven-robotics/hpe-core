@@ -11,21 +11,21 @@ using namespace hpecore;
 /*******************/
 
 // convert a deque of events to a python object representing a numpy array
-void E2Vid::ae_vector_to_numpy(std::vector<AE> &events, PyArrayObject *&py_mat)
-{
+//void E2Vid::ae_vector_to_numpy(std::vector<AE> &events, PyArrayObject *&py_mat)
+//{
 //    // create an array of appropriate datatype
-//    uchar *data = new uchar[events.size()];
+//    double *data = new double[events.size()];
 //
 //    // copy the data from the cv::Mat object into the array
-//    std::memcpy(data, cv_mat.data, events.size() * sizeof(uchar));
+//    std::memcpy(data, events.data(), events.size() * sizeof(double));
 //
 //    // the dimensions of the matrix
 //    npy_intp mdim[] = { events.size(), 4 };
 //
-//    // convert the cv::Mat to numpy.array
+//    // convert the vector<AE> to numpy.array
 //    py_mat = (PyArrayObject *) PyArray_SimpleNewFromData(2, mdim, NPY_FLOAT64, (void*) data);
 //    PyArray_ENABLEFLAGS(py_mat, NPY_ARRAY_OWNDATA);
-}
+//}
 
 
 // convert a python object representing a numpy array to opencv mat
@@ -74,7 +74,14 @@ bool E2Vid::init_model(int sensor_height, int sensor_width, int window_size, flo
     }
 
     // execute the function
+//    std::cout << "--------------------------- before gil state ensure" << std::endl;
+//    PyGILState_STATE gstate;
+//    gstate = PyGILState_Ensure();
+//    std::cout << "--------------------------- after gil state ensure" << std::endl;
     PyObject* py_res = PyEval_CallObject(m_py_fun_init_model, args);
+//    std::cout << "--------------------------- model initialized" << std::endl;
+//    PyGILState_Release(gstate);
+//    std::cout << "--------------------------- gil state release" << std::endl;
 
 //    int ok;
 //    int res_code = 0;
@@ -98,7 +105,7 @@ bool E2Vid::init_model(int sensor_height, int sensor_width, int window_size, flo
 bool E2Vid::init(int sensor_height, int sensor_width, int window_size, float events_per_pixel)
 {
     m_argc = 1;
-    m_argv[0] = strdup("e2vid");
+    m_argv[0] = strdup("run_e2vid");
 
     // init python interpreter
     Py_Initialize();
@@ -111,17 +118,24 @@ bool E2Vid::init(int sensor_height, int sensor_width, int window_size, float eve
     printf("get exec prefix: %ls\n", Py_GetExecPrefix());
     printf("get prog full path: %ls\n", Py_GetProgramFullPath());
 
-    PyRun_SimpleString("import sys");
+    int res = PyRun_SimpleString("import sys");
+    printf("PyRun_SimpleString: %d", res);
+
     printf("path: ");
-    PyRun_SimpleString("print(sys.path)");
+    res = PyRun_SimpleString("print(sys.path)");  // FIXME: empty path?!?!?!
+    printf("PyRun_SimpleString: %d", res);
+
     printf("version: ");
-    PyRun_SimpleString("print(sys.version)");
+    res = PyRun_SimpleString("print(sys.version)");
+    printf("PyRun_SimpleString: %d", res);
 
     printf("E2VID_PYTHON_DIR: %s\n", E2VID_PYTHON_DIR);
 
     // set the command line arguments (can be crucial for some python-packages, like tensorflow)
     // PySys_SetArgv(m_argc, (wchar_t**)m_argv);
-    // PySys_SetArgv(m_argc, m_argv);
+    // PySys_SetArgv(m_argc, m_argv);  // TODO: what's this?!
+
+    // TODO: check that all instructions below (and above?) are successful
 
 #ifdef PYTHON2
     PySys_SetArgv(m_argc, m_argv);
@@ -133,7 +147,13 @@ bool E2Vid::init(int sensor_height, int sensor_width, int window_size, float eve
 
     // add scripts folder to the python's PATH
     PyObject *sys_path = PySys_GetObject(strdup("path"));
-    PyList_Append(sys_path, PyUnicode_FromString(E2VID_PYTHON_DIR));  // relative to the build directory
+    if(sys_path == NULL)
+    {
+        std::cout << "Could not get sys path" << std::endl;
+        return false;
+    }
+    res = PyList_Append(sys_path, PyUnicode_FromString(E2VID_PYTHON_DIR));  // relative to the build directory
+    printf("PyList_Append: %d", res);
 
     // important, initializes numpy's data structures
     import_array1(-1);
@@ -184,36 +204,32 @@ void E2Vid::close()
 }
 
 
-bool E2Vid::predict_grayscale_frame(std::vector<AE> &input, cv::Mat &output)
-{
-//    // - convert events to numpy arr
-//    // - initialize output
-//
+//bool E2Vid::predict_grayscale_frame(std::vector<AE> &input, cv::Mat &output)
+//{
 //    if(!m_py_functions_loaded)
 //    {
 //        std::cout << "python functions not loaded" << std::endl;
 //        return false;
 //    }
 //
+//    // convert events to numpy array
+//    PyArrayObject *py_events;
+//    ae_vector_to_numpy(input, py_events);
+//    if(py_events == NULL)
+//    {
+//        std::cout << "numpy array of events is null" << std::endl;
+//        return false;
+//    }
+//
+//    // - initialize output
+//
 //    // - send events to python
 //
-//    // create a Python-tuple of arguments for the function call
-//    PyObject* args = Py_BuildValue("(OOsiiOOdd)",
-//                                   py_images,
-//                                   py_tile_mask,
-//                                   model_root.c_str(),
-//                                   m_patch_dimension,
-//                                   m_stride,
-//                                   m_infer_in_batch ? Py_True : Py_False,
-//                                   m_probability_based_inference ? Py_True : Py_False,
-//                                   m_prob_cutoff,
-//                                   m_tile_th
-//                                   );
-//
+//    // create a python object of arguments for the function call
+//    PyObject* args = Py_BuildValue("(O)", py_events);
 //    if(args == NULL)
 //    {
-//        Py_XDECREF(py_images);
-//        Py_XDECREF(py_tile_mask);
+//        Py_XDECREF(py_events);
 //        std::cout << "args are null" << std::endl;
 //        return false;
 //    }
@@ -221,23 +237,22 @@ bool E2Vid::predict_grayscale_frame(std::vector<AE> &input, cv::Mat &output)
 //    std::cout << "args" << std::endl;
 //
 //    // execute the function
-//    PyObject* py_res = PyEval_CallObject(m_py_fun_detect_cracks_locally_multi_images, args);
+//    PyObject* py_res = PyEval_CallObject(m_py_fun_predict_grayscale_frame, args);
 //
 //    std::cout << "PyEval_CallObject" << std::endl;
 //
 //    int ok;
 //    int res_code = 0;
-//    PyObject* py_crack_mask;
-//    ok = PyArg_ParseTuple(py_res, "iO", &res_code, &py_crack_mask);
+//    PyObject* py_grayscale_frame;
+//    ok = PyArg_ParseTuple(py_res, "iO", &res_code, &py_grayscale_frame);
 //
 //    // convert result
-//    Numpy_to_1Ch_cvMat(py_crack_mask, crack_mask);
+//    numpy_to_1Ch_cvMat(py_grayscale_frame, output);
 //
-//    // decrement the object references
-//    Py_XDECREF(py_crack_mask);
-//    Py_XDECREF(py_images);
-//    Py_XDECREF(py_tile_mask);
+//    // decrement object references
+//    Py_XDECREF(py_grayscale_frame);
+//    Py_XDECREF(py_events);
 //    Py_XDECREF(args);
-
-    return true;  // TODO: check res_code value!!!
-}
+//
+//    return true;  // TODO: check res_code value!!!
+//}
