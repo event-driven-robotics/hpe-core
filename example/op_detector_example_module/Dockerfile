@@ -1,7 +1,9 @@
 
 # base image
-FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04
-# FROM ubuntu
+FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
+
+ENV DEBIAN_FRONTEND noninteractive
+
 
 ###########
 # OPENPOSE #
@@ -11,7 +13,7 @@ FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04
 
 # install dependencies
 RUN apt-get update && \
-DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+apt-get install -y --no-install-recommends \
 python3-dev python3-pip git g++ wget make libprotobuf-dev protobuf-compiler libopencv-dev \
 libgoogle-glog-dev libboost-all-dev libcaffe-cuda-dev libhdf5-dev libatlas-base-dev
 
@@ -68,7 +70,7 @@ ARG ssh_pub_key
 
 RUN apt-get update && \
 apt-get install -y openssh-client git
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
+RUN apt-get install -y \
     libmysqlclient-dev \
     ffmpeg libsm6 libxext6
 
@@ -83,11 +85,10 @@ RUN echo "$ssh_prv_key" > /root/.ssh/id_ed25519 && \
     chmod 600 /root/.ssh/id_ed25519 && \
     chmod 600 /root/.ssh/id_ed25519.pub
 
+
 ############
 #   YARP   #
 ############
-
-RUN echo "*************** building yarp ****************"
 
 ARG EVENT_DRIVEN_VERSION=1.5
 ARG YARP_VERSION=3.4.4
@@ -96,8 +97,6 @@ ARG BUILD_TYPE=Release
 ARG SOURCE_FOLDER=/usr/local
 ARG OPENGL=0
 ARG HPE_BRANCH=online_e2vid
-
-ENV DEBIAN_FRONTEND noninteractive
 
 RUN apt update
 
@@ -132,12 +131,13 @@ RUN apt install -y \
         qml-module-qtquick-controls
 
 
+# Install YCM
 RUN cd $SOURCE_FOLDER && \
     git clone https://github.com/robotology/ycm.git && \
     cd ycm && \
     git checkout v$YCM_VERSION && \
-    # FIXME: remove this line after gitlab fix!!!!!
-    sed -ie 's/libeigen/cantonios/g' 3rdparty/eigen3.cmake && \
+#    # FIXME: remove this line after gitlab fix!!!!!
+#    sed -ie 's/libeigen/cantonios/g' 3rdparty/eigen3.cmake && \
     mkdir build && cd build && \
     cmake .. && \
     make -j `nproc` install
@@ -162,7 +162,7 @@ EXPOSE 10000/tcp 10000/udp
 ENV QT_X11_NO_MITSHM 1
 
 
-# Install event-driven
+# Install EVENT-DRIVEN
 RUN cd $SOURCE_FOLDER && \
     git clone https://github.com/robotology/event-driven.git && \
     cd event-driven && \
@@ -179,10 +179,12 @@ RUN cd $SOURCE_FOLDER && \
 ############
 
 # install e2vid dependencies
-RUN pip3 install torch torchvision && \
-    apt -y install python3-pandas && \
-    pip3 install scipy -U && \
-    apt -y install python3-opencv
+#RUN pip3 install torch torchvision && \
+#    apt -y install python3-pandas && \
+#    pip3 install scipy -U && \
+#    apt -y install python3-opencv \
+RUN python3 -m pip install --upgrade pip && \
+RUN python3 -m pip install torch==1.9.1 torchvision==0.10.1 pandas scipy opencv-python
 
 #ENV PYTHONHOME=/root/anaconda/bin
 #ENV PYTHONPATH=/root/anaconda/lib:/root/anaconda/lib/python3.8:/root/anaconda/lib/python3.8/site-packages
@@ -210,6 +212,9 @@ RUN cd $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python && \
 
     # download e2vid pretrained model
     wget "http://rpg.ifi.uzh.ch/data/E2VID/models/E2VID_lightweight.pth.tar" -O pretrained/E2VID_lightweight.pth.tar
+
+# move custom python scripts to rpg_e2vid dir
+RUN mv $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python/*.py $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python/rpg_e2vid
 
 # define a system variable with e2vid's location; it will be used by the C++ wrapper
 ENV E2VID_PYTHON_DIR $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python
