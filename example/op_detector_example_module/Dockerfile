@@ -105,7 +105,8 @@ RUN apt install -y \
     ca-certificates \
     gnupg \
     software-properties-common \
-    lsb-core
+    lsb-core \
+    swig
 
 # Install useful packages
 RUN apt install -y \
@@ -150,13 +151,16 @@ RUN cd $SOURCE_FOLDER && \
     git checkout v$YARP_VERSION && \
     mkdir build && cd build && \
     cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-          -DYARP_COMPILE_BINDINGS=OFF \
-          -DCREATE_PYTHON=OFF \
+          -DYARP_COMPILE_BINDINGS=ON \
+          -DCREATE_PYTHON=ON \
           .. && \
     make -j `nproc` install
 
 RUN yarp check
 EXPOSE 10000/tcp 10000/udp
+
+# make yarp's python binding visible to python interpreter
+ENV PYTHONPATH $SOURCE_FOLDER/yarp/build/lib/python3:$PYTHONPATH
 
 # Some QT-Apps don't show controls without this
 ENV QT_X11_NO_MITSHM 1
@@ -217,7 +221,7 @@ RUN cd $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python && \
 RUN mv $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python/*.py $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python/rpg_e2vid
 
 # define a system variable with e2vid's location; it will be used by the C++ wrapper
-ENV E2VID_PYTHON_DIR $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python
+ENV E2VID_PYTHON_DIR $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python/rpg_e2vid
 
 # compile and install hpe-core
 RUN cd $SOURCE_FOLDER/hpe-core/core && \
@@ -226,7 +230,7 @@ RUN cd $SOURCE_FOLDER/hpe-core/core && \
     make install -j$(nproc)
 
 # make e2vid scripts visible to python interpreter
-ENV PYTHONPATH $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python/rpg_e2vid:$PYTHONPATH
+ENV PYTHONPATH $E2VID_PYTHON_DIR:$PYTHONPATH
 
 #RUN cd $SOURCE_FOLDER/hpe-core/example/op_detector_example_module && \
 #    mkdir build && cd build && \
@@ -240,21 +244,21 @@ ENV PYTHONPATH $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python/rpg_e2vid:$PYTH
 # OPENPOSE DOWNLOADS #
 ######################
 
-## download models from google drive (https://drive.google.com/file/d/1QCSxJZpnWvM00hx49CJ2zky7PWGzpcEh/view)
-## see https://github.com/CMU-Perceptual-Computing-Lab/openpose/issues/1602#issuecomment-641653411
-#WORKDIR /openpose/tmp
-#RUN git clone https://github.com/chentinghao/download_google_drive.git && \
-#    pip3 install requests tqdm && \
-#    cd download_google_drive && \
-#    python3 download_gdrive.py 1QCSxJZpnWvM00hx49CJ2zky7PWGzpcEh ../../models.zip
-#
-## extract downloaded models
-#WORKDIR /openpose
-#RUN unzip models.zip && \
-#    rm models.zip
-#
-#
-#WORKDIR $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/build
+# download models from google drive (https://drive.google.com/file/d/1QCSxJZpnWvM00hx49CJ2zky7PWGzpcEh/view)
+# see https://github.com/CMU-Perceptual-Computing-Lab/openpose/issues/1602#issuecomment-641653411
+WORKDIR /openpose/tmp
+RUN git clone https://github.com/chentinghao/download_google_drive.git && \
+    pip3 install requests tqdm && \
+    cd download_google_drive && \
+    python3 download_gdrive.py 1QCSxJZpnWvM00hx49CJ2zky7PWGzpcEh ../../models.zip
+
+# extract downloaded models
+WORKDIR /openpose
+RUN unzip models.zip && \
+    rm models.zip
+
+
+WORKDIR $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/build
 
 
 #- WRITE C++ YARP COMPONENT THAT CALLS PYTHON INTERPRETER
