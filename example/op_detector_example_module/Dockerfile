@@ -232,12 +232,10 @@ RUN cd $SOURCE_FOLDER/hpe-core/core && \
 # make e2vid scripts visible to python interpreter
 ENV PYTHONPATH $E2VID_PYTHON_DIR:$PYTHONPATH
 
-#RUN cd $SOURCE_FOLDER/hpe-core/example/op_detector_example_module && \
-#    mkdir build && cd build && \
-#    cmake .. && \
-#    make install -j$(nproc)
-
-#WORKDIR $SOURCE_FOLDER/hpe-core/evaluation/dhp19/e2vid/rpg_e2vid
+RUN cd $SOURCE_FOLDER/hpe-core/example/op_detector_example_module && \
+    mkdir build && cd build && \
+    cmake .. && \
+    make install -j$(nproc)
 
 
 ######################
