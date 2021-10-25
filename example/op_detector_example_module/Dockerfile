@@ -184,7 +184,7 @@ RUN cd $SOURCE_FOLDER && \
 #    pip3 install scipy -U && \
 #    apt -y install python3-opencv \
 RUN python3 -m pip install --upgrade pip && \
-RUN python3 -m pip install torch==1.9.1 torchvision==0.10.1 pandas scipy opencv-python
+    python3 -m pip install torch==1.9.1 torchvision==0.10.1 pandas scipy opencv-python
 
 #ENV PYTHONHOME=/root/anaconda/bin
 #ENV PYTHONPATH=/root/anaconda/lib:/root/anaconda/lib/python3.8:/root/anaconda/lib/python3.8/site-packages
