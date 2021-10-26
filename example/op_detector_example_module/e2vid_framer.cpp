@@ -3,7 +3,6 @@
 #include <yarp/cv/Cv.h>
 #include <event-driven/all.h>
 #include <mutex>
-#include <hpe-core/volumes.h>
 
 using namespace ev;
 using namespace yarp::os;
