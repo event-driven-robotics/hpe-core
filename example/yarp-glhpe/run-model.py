@@ -164,8 +164,8 @@ class GlHpeModule(yarp.RFModule):
         # cv2.imwrite(os.path.join(self.resultsPath, 'output_2D_'+str(self.counter),'.png'), img)
 
         # write the Results into numpy arrays
-        utilities.save_2D_prediction(pred_joints, fname=join(self.resultsPath, self.fname), overwrite=False)
-        utilities.save_timestamp(stamp, fname=join(self.resultsPath, self.fname_ts), overwrite=False)
+        # utilities.save_2D_prediction(pred_joints, fname=join(self.resultsPath, self.fname), overwrite=False)
+        # utilities.save_timestamp(stamp, fname=join(self.resultsPath, self.fname_ts), overwrite=False)
 
         #        np_output[:, :] = img
         # self.output_port.write(self.yarp_image_out)

@@ -2,3 +2,4 @@ venv/
 build/
 tester.py
 app_yarp-glhpe_local.xml
+test_eval_glhpe.py
