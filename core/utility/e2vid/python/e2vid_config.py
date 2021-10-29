@@ -1,10 +1,15 @@
 
-sensor_width = 346  # width of the sensor
-sensor_height = 260  # height of the sensor
+# sensor_width = 346  # width of the sensor
+# sensor_height = 260  # height of the sensor
+
+# SIE event camera sensor's size
+sensor_width = 304  # width of the sensor
+sensor_height = 240  # height of the sensor
+
 fixed_duration = False
 window_size = 7500  # Size of each event window, in number of events. Ignored if fixed_duration = True
 window_duration = 33.33  # Duration of each event window, in milliseconds. Ignored if fixed_duration = False
-num_events_per_pixel = 0.33  # in case N (window size) is not specified, it will be automatically computed as N = width * height * num_events_per_pixel
+num_events_per_pixel = 0.35  # in case N (window size) is not specified, it will be automatically computed as N = width * height * num_events_per_pixel
 skipevents = 0
 suboffset = 0
 compute_voxel_grid_on_cpu = False  # compute_voxel_grid_on_cpu
@@ -63,7 +68,7 @@ Imin = 0.0
 Imax = 1.0
 
 # If True, will compute Imin and Imax automatically
-auto_hdr = False
+auto_hdr = True
 
 # Size of the median filter window used to smooth temporally Imin and Imax
 auto_hdr_median_filter_size = 10
@@ -80,4 +85,4 @@ color = False
 no_normalize = False
 
 # disable recurrent connection (will severely degrade the results; for testing purposes only
-no_recurrent = False
+no_recurrent = True

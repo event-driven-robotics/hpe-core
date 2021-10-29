@@ -13,14 +13,25 @@ class E2VidExampleModule(yarp.RFModule):
 
     def __init__(self):
         yarp.RFModule.__init__(self)
-        self.image = np.zeros((e2vid_config.sensor_height, e2vid_config.sensor_width))
-        self.image_buf = np.zeros((e2vid_config.sensor_height, e2vid_config.sensor_width))
+        self.image = np.zeros((e2vid_config.sensor_height, e2vid_config.sensor_width), dtype=np.uint8)
+        self.image_buf = np.zeros((e2vid_config.sensor_height, e2vid_config.sensor_width), dtype=np.uint8)
+        self.events = np.zeros((7500, 4), dtype=np.float64)
+        self.events_buf = np.zeros((7500, 4), dtype=np.float64)
         self.input_port = yarp.BufferedPortBottle()
+
+        self.out_buf_image = yarp.ImageMono()
+        self.out_buf_image.resize(e2vid_config.sensor_width, e2vid_config.sensor_height)
+
+        self.out_buf_image.setExternal(self.image.data, self.image.shape[1], self.image.shape[0])
+
+        # self.output_port = yarp.BufferedPortImageMono()
+        self.output_port = yarp.Port()
         self.rpc_port = yarp.RpcServer()
         cv2.namedWindow("events", cv2.WINDOW_NORMAL)
         self.mutex = threading.Lock()
 
         self.e2vid = E2Vid(e2vid_config)
+        # self.e2vid.model_share_memory()
 
     def configure(self, rf):
         # set the module name used to name ports
@@ -31,6 +42,10 @@ class E2VidExampleModule(yarp.RFModule):
             print("Could not open input port")
             return False
         self.input_port.setStrict()
+
+        if not self.output_port.open(self.getName() + "/img:o"):
+            print("Could not open output port")
+            return False
 
         if not self.rpc_port.open(self.getName() + "/rpc"):
             print("Could not open rpc port")
@@ -55,7 +70,7 @@ class E2VidExampleModule(yarp.RFModule):
         return True
 
     def getPeriod(self):
-        return 0.03  # period of synchronous thread, return 0 update module called as fast as it can
+        return 0.  # period of synchronous thread, return 0 update module called as fast as it can
 
     def interruptModule(self):
         # interrupting all the ports
@@ -74,33 +89,53 @@ class E2VidExampleModule(yarp.RFModule):
         # synchronous update called every get period seconds.
 
         # Put visualization, debug prints, etc... here
+        if self.image is None:
+            print('image is None')
+            return True
+
+        print('***************************')
+        print(self.image.shape)
+
+        self.output_port.write(self.out_buf_image)
+
         cv2.imshow("events", self.image)
         cv2.waitKey(10)
         return True
 
     def run(self):
+
         # asynchronous thread runs as fast as it can
         while not self.isStopping():
 
-            bot = self.input_port.read()
+            bottle = self.input_port.read()
 
             # Data in the bottle is organized as <event_type> (<timestamp 1> <event 1> .... <timestamp n> <event n>)
-            vType = bot.get(0).asString()
+            vType = bottle.get(0).asString()
             if vType != "AE":
                 continue
-            event_bottle = np.array(bot.get(1).toString().split(' ')).astype(int).reshape(-1, 2)
-            print(event_bottle)
+            event_bottle = np.array(bottle.get(1).toString().split(' '), dtype=np.uint32).reshape(-1, 2)
 
-            # timestamps = event_bottle[:, 0]
-            # events = event_bottle[:, 1]
-            # x = events >> 12 & 0xFF
-            # y = events >> 1 & 0x1FF
-            # pol = events & 0x01
-            # self.image_buf[x, y] = pol
-            #
-            # self.mutex.acquire()
-            # self.image = self.image_buf.copy()  # self.image is a shared resource between threads
-            # self.mutex.release()
+            # get timestamp
+            timestamps = event_bottle[:, 0]
+            timestamps = timestamps.reshape(-1, 1).astype(np.float32)
+
+            # get x and y coordinates
+            events_buf = event_bottle[:, 1]
+            y = events_buf >> 12 & 0xFF
+            y = y.reshape(-1, 1)
+            x = events_buf >> 1 & 0x1FF
+            x = x.reshape(-1, 1)
+
+            # get polarity
+            pol = events_buf & 0x01
+            pol = pol.reshape(-1, 1)
+
+            self.events_buf = np.concatenate((timestamps, x, y, pol), axis=1)
+            self.image_buf = self.e2vid.predict_grayscale_frame(self.events_buf)
+            self.mutex.acquire()
+            self.image = self.image_buf.copy()  # self.image is a shared resource between threads
+            # self.events = self.events_buf.copy()
+            self.mutex.release()
 
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 
 # base image
-FROM nvidia/cuda:10.2-cudnn7-devel-ubuntu18.04
+FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -178,15 +178,23 @@ RUN cd $SOURCE_FOLDER && \
     make install -j$(nproc)
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 ############
 # HPE-CORE #
 ############
 
 # install e2vid dependencies
-#RUN pip3 install torch torchvision && \
-#    apt -y install python3-pandas && \
-#    pip3 install scipy -U && \
-#    apt -y install python3-opencv \
 RUN python3 -m pip install --upgrade pip && \
     python3 -m pip install torch==1.9.1 torchvision==0.10.1 pandas scipy opencv-python
 
@@ -223,6 +231,7 @@ RUN mv $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python/*.py $SOURCE_FOLDER/hpe
 # define a system variable with e2vid's location; it will be used by the C++ wrapper
 ENV E2VID_PYTHON_DIR $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python/rpg_e2vid
 
+
 # compile and install hpe-core
 RUN cd $SOURCE_FOLDER/hpe-core/core && \
     mkdir build && cd build && \
@@ -236,6 +245,12 @@ RUN cd $SOURCE_FOLDER/hpe-core/example/op_detector_example_module && \
     mkdir build && cd build && \
     cmake .. && \
     make install -j$(nproc)
+
+
+
+
+
+
 
 
 ######################
@@ -257,11 +272,3 @@ RUN unzip models.zip && \
 
 
 WORKDIR $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/build
-
-
-#- WRITE C++ YARP COMPONENT THAT CALLS PYTHON INTERPRETER
-#  - print python version (must match anaconda's)
-
-#- CREATE DATA STRUCTURE FOR READ EVENTS (NUMPY?)
-#- PASS EVENTS TO E2VID
-#- MAKE E2VID SEND FRAME TO OPENPOSE OR THE C++ YARP COMPONENT?

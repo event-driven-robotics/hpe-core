@@ -72,10 +72,10 @@ class E2Vid:
         # TODO: PRINT THREAD ID, IN PYTHON AND C++!!!!!!!!!!!!!!!!!!
         # TODO: TRY TO INIT E2VID IN MAIN!!!!!!!!!!!!!!!!!!
 
-    def predict_grayscale_frame(self, event_window):
+    def model_share_memory(self):
+        self.model.share_memory()
 
-        print('------------------------------------------------------------------\n')
-        print(event_window[-1, :])
+    def predict_grayscale_frame(self, event_window):
 
         last_timestamp = event_window[-1, 0]
 
