@@ -8,7 +8,7 @@ find_package(event-driven)
 find_package(hpe-core)
 
 #default the install location to that of event-driven
-add_executable(${PROJECT_NAME} example_volumecomp.cpp)
+add_executable(${PROJECT_NAME} example_volumecomp.cpp visualisation.h)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE YARP::YARP_os
                                               YARP::YARP_init

@@ -6,11 +6,18 @@
 #include <hpe-core/volumes.h>
 #include <mutex>
 #include <fstream>
+#include "visualisation.h"
+#include <event-driven/vIPT.h>
 
 
-#define f 274.573
-#define x0 139.228
-#define y0 123.092
+// #define f 274.573
+// #define x0 139.228
+// #define y0 123.092
+
+#define f 500
+#define x0 152
+#define y0 120
+
 
 using namespace ev;
 using namespace yarp::os;
@@ -26,16 +33,21 @@ private:
     cv::Mat compensated_image;
     const static int arrow_space{20};
 
+    pixelShifter ps;
+    cv::Mat blank_iso;
+
 public:
 
     flowVisualiser() {}
-    void initialise(int height, int width) {
+    void initialise(int height, int width, double window_size) {
 
         masker = cv::Mat(height, width, CV_8U);
         debug_image = cv::Mat(height, width, CV_8UC3);
         arrow_image = cv::Mat(height, width, CV_8UC3);
         compensated_image = cv::Mat(height, width, CV_32FC3);
         reset();
+
+        ps = drawISOBase(height, width, window_size, blank_iso);
 
     }
 
@@ -77,6 +89,29 @@ public:
             int yh = std::min(v + arrow_space, masker.rows);
             masker(cv::Rect(cv::Point(xl, yl), cv::Point(xh, yh))).setTo(0);
         }
+    }
+
+    void drawISO(const std::deque<AE> &volume, std::string name)
+    {
+        cv::namedWindow(name, cv::WINDOW_NORMAL);
+        cv::Mat base_copy;
+        blank_iso.copyTo(base_copy);
+        for (auto &c : volume) {
+            int x = c.x;
+            int y = c.y;
+            double z = ev::vtsHelper::deltaS(volume.back().stamp, c.stamp);
+            ps.pttr(x, y, z);
+            if (x >= 0 && y >= 0 && x < base_copy.cols && y < base_copy.rows)
+                base_copy.at<cv::Vec3b>(y, x) = cv::Vec3b(120, 120, 120);
+        }
+        for (auto &c : volume) {
+            int x = c.x;
+            int y = c.y;
+            double z = ev::vtsHelper::deltaS(volume.back().stamp, c.stamp);
+            ps.pttr(x, y, z);
+            base_copy.at<cv::Vec3b>(c.y, x) = cv::Vec3b(255, 255, 255);
+        }
+        cv::imshow(name, base_copy);
     }
 
     void show()
@@ -140,7 +175,7 @@ public:
 
         res.height = rf.check("height", Value(240)).asInt();
         res.width  = rf.check("width",  Value(304)).asInt();
-        period = rf.check("period", Value(0.1)).asDouble();
+        period = rf.check("period", Value(0.05)).asDouble();
         rot_only = rf.check("rot_only", Value(false)).asBool();
         window_size = rf.check("window", Value(0.1)).asDouble();
         std::string vel_dump_path = "";
@@ -186,7 +221,9 @@ public:
                      getName("/AE:i"),
                      "fast_tcp");
 
-        fv.initialise(res.height, res.width);
+        fv.initialise(res.height, res.width, window_size);
+
+        //imu_helper.loadIMUCalibrationFiles("/home/aglover/fakeIMUcalib.ini");
 
         //start the asynchronous and synchronous threads
         return Thread::start();
@@ -263,14 +300,25 @@ public:
 
         double period = vtsHelper::deltaS(window.back().stamp, window.front().stamp);
         hpecore::camera_velocity cam_vel = imu_helper.extractVelocity();
+        //cam_vel[0] = 0.0; cam_vel[1] = 0.0; cam_vel[2] = 0.0;
         hpecore::camera_params   cam_par = {f, x0, y0};
         fv.reset();
+        deque<AE> warped_volume;
         m.lock();
         for (auto &v : window) {
             hpecore::point_flow pf = hpecore::estimateVisualFlow({(double)v.x, (double)v.y, 0.0}, cam_vel, cam_par);
             auto we = hpecore::spatiotemporalWarp(v, pf, vtsHelper::deltaS(window.back().stamp, v.stamp));
             fv.addPixel(v.x, v.y, we.x, we.y, pf.udot, pf.vdot, period);
+            warped_volume.push_back(we);
         }
+        fv.drawISO(window, "Original Events");
+        fv.drawISO(warped_volume, "Warped Events");
+        std::array<double, 4> qd = imu_helper.extractHeading();
+        //for(auto i : qd) std::cout << i; std::cout << std::endl;
+        //std::array<float, 4> qf = qd;
+        cv::Mat temp = ev::drawRefAxis(qd);
+        cv::imshow("temp", temp);
+        cv::waitKey(1);
         m.unlock();
 
         fv.show();
@@ -324,3 +372,5 @@ int main(int argc, char * argv[])
     volumeCompensator instance;
     return instance.runModule(rf);
 }
+
+
