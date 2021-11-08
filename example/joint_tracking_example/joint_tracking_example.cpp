@@ -28,7 +28,7 @@ class jointTrack : public RFModule, public Thread
 private:
     vReadPort<vector<AE>> input_port;
     BufferedPort<Bottle> input_sklt;
-    std::ofstream output_writer;
+    std::ofstream output_writer, aux_out, vel_out;
     deque<AE> evs_queue;
     std::mutex m;
     // skeleton pose, dpose;
@@ -36,8 +36,15 @@ private:
     hpecore::jointMotionEstimator tracker;
     roiq qROI;
     int roiWidth = 20;
-    int roiHeight = 20;
+    int roiHeight = roiWidth;
     skltJoint jointName;
+    // cv::Mat projImg = cv::Mat::zeros(cv::Size(346, 240), CV_32FC1);
+    // cv::Mat projImg = cv::Mat::zeros(cv::Size(346, 240), CV_32FC1);
+    cv::Mat projNew = cv::Mat::zeros(cv::Size(346, 240), CV_32F);
+    cv::Mat projPrev = cv::Mat::zeros(cv::Size(346, 240), CV_32F);
+    // cv::Mat diff = cv::Mat::zeros(cv::Size(346, 240), CV_32F);
+    // cv::Mat projImg = cv::Mat::zeros(cv::Size(346, 240), CV_32F);
+    float corr;
 
 public:
     jointTrack() {}
@@ -81,11 +88,39 @@ public:
         else
             yInfo() << "Pose writer opened";
 
-        cv::namedWindow("DEBUG", cv::WINDOW_NORMAL);
-        cv::resizeWindow("DEBUG", 346, 260);
+        aux_out.open("aux_out.txt");
+        if (!aux_out.is_open())
+            yError() << "Could not open pose writer!!";
+        else
+            yInfo() << "aux_out writer opened";
+
+        vel_out.open("vel_out.txt");
+        if (!vel_out.is_open())
+            yError() << "Could not open pose writer!!";
+        else
+            yInfo() << "vel_out writer opened";
+
+        cv::namedWindow("NEW EVENTS", cv::WINDOW_NORMAL);
+        cv::resizeWindow("NEW EVENTS", 346, 260);
+
+        cv::namedWindow("OLD EVENTS", cv::WINDOW_NORMAL);
+        cv::resizeWindow("OLD EVENTS", 346, 260);
+
+        // cv::namedWindow("DEBUG3", cv::WINDOW_NORMAL);
+        // cv::resizeWindow("DEBUG3", 346, 260);
 
         string jointNameStr = rf.check("joint", Value("handL")).asString();
         jointName = str2enum(jointNameStr);
+
+        // intialize velocities
+        for (size_t i = 0; i < dpose.size(); i++)
+        {
+            dpose[i].u = 0;
+            dpose[i].v = 0;
+        }
+
+        // cvtColor(projImg, projImg, cv::COLOR_GRAY2RGB);
+
 
         //start the asynchronous and synchronous threads
         return Thread::start();
@@ -112,6 +147,8 @@ public:
         input_port.close();
         input_sklt.close();
         output_writer.close();
+        aux_out.close();
+        vel_out.close();
         // output_port.close();
     }
 
@@ -140,59 +177,104 @@ public:
         return newPose;
     }
 
+    float correlation(cv::Mat &image1, cv::Mat &image2)
+    {
+        cv::Mat corr;
+        cv::matchTemplate(image1, image2, corr, cv::TM_CCORR_NORMED);
+        return corr.at<float>(0,0);
+    }
+
     //synchronous thread
     virtual bool updateModule()
     {
 
-        // cv::Mat test = cv::Mat::zeros(cv::Size(346, 240), CV_32FC1);
-        // test += 2;
-        // test *= 0.2;
-        // for(auto v = qROI.q.rbegin(); v < qROI.q.rend(); v++)
-        // {
-        //     int value = v->polarity;
-        //     if(v->x<346 && v->y<240)
-        //     {
-        //         if(value > 0)
-        //             test.at<float>(v->y, v->x) = 0.0f;
-        //         if(value <= 0)
-        //             test.at<float>(v->y, v->x) = 1.0f;
-        //     }
-        // }
+        
         // if(qROI.q.size())
         // {
-        //     // while(!evs_queue.empty())
+        //     cv::Mat test = cv::Mat::zeros(cv::Size(346, 240), CV_32FC1);
+        //     test += 2;
+        //     test *= 0.2;
+        //     for(auto v = qROI.q.rbegin(); v < qROI.q.rend(); v++)
+        //     {
+        //         int value = v->polarity;
+        //         if(v->x<346 && v->y<240)
+        //         {
+        //             if(value > 0)
+        //                 test.at<float>(v->y, v->x) = 0.0f;
+        //             if(value <= 0)
+        //                 test.at<float>(v->y, v->x) = 1.0f;
+        //         }
+        //     }
+        //     // for(int i=qROI.roi[0]; i<=qROI.roi[1]; i++)
         //     // {
-        //     //     auto v = evs_queue.front();
-        //     //     int value = v.polarity;
-        //     //     if(v.x<346 && v.y<240)
-        //     //     {
-        //     //         if(value > 0)
-        //     //         {
-        //     //             test.at<float>(v.y, v.x) = 0.0f;
-        //     //         }
-        //     //         if(value <= 0)
-        //     //         {
-        //     //             test.at<float>(v.y, v.x) = 1.0f;
-        //     //         }
-        //     //     }  
-        //     //     evs_queue.pop_front();
+        //     //     test.at<float>(qROI.roi[2], i) = 0.7f;
+        //     //     test.at<float>(qROI.roi[3], i) = 0.7f;
         //     // }
-        //      for(int i=qROI.roi[0]; i<=qROI.roi[1]; i++)
-        //     {
-        //         test.at<float>(qROI.roi[2], i) = 0.7f;
-        //         test.at<float>(qROI.roi[3], i) = 0.7f;
-        //     }
-        //     for(int i=qROI.roi[2]; i<=qROI.roi[3]; i++)
-        //     {
-        //         test.at<float>(i, qROI.roi[0]) = 0.7f;
-        //         test.at<float>(i, qROI.roi[1]) = 0.7f;
-        //     }
-        // }
+        //     // for(int i=qROI.roi[2]; i<=qROI.roi[3]; i++)
+        //     // {
+        //     //     test.at<float>(i, qROI.roi[0]) = 0.7f;
+        //     //     test.at<float>(i, qROI.roi[1]) = 0.7f;
+        //     // }
+        //     cv::Mat frame;
+        //     // test.convertTo(frame, CV_8UC3, 255);
+        //     cvtColor(test, frame, cv::COLOR_GRAY2RGB);
+
+        //     int x = (qROI.roi[0] + qROI.roi[1])/2;
+        //     int y = (qROI.roi[2] + qROI.roi[3])/2;
+        //     double vx = int(dpose[jointName].u);
+        //     double vy = int(dpose[jointName].v);
+        //     cv::Point pt1(x, y);
+        //     int k = 2;
+        //     cv::Point pt2(x+int(vx/k), y+int(vy/k));
+        //     // cv.arrowedLine(test, pt1, pt2, color[, thickness[, line_type[, shift[, tipLength]]]]	) ->	img
             
-        // cv::Mat frame;
-        // test.convertTo(frame, CV_8U, 255);
-        // cv::imshow("DEBUG", test);
-        // cv::waitKey(1);
+
+        //     if(pt2.x < 0) pt2.x =0;
+        //     if(pt2.x > 345) pt2.x =345;
+        //     if(pt2.y < 0) pt2.y =0;
+        //     if(pt2.y > 239) pt2.y =239;
+            
+        //     // test.convertTo(test, CV_32FC4, 1.0); 
+        //     // if(x+int(vx/k)>0 && x+int(vx/k) < 346 && y+int(vy/k)>0 && y+int(vy/k)<240)
+        //         cv::arrowedLine(frame, pt1, pt2, cv::Scalar(0, 0, 0.4), 2);
+
+
+        //     int xC = int(pose[jointName].u);
+        //     int yC = int(pose[jointName].v);
+        //     cv::Point pt3(xC, yC);
+        //     //tracked
+        //     cv::drawMarker(frame, pt3, cv::Scalar(0.8, 0, 0), 0, 4);
+        //     // ground-truth
+        //     cv::drawMarker(frame, pt1, cv::Scalar(0, 0, 0.8), 1, 4);
+
+        //     cv::Point ptA(qROI.roi[0], qROI.roi[2]);
+        //     cv::Point ptB(qROI.roi[1], qROI.roi[3]);
+        //     cv:rectangle(frame, ptA, ptB, cv::Scalar(0.7, 0.7, 0.7), 1, 16);
+
+        //     cv::imshow("DEBUG", frame);
+
+
+        //     double t1 = Time::now();
+        //     // string fileName = "/projects/hpe-core/example/joint_tracking_example/build/imgs" + std::to_string(t1) + ".jpg";
+        //     string fileName = "imgs/" + std::to_string(t1) + ".jpg";
+            
+        //     // cv::imwrite(fileName, test);  
+        //     cv::waitKey(1);
+        // }
+        
+        
+        // corr = correlation(projImg, projImg2);
+        // yInfo() << (1-corr)*100;
+        cv::imshow("NEW EVENTS", projNew);
+        cv::imshow("OLD EVENTS", projPrev);
+        // cv::absdiff(projImg, projImg2, diff);
+        // diff = projImg + projImg2;
+        // // cv::subtract(projImg,projImg2,diff); 
+        // // diff += 0.2;
+        // // diff *= 0.2;
+        // cv::imshow("DEBUG3", diff);
+        // // cv::imshow("DEBUG3", (projImg-projImg2)*2);
+        cv::waitKey(1);
 
         return Thread::isRunning();
     }
@@ -203,18 +285,19 @@ public:
         Stamp evStamp, skltStamp;
         Bottle *bot_sklt;
         double skltTs;
-        const vector<AE> *q = input_port.read(evStamp);
-        if (!q || Thread::isStopping())
-            return;
-        // int jointName = elbowL;
-
+        const vector<AE> *q;
+        bool initTimer = false;
+        double t0, t1=0, tprev, t2 = 0;
+        
         while (true)
         {
+            t1 = Time::now() - t0;
             // read detections
+            int N = input_sklt.getPendingReads();
             bot_sklt = input_sklt.read(false);
             input_sklt.getEnvelope(skltStamp);
             skltTs = skltStamp.getTime();
-            if (bot_sklt) // there is a detection
+            if(bot_sklt) // there is a detection
             {
                 // yInfo() << "\tSKLT @ " << skltTs;
                 Value &coords = (*bot_sklt).get(1);
@@ -227,57 +310,98 @@ public:
                 int x = builtPose[jointName].u;
                 int y = builtPose[jointName].v;
                 qROI.setROI(x - roiWidth / 2, x + roiWidth / 2, y - roiHeight / 2, y + roiHeight / 2);
+                aux_out << t1 << " ";
+                for (auto &t : builtPose)
+                    aux_out << t.u << " " << t.v << " ";
+                aux_out << std::endl;
             }
 
             // read events
             int np = input_port.queryunprocessed();
-            for (int i = 0; i < np; i++)
+            if(np)
             {
+                tprev = t2;
+                t2 = Time::now() - t0;
+            }
+            int nevs = 0;
+            for (int i = 0; i < np; i++)
+            {   
+                if(!initTimer)
+                {
+                    initTimer = true;
+                    t0 = Time::now();
+                }
                 q = input_port.read(evStamp);
                 if (!q || Thread::isStopping())
                     return;
                 for (auto &qi : *q)
                 {
                     qROI.add(qi);
-                    // evs_queue.push_back(qi);
+                    nevs++;
                 }
             }
-            qROI.setSize((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2]) / 3);
+            
+            // if(bot_sklt)
+                // yInfo() << "timer = " << t1 << "\t det = " << skltTs << "\t ev =" << evStamp.getTime();
+            // yInfo() << "timer = " << t1 << "\t v = [" << dpose[jointName].u << ", " << dpose[jointName].v << "]";
+            
+            qROI.setSize(int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])/1));
 
             // Process data for tracking
             if (pose.size()) // a pose has been detected before
             {
-                if (np && qROI.q.size()) // there are events to process
+                if (nevs && qROI.q.size() && !bot_sklt)// && qROI.q.front().stamp * vtsHelper::tsscaler > skltTs) // there are events to process
                 {
                     std::deque<joint> evs;
                     std::deque<double> evsTs;
-                    tracker.getEventsUV(qROI.q, evs, evsTs, vtsHelper::tsscaler); // get events u,v coords
-                    dpose = tracker.estimateVelocity(evs, evsTs, jointName);                 // get skeleton veocities
+                    std::deque<int> evsPol;
+                    tracker.getEventsUV(qROI.q, evs, evsTs, vtsHelper::tsscaler, evsPol); // get events u,v coords
+                    // dpose = tracker.estimateVelocity(evs, evsTs, jointName, nevs/2, dpose);  // get veocities from delta ts
+                   
+                    projNew = tracker.projNew(evs, evsTs, evsPol, jointName, nevs, dpose, t2);
+                    projPrev = tracker.projPrev(evs, evsTs, evsPol, jointName, nevs, dpose, t2);
+                    /*
+                    estimate velocity based on image difference
+                    if there is/isn't pixel wehere expected increase/decrease previous vel
+                    */
+                    dpose = tracker.comparteProjs(jointName, dpose, projNew, projPrev);
+
+
                     // print_sklt(dpose);
                     double dt = (qROI.q.front().stamp - qROI.q.back().stamp) * vtsHelper::tsscaler;
-                    // yInfo() << dt;
-                    // double dt = 1;
-                    tracker.fusion(&pose, dpose, dt); // should integrate from pose eith new velocity
-                    //write integrated output to file
-                    output_writer << qROI.q.front().stamp * vtsHelper::tsscaler << " ";
-                    for (auto &t : pose)
-                        output_writer << t.u << " " << t.v << " ";
-                    output_writer << std::endl;
-                    // update roi
-                    int x = pose[jointName].u;
-                    int y = pose[jointName].v;
+                    double dt2 = t2 - tprev;
+                    // yInfo() << "dt(q) = " << dt << " - dt(t) = " << dt2;
+                    // if(qROI.q.front().stamp * vtsHelper::tsscaler > skltTs && dt)
+                    {
+                        tracker.fusion(&pose, dpose, dt); // should integrate from pose eith new velocity
+                        // write integrated output to file
+                        // output_writer << qROI.q.front().stamp * vtsHelper::tsscaler << " ";
+                        output_writer << t1 << " ";
+                        for (auto &t : pose)
+                            output_writer << t.u << " " << t.v << " ";
+                        output_writer << std::endl;
+                        // vel_out << qROI.q.front().stamp * vtsHelper::tsscaler << " " << nevs << " " << qROI.q.size() << std::endl;
+                        vel_out  << t1 << " " << corr << std::endl;
+                        // update roi
+                        int x = pose[jointName].u;
+                        int y = pose[jointName].v;
+                        // qROI.setROI(x - roiWidth / 2, x + roiWidth / 2, y - roiHeight / 2, y + roiHeight / 2);
+                    }
                     // qROI.setROI(x-roiWidth/2, x + roiWidth/2, y-roiHeight/2, y + roiHeight/2);
-                    qROI.setSize((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2]) / 100);
+                    // qROI.setSize(0);
                 }
                 else if (bot_sklt) // there weren't events to process but a detection occured
                 {
-                    //write detected output to file
-                    output_writer << skltTs << " ";
+                    // tracker.resetPose(pose);
+                    // write detected output to file
+                    // output_writer << skltTs << " ";
+                    output_writer << t1 << " ";
                     for (auto &t : pose)
                         output_writer << t.u << " " << t.v << " ";
                     output_writer << std::endl;
                 }
             }
+            
         }
     }
 };
