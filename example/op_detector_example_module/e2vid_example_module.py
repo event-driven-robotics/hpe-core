@@ -21,17 +21,15 @@ class E2VidExampleModule(yarp.RFModule):
 
         self.out_buf_image = yarp.ImageMono()
         self.out_buf_image.resize(e2vid_config.sensor_width, e2vid_config.sensor_height)
-
         self.out_buf_image.setExternal(self.image.data, self.image.shape[1], self.image.shape[0])
 
-        # self.output_port = yarp.BufferedPortImageMono()
         self.output_port = yarp.Port()
         self.rpc_port = yarp.RpcServer()
-        cv2.namedWindow("events", cv2.WINDOW_NORMAL)
-        self.mutex = threading.Lock()
+
+        cv2.namedWindow("e2vid", cv2.WINDOW_NORMAL)
+        # self.mutex = threading.Lock()
 
         self.e2vid = E2Vid(e2vid_config)
-        # self.e2vid.model_share_memory()
 
     def configure(self, rf):
         # set the module name used to name ports
@@ -93,12 +91,9 @@ class E2VidExampleModule(yarp.RFModule):
             print('image is None')
             return True
 
-        print('***************************')
-        print(self.image.shape)
-
         self.output_port.write(self.out_buf_image)
 
-        cv2.imshow("events", self.image)
+        cv2.imshow("e2vid", self.image)
         cv2.waitKey(10)
         return True
 
@@ -132,10 +127,9 @@ class E2VidExampleModule(yarp.RFModule):
 
             self.events_buf = np.concatenate((timestamps, x, y, pol), axis=1)
             self.image_buf = self.e2vid.predict_grayscale_frame(self.events_buf)
-            self.mutex.acquire()
-            self.image = self.image_buf.copy()  # self.image is a shared resource between threads
-            # self.events = self.events_buf.copy()
-            self.mutex.release()
+            # self.mutex.acquire()
+            self.image[:, :] = self.image_buf  # self.image is a shared resource between threads
+            # self.mutex.release()
 
 
 if __name__ == '__main__':
