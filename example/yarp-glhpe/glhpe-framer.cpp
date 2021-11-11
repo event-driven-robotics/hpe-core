@@ -18,6 +18,7 @@ private:
 
     int window_size;
     resolution res;
+    Stamp yarpstamp;
 
 public:
 
@@ -91,7 +92,7 @@ public:
             if(p == 0) count_unique++;
             p += 1;
         }
-
+        // const vector<AE>* q = input_port.read(yarpstamp);
         m.unlock();
 
         //count unique pixels
@@ -125,13 +126,14 @@ public:
             }
         }
 
+        output_port.setEnvelope(yarpstamp);
         output_port.write();
         return Thread::isRunning();
     }
 
     //asynchronous thread run forever
     void run() {
-        Stamp yarpstamp;
+//        Stamp yarpstamp;
 
         while (true) {
             const vector<AE>* q = input_port.read(yarpstamp);
