@@ -66,12 +66,6 @@ class E2Vid:
         if self.compute_voxel_grid_on_cpu:
             print('Will compute voxel grid on CPU.')
 
-        print('------------------------------------------------------------------\n')
-        print('model initialized')
-
-        # TODO: PRINT THREAD ID, IN PYTHON AND C++!!!!!!!!!!!!!!!!!!
-        # TODO: TRY TO INIT E2VID IN MAIN!!!!!!!!!!!!!!!!!!
-
     def model_share_memory(self):
         self.model.share_memory()
 
