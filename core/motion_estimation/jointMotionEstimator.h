@@ -33,5 +33,6 @@ namespace hpecore
       cv::Mat projNew(std::deque<joint> evs, std::deque<double> evsTs, std::deque<int> evsPol, int jointName, int nevs, sklt dpose, double tnow);
       cv::Mat projPrev(std::deque<joint> evs, std::deque<double> evsTs, std::deque<int> evsPol, int jointName, int nevs, sklt dpose, double tnow);
       sklt comparteProjs(int jointName, sklt dpose, cv::Mat newEvs, cv::Mat oldEvs);
+      cv::Mat estimateFire(std::deque<joint> evs, std::deque<double> evsTs, std::deque<int> evsPol, int jointName, int nevs, sklt pose, sklt dpose, double tnow, double **Te, cv::Mat matTe);
   };
 }

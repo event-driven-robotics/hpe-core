@@ -62,7 +62,8 @@ sklt jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<do
                         dty -= (evsTs[i] - evsTs[j]);
                         ny++;
                     }
-                }
+                }    
+                
             }
         }
     }
@@ -78,6 +79,9 @@ sklt jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<do
     // if(vel[jointName].u < -lim) vel[jointName].u = dpose[jointName].u - 10;
     // if(vel[jointName].v > lim) vel[jointName].v = dpose[jointName].v + 10;
     // if(vel[jointName].v < -lim) vel[jointName].v = dpose[jointName].v - 10;
+
+    // if(std::fabs(vel[jointName].u) > std::fabs(dpose[jointName].u)) vel[jointName].u = dpose[jointName].u*1.1;
+    // if(std::fabs(vel[jointName].v) > std::fabs(dpose[jointName].v)) vel[jointName].v = dpose[jointName].v*1.1;
 
     if(std::fabs(vel[jointName].u) > lim) vel[jointName].u = dpose[jointName].u*1.01;
     if(std::fabs(vel[jointName].v) > lim) vel[jointName].v = dpose[jointName].v*1.01;
@@ -170,4 +174,108 @@ sklt jointMotionEstimator::comparteProjs(int jointName, sklt dpose, cv::Mat newE
     }
 
     return vel;
+}
+
+cv::Mat jointMotionEstimator::estimateFire(std::deque<joint> evs, std::deque<double> evsTs, std::deque<int> evsPol, int jointName, int nevs, sklt pose, sklt dpose, double tnow, double **Te, cv::Mat matTe)
+{
+    // cv::Mat test = cv::Mat::zeros(cv::Size(346, 240), CV_32FC1);
+    double u = pose[jointName].u;
+    double v = pose[jointName].v;
+    double du = dpose[jointName].u;
+    double dv = dpose[jointName].v;
+
+    double den = du*du+dv*dv;
+    double duI = du/den;
+    double dvI = -dv/den;
+
+    int dimY = 240, dimX = 346;
+    
+    for(std::size_t k = nevs; k < evs.size(); k++)
+    {
+        int x = evs[k].u;
+        int y = evs[k].v;
+        double ts = evsTs[k];
+        // // int value = evsPol[i];
+        for (int i = 0; i < dimY; i++) 
+        {
+            for (int j = 0; j < dimX; j++) 
+            {
+                // double newTe = duI * (i-y) + dvI * (j-x) + ts;
+                double newTe = sqrt(duI *(i-y)*(i-y) + dvI *(j-x)*(j-x))+ ts;
+                // Te[i][j] = newTe
+                // if(newTe > 24) newTe = 24;
+                // if(newTe < Te[i][j]) Te[i][j] = newTe;
+                if(newTe < Te[i][j])
+                {
+                    Te[i][j] = newTe;
+                    // std::cout << Te[i][j] << std::endl;
+                    // if(Te[i][j] < 1)
+                        
+                    // else 
+                    //     matTe.at<float>(i, j) = 0;
+                }
+                else 
+                    Te[i][j] = 1e20;
+                if(Te[i][j] < 100)
+                {
+                    double aux = (Te[i][j]-ts);
+                    if(evsTs[k] < Te[i][j])
+                    {
+                        matTe.at<float>(i, j) = 1 - aux;
+                        std::cout << evsTs[k] << " - " << Te[i][j] < std::endl;
+                    }
+                    // std::cout << aux << std::endl;
+                }
+                else 
+                matTe.at<float>(i, j) = 0.;
+                // else 
+                //     matTe.at<float>(i, j) = 0;
+                // if(newTe > 24) newTe = 24;
+                // else if(newTe < 0) newTe = 0;
+                // if(newTe < Te[j][i])
+                    // Te[j][i] = newTe;
+                // if(x>=0 && x<=346 && y>=0 && y<=240)
+                    // matTe.at<float>(i, j) = 1 - (Te[i][j]-ts);
+                    
+            }
+        }
+    }
+
+
+    // for(std::size_t k = nevs; k < evs.size(); k++)
+    // {
+    //     int x = evs[k].u;
+    //     int y = evs[k].v;
+    //     double ts = evsTs[k];
+    //     for (int i = 0; i < dimY; i++) 
+    //     {
+    //         for (int j = 0; j < dimX; j++) 
+    //         // {
+    //         {
+    //             // double newTe = duI * (i-x) + dvI * (j-y) + ts;
+    //             //if(newTe < Te[i][j])
+    //                 // Te[j][i] = sqrt((i-x)*(i-x) + (j-y)*(j-y));
+    //             //Te[i][j] = i/100.0;;
+    //             if(x>=0 && x<=346 && y>=0 && y<=240)
+    //             //     // matTe.at<float>(y, x) = 1 - (duI * (i-x) + dvI * (j-y))/20;
+    //                 matTe.at<float>(y, x) = 0.7;
+    //         }
+    //     }
+    //     // int value = evsPol[i];
+    //     // if(evs[i].u<346 && evs[i].v<240)
+    //     // {   
+    //     //     // if(x>=0 && x<=346 && y>=0 && y<=240 && ts > Te[y][x])
+    //     //     //     test.at<float>(y, x) = 1.0f;
+    //     // }
+    // }
+    // for (int i = 0; i < dimY; i++) 
+    // {
+    //     for (int j = 0; j < dimX; j++)
+    //     {
+    //         matTe.at<float>(j, i) = Te[i][j]/346;
+    //         // std::cout << i << ", " << j << " -> " << Te[i][j] << std::endl;
+    //     }
+    // }
+ 
+    return matTe;
 }
