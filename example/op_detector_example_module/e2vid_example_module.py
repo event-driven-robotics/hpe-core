@@ -139,7 +139,6 @@ if __name__ == '__main__':
     #######################
 
     parser = argparse.ArgumentParser()
-    parser.add_argument()
 
     parser.add_argument('-sw', '--sensor_width', default=304, type=int, help="Width of the sensor (304 is SIE's sensor width)")
     parser.add_argument('-sh', '--sensor_height', default=240, type=int, help="Height of the sensor (240 is SIE's sensor height)")
