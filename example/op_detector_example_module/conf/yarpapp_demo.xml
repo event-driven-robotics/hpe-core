@@ -39,7 +39,7 @@
 <!-- CONNECTIONS -->
 
 <connection>
-    <from> /sie/AE:o </from>
+    <from> /zynqGrabber/AE:o </from>
     <to> /e2vidPacker/AE:i </to>
     <protocol>fast_tcp</protocol>
 </connection>
@@ -63,7 +63,7 @@
 </connection>
 
 <connection>
-    <from>/sie/AE:o</from>
+    <from>/zynqGrabber/AE:o</from>
     <to>/vFramer/events/AE:i</to>
     <protocol> fast_tcp </protocol>
 </connection>
