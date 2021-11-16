@@ -6,30 +6,31 @@ import numpy as np
 import threading
 import cv2
 
-import e2vid_config
 from e2vid import E2Vid
 
 
 class E2VidExampleModule(yarp.RFModule):
 
-    def __init__(self, e2vid_options):
+    def __init__(self, options):
         yarp.RFModule.__init__(self)
-        self.image = np.zeros((e2vid_config.sensor_height, e2vid_config.sensor_width), dtype=np.uint8)
-        self.image_buf = np.zeros((e2vid_config.sensor_height, e2vid_config.sensor_width), dtype=np.uint8)
+        self.image = np.zeros((options.sensor_height, options.sensor_width), dtype=np.uint8)
+        self.image_buf = np.zeros((options.sensor_height, options.sensor_width), dtype=np.uint8)
         self.events = np.zeros((7500, 4), dtype=np.float64)
         self.input_port = yarp.BufferedPortBottle()
 
         self.out_buf_image = yarp.ImageMono()
-        self.out_buf_image.resize(e2vid_config.sensor_width, e2vid_config.sensor_height)
+        self.out_buf_image.resize(options.sensor_width, options.sensor_height)
         self.out_buf_image.setExternal(self.image.data, self.image.shape[1], self.image.shape[0])
 
         self.output_port = yarp.Port()
         self.rpc_port = yarp.RpcServer()
 
-        cv2.namedWindow("e2vid", cv2.WINDOW_NORMAL)
+        self.show_predicted_frame = options.show_predicted_frame
+        if self.show_predicted_frame:
+            cv2.namedWindow("e2vid", cv2.WINDOW_NORMAL)
         # self.mutex = threading.Lock()
 
-        self.e2vid = E2Vid(e2vid_options)
+        self.e2vid = E2Vid(options)
 
     def configure(self, rf):
         # set the module name used to name ports
@@ -93,8 +94,10 @@ class E2VidExampleModule(yarp.RFModule):
 
         self.output_port.write(self.out_buf_image)
 
-        cv2.imshow("e2vid", self.image)
-        cv2.waitKey(10)
+        if self.show_predicted_frame:
+            cv2.imshow("e2vid", self.image)
+            cv2.waitKey(10)
+
         return True
 
     def run(self):
@@ -190,6 +193,8 @@ if __name__ == '__main__':
     parser.add_argument('--no_recurrent', dest='no_recurrent', action='store_true', help='disable recurrent connection (will severely degrade the results; for testing purposes only')
     parser.set_defaults(no_recurrent=True)
 
+    parser.add_argument('--show_predicted_frame', dest='show_predicted_frame', action='store_true', help='show the predicted frame')
+    parser.set_defaults(show_predicted_frame=False)
     e2vid_options = parser.parse_args()
 
     # initialise YARP

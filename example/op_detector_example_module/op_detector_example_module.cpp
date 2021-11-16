@@ -109,9 +109,12 @@ public:
             t_count = 0;
         }
 
-        //visualisation
-        cv::imshow("OpenPose", rgbimage);
-        cv::waitKey(1);
+        output_port.prepare().copy(yarp::cv::fromCvMat<PixelBgr>(rgbimage));
+        output_port.write();
+
+//        //visualisation
+//        cv::imshow("OpenPose", rgbimage);
+//        cv::waitKey(1);
 
         return true;
     }
