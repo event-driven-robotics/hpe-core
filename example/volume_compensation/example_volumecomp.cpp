@@ -167,6 +167,8 @@ public:
             yInfo() << "--rot_only <bool>: use 3DoF rotation only";
             yInfo() << "--window <float>: period of data to compensate";
             yInfo() << "--vel_dump <string>: path to file to dump velocities";
+            yInfo() << "--imu <string>: path to imu calibration file";
+            yInfo() << "--imu_beta <double>: AHRS beta parameter";
             return false;
         }
 
@@ -223,7 +225,11 @@ public:
 
         fv.initialise(res.height, res.width, window_size);
 
-        //imu_helper.loadIMUCalibrationFiles("/home/aglover/fakeIMUcalib.ini");
+        if(rf.check("imu"))
+            imu_helper.loadIMUCalibrationFiles(rf.find("imu").asString());
+        
+        if(rf.check("imu_beta"))
+            imu_helper.setBeta(rf.find("imu_beta").asDouble());
 
         //start the asynchronous and synchronous threads
         return Thread::start();
@@ -300,6 +306,7 @@ public:
 
         double period = vtsHelper::deltaS(window.back().stamp, window.front().stamp);
         hpecore::camera_velocity cam_vel = imu_helper.extractVelocity();
+        double temp3 = cam_vel[0]; cam_vel[0] = cam_vel[1]; cam_vel[1] = -temp3;
         //cam_vel[0] = 0.0; cam_vel[1] = 0.0; cam_vel[2] = 0.0;
         hpecore::camera_params   cam_par = {f, x0, y0};
         fv.reset();
@@ -325,8 +332,28 @@ public:
 
         yarp::sig::Vector &yarp_vel = scope_port.prepare();
         yarp_vel.resize(6);
-        for(auto i = 0; i < 6; i++)
-            yarp_vel[i] = cam_vel[i];
+        std::array<double, 6> cam_acc = imu_helper.extractAcceleration();
+        static std::array<double, 6> mean_acc = {0, 0, 0, 0, 0, 0};
+        static std::array<double, 6> mean_vel = {0, 0, 0, 0, 0, 0};
+        static std::array<double, 6> my_vel = {0, 0, 0, 0, 0, 0};
+        std::array<double, 3> gv = imu_helper.getGravityVector();
+        static double tic = yarp::os::Time::now();
+        double dt = yarp::os::Time::now() - tic; tic += dt;
+        for(auto i = 0; i < 3; i++) {
+            if(dt > 1.0) dt = 1.0;
+            mean_acc[i] = mean_acc[i]*(1.0 - dt) + cam_acc[i] * dt;
+            yarp_vel[i] = mean_acc[i];
+            yarp_vel[i] = gv[i];
+            //yarp_vel[i] = cam_acc[i] - mean_acc[i];
+            yarp_vel[i+3] = cam_acc[i];// - gv[i];
+            //if(fabs(cam_acc[i] - mean_acc[i]) > 0.1)
+            //double temp_vel = my_vel[i] + (cam_acc[i] - mean_acc[i]) * dt * 0.5;
+            //mean_vel[i] = mean_vel[i]*(1.0-dt) + temp_vel*dt;
+            my_vel[i] += (cam_acc[i] - gv[i]) * dt;
+            //my_vel[i] *= 0.99;
+            
+            //yarp_vel[i] = my_vel[i];
+        }
         scope_port.write();
 
         if (vel_writer.is_open()) {
