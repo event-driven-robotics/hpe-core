@@ -78,7 +78,7 @@ public:
 
         // connect ports
         yarp.connect("/file/ch3dvs:o", getName("/AE:i"), "fast_tcp");
-        yarp.connect("/file/ch3GT5Hzskeleton:o", getName("/SKLT:i"), "fast_tcp");
+        yarp.connect("/file/ch3GT10Hzskeleton:o", getName("/SKLT:i"), "fast_tcp");
 
         output_writer.open("output.txt");
         if (!output_writer.is_open())
