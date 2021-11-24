@@ -271,4 +271,4 @@ RUN unzip models.zip && \
     rm models.zip
 
 
-WORKDIR $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/build
+WORKDIR $SOURCE_FOLDER/hpe-core/example/op_detector_example_module
