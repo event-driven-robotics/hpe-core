@@ -11,26 +11,26 @@ from e2vid import E2Vid
 
 class E2VidExampleModule(yarp.RFModule):
 
-    def __init__(self, options):
+    def __init__(self, e2vid_conf):
         yarp.RFModule.__init__(self)
-        self.image = np.zeros((options.sensor_height, options.sensor_width), dtype=np.uint8)
-        self.image_buf = np.zeros((options.sensor_height, options.sensor_width), dtype=np.uint8)
+        self.image = np.zeros((e2vid_conf.sensor_height, e2vid_conf.sensor_width), dtype=np.uint8)
+        self.image_buf = np.zeros((e2vid_conf.sensor_height, e2vid_conf.sensor_width), dtype=np.uint8)
         self.events = np.zeros((7500, 4), dtype=np.float64)
         self.input_port = yarp.BufferedPortBottle()
 
         self.out_buf_image = yarp.ImageMono()
-        self.out_buf_image.resize(options.sensor_width, options.sensor_height)
+        self.out_buf_image.resize(e2vid_conf.sensor_width, e2vid_conf.sensor_height)
         self.out_buf_image.setExternal(self.image.data, self.image.shape[1], self.image.shape[0])
 
         self.output_port = yarp.Port()
         self.rpc_port = yarp.RpcServer()
 
-        self.show_predicted_frame = options.show_predicted_frame
+        self.show_predicted_frame = e2vid_conf.show_predicted_frame
         if self.show_predicted_frame:
             cv2.namedWindow("e2vid", cv2.WINDOW_NORMAL)
         # self.mutex = threading.Lock()
 
-        self.e2vid = E2Vid(options)
+        self.e2vid = E2Vid(e2vid_conf)
 
     def configure(self, rf):
         # set the module name used to name ports
@@ -119,9 +119,16 @@ class E2VidExampleModule(yarp.RFModule):
 
             # get x and y coordinates
             events_buf = event_bottle[:, 1]
-            y = events_buf >> 12 & 0xFF
+
+            # use these masks with an atis3 (640x480)
+            y = events_buf >> 12 & 0x1FF
+            x = events_buf >> 1 & 0x3FF
+
+            # use these masks with an atis3 (304x240)
+            # y = events_buf >> 12 & 0xFF
+            # x = events_buf >> 1 & 0x1FF
+
             y = y.reshape(-1, 1)
-            x = events_buf >> 1 & 0x1FF
             x = x.reshape(-1, 1)
 
             # get polarity
