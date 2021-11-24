@@ -41,8 +41,8 @@ The software was tested on Ubuntu 20.04.2 LTS with an Nvidia GPU.
     $ cd shell_scripts
     $ ./launch_yarp.sh
     ```
-  The ``yarpmanager`` window will appear as shown in the figure below.
-  ![image](images/yarpmanager.png)
+  In the ``yarpmanager`` window, load the configuration file ``yarpapp_demo_atis.xml`` and select the app ``e2vid_op_demo``.
+
   The terminal window will show ``yarpserver``'s IP address (``172.17.0.2`` in the figure below). This might be needed 
   for the next step.
   ![image](images/yarpserver_ip.png)
@@ -52,7 +52,7 @@ The software was tested on Ubuntu 20.04.2 LTS with an Nvidia GPU.
   If not, set the correct one.
   ![image](images/yarpview_conf.png)
 
-- Run ``yarpview`` on the local machine (yarpview cannot be currently run in the Docker container; this will be fixed in
+- Run ``yarpview`` on the local machine (``yarpview`` cannot be currently run in the Docker container; this will be fixed in
   a future release)
     ```shell
     $ cd shell_scripts
