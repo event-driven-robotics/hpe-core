@@ -31,18 +31,19 @@ private:
     vReadPort<vector<AE>> input_port;
     BufferedPort<Bottle> input_sklt;
     std::ofstream output_writer, aux_out, vel_out;
-    deque<AE> evs_queue;
+    deque<AE> evs_queue, evsFullImg;
     std::mutex m;
-    sklt pose, dpose;
+    sklt pose, dpose, poseGT;
     hpecore::jointMotionEstimator tracker;
     roiq qROI;
     int roiWidth = 20;
     int roiHeight = roiWidth;
     skltJoint jointName;
     string jointNameStr;
-    int dimY = 240, dimX = 346;
+    int dimY, dimX;
     int nevs = 0;
- 
+    bool plotCv = false;
+    cv::Mat fullImg;
 
 public:
     jointTrack() {}
@@ -77,7 +78,7 @@ public:
 
         // connect ports
         yarp.connect("/file/ch3dvs:o", getName("/AE:i"), "fast_tcp");
-        yarp.connect("/file/ch3GT10Hzskeleton:o", getName("/SKLT:i"), "fast_tcp");
+        yarp.connect("/file/ch3GT5Hzskeleton:o", getName("/SKLT:i"), "fast_tcp");
 
         output_writer.open("output.txt");
         if (!output_writer.is_open())
@@ -94,9 +95,7 @@ public:
         jointNameStr = rf.check("joint", Value("handL")).asString();
         jointName = str2enum(jointNameStr);
 
-        // if(rf.check("plot"))
-        //     plotPython = true;
-      
+
         // intialize velocities
         for (size_t i = 0; i < dpose.size(); i++)
         {
@@ -104,13 +103,30 @@ public:
             dpose[i].v = 0;
         }
 
+        
+        if(rf.check("cv"))
+            plotCv = true;
+        dimX = rf.check("dimX", Value(346)).asInt();
+        dimY = rf.check("dimX", Value(240)).asInt();
+        yInfo() << "Image dimensions = [" << dimX << ", " << dimY << "]";
+        fullImg = cv::Mat::zeros(cv::Size(346, 240), CV_32F);
+        cvtColor(fullImg, fullImg, cv::COLOR_GRAY2RGB);
+      
+
+        if(plotCv)
+        {
+            cv::namedWindow("HPE OUTPUT", cv::WINDOW_NORMAL);
+            cv::resizeWindow("HPE OUTPUT", 346, 260);
+        }
+        
+
         //start the asynchronous and synchronous threads
         return Thread::start();
     }
 
     virtual double getPeriod()
     {
-        return 0; //period of synchrnous thread
+        return 0.025; //period of synchrnous thread
     }
 
     bool interruptModule()
@@ -149,8 +165,112 @@ public:
     //synchronous thread
     virtual bool updateModule()
     {
-
+        if(plotCv)
+        {
+            cv::putText(fullImg, 
+                        "Detection",
+                        cv::Point(285, 210), // Coordinates
+                        cv::FONT_HERSHEY_SIMPLEX, // Font
+                        0.35, // Scale
+                        cv::Scalar(0.0, 0.0, 0.8), // BGR Color
+                        1, // Line Thickness 
+                        cv:: LINE_AA); // Anti-alias 
+            cv::putText(fullImg, 
+                        "Tracking",
+                        cv::Point(285, 225), // Coordinates
+                        cv::FONT_HERSHEY_SIMPLEX, // Font
+                        0.35, // Scale
+                        cv::Scalar(0.8, 0.0, 0.0), // BGR Color
+                        1, // Line Thickness
+                        cv:: LINE_AA); // Anti-alias
+            cv::putText(fullImg, 
+                        "HPE-core IIT",
+                        cv::Point(125, 20), // Coordinates
+                        cv::FONT_HERSHEY_SIMPLEX, // Font
+                        0.5, // Scale
+                        cv::Scalar(0.8, 0.8, 0.8), // BGR Color
+                        1, // Line Thickness 
+                        cv:: LINE_AA); // Anti-alias 
+            cv::imshow("HPE OUTPUT", fullImg);
+            cv::waitKey(1);
+            fullImg = cv::Vec3f(0.4, 0.4, 0.4);
+        }
+    
         return Thread::isRunning();
+    }
+
+
+    void drawSkeleton(sklt pose, sklt poseGT)
+    {
+        // plot detected joints
+        for(int i=0; i<13; i++)
+        {
+            int x = int(poseGT[i].u);
+            int y = int(poseGT[i].v);
+            cv::Point pt(x, y);
+            cv::drawMarker(fullImg, pt, cv::Scalar(0, 0, 0.8), 1, 4);
+            
+        }
+        // plot links between joints
+        cv::Point head(int(poseGT[0].u), int(poseGT[0].v));
+        cv::Point shoulderR(int(poseGT[1].u), int(poseGT[1].v));
+        cv::Point shoulderL(int(poseGT[2].u), int(poseGT[2].v));
+        cv::Point elbowR(int(poseGT[3].u), int(poseGT[3].v));
+        cv::Point elbowL(int(poseGT[4].u), int(poseGT[4].v));
+        cv::Point hipL(int(poseGT[5].u), int(poseGT[5].v));
+        cv::Point hipR(int(poseGT[6].u), int(poseGT[6].v));
+        cv::Point handR(int(poseGT[7].u), int(poseGT[7].v));
+        cv::Point handL(int(poseGT[8].u), int(poseGT[8].v));
+        cv::Point kneeR(int(poseGT[9].u), int(poseGT[9].v));
+        cv::Point kneeL(int(poseGT[10].u), int(poseGT[10].v));
+        cv::Point footR(int(poseGT[11].u), int(poseGT[11].v));
+        cv::Point footL(int(poseGT[12].u), int(poseGT[12].v));
+
+        cv::Scalar colorS = cv::Scalar(0, 0, 0.5);
+        int th = 1;
+        cv::line(fullImg, head, shoulderL, colorS, th);
+        cv::line(fullImg, head, shoulderR, colorS, th);
+        cv::line(fullImg, shoulderL, shoulderR, colorS, th);
+        cv::line(fullImg, shoulderL, elbowL, colorS, th);
+        cv::line(fullImg, shoulderR, elbowR, colorS, th);
+        cv::line(fullImg, shoulderL, hipL, colorS, th);
+        cv::line(fullImg, shoulderR, hipR, colorS, th);
+        cv::line(fullImg, hipL, hipR, colorS, th);
+        cv::line(fullImg, elbowL, handL, colorS, th);
+        cv::line(fullImg, elbowR, handR, colorS, th);
+        cv::line(fullImg, hipL, kneeL, colorS, th);
+        cv::line(fullImg, hipR, kneeR, colorS, th);
+        cv::line(fullImg, kneeR, footR, colorS, th);
+        cv::line(fullImg, kneeL, footL, colorS, th);
+
+
+        // plot tracked joint
+        int x = int(pose[jointName].u);
+        int y = int(pose[jointName].v);
+        cv::Point pt(x, y);
+        cv::drawMarker(fullImg, pt, cv::Scalar(0.8, 0, 0), 0, 4);
+        if(jointName == 8)
+            cv::line(fullImg, elbowL, pt, cv::Scalar(0.5, 0, 0), th);
+    }
+
+
+    void evsToImage(deque<AE> &evs, sklt pose, sklt poseGT)
+    {
+        while(!evs.empty())
+        {
+            int x = evs.front().x;
+            int y = evs.front().y;
+            int p = evs.front().polarity;
+            if(x>=0 && x< dimX && y>=0 && y<dimY)
+            {
+                if(p)
+                    fullImg.at<cv::Vec3f>(y, x) = cv::Vec3f(1.0, 1.0, 1.0);
+                else
+                    fullImg.at<cv::Vec3f>(y, x) = cv::Vec3f(0.0, 0.0, 0.0);
+            }
+            evs.pop_front();
+        }
+        drawSkeleton(pose, poseGT);
     }
 
     //asynchronous thread run forever
@@ -162,9 +282,6 @@ public:
         const vector<AE> *q;
         bool initTimer = false;
         double t0, t1=0, tprev, t2 = 0;
-        int pt = -1;
-        double update_time = 1.0;
-        int i=0;
         long int mes = 0;
         double freq = 0;
         
@@ -174,7 +291,7 @@ public:
             double dt = 0.0;
             t1 = Time::now() - t0;
             // read detections
-            int N = input_sklt.getPendingReads();
+            // int N = input_sklt.getPendingReads();
             bot_sklt = input_sklt.read(false);
             input_sklt.getEnvelope(skltStamp);
             skltTs = skltStamp.getTime();
@@ -186,6 +303,7 @@ public:
                 // build skeleton from reading
                 sklt builtPose = buildSklt(*sklt_lst);
                 pose = tracker.resetPose(builtPose);   // reset pose
+                poseGT = pose;
                 // set roi for just one joint
                 int x = builtPose[jointName].u;
                 int y = builtPose[jointName].v;
@@ -221,11 +339,15 @@ public:
                 for (auto &qi : *q)
                 {
                     qROI.add(qi);
+                    evsFullImg.push_back(qi);
                     nevs++;
                 }
             }
             qROI.setSize(int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])/5));
             
+            // Add events to output image
+            if(initTimer) evsToImage(evsFullImg, pose, poseGT); 
+
             // Process data for tracking
             if(pose.size()) // a pose has been detected before
             {
@@ -237,7 +359,7 @@ public:
                     tracker.getEventsUV(qROI.q, evs, evsTs, vtsHelper::tsscaler, evsPol); // get events u,v coords
                     // Velocity estimation Method 1: time diff on adjacent events 
                     if(nevs > 20)
-                        dpose = tracker.estimateVelocity(evs, evsTs, jointName, nevs/2, dpose);  // get veocities from delta ts
+                        dpose = tracker.estimateVelocity(evs, evsTs, jointName, nevs/4, dpose);  // get veocities from delta ts
                     double dt = (qROI.q.front().stamp - qROI.q.back().stamp) * vtsHelper::tsscaler;
                     if(nevs > 20)
                         tracker.fusion(&pose, dpose, dt); // should integrate from pose eith new velocity
