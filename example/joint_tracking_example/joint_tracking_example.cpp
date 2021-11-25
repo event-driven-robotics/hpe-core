@@ -49,6 +49,7 @@ private:
     bool initTimer = false;
     double avgF = 0;
     BufferedPort<ImageOf<PixelRgb> > image_port;
+    float displayF = 25.0; // display frequency in Hz
 
 public:
     jointTrack() {}
@@ -105,7 +106,7 @@ public:
         
         jointNameStr = rf.check("joint", Value("handL")).asString();
         jointName = str2enum(jointNameStr);
-
+        displayF = rf.check("F", Value(25)).asFloat32();
 
         // intialize velocities
         for (size_t i = 0; i < dpose.size(); i++)
@@ -137,7 +138,7 @@ public:
 
     virtual double getPeriod()
     {
-        return 0.04; //period of synchrnous thread
+        return 1/displayF; //period of synchrnous thread
     }
 
     bool interruptModule()
@@ -178,64 +179,65 @@ public:
     //synchronous thread
     virtual bool updateModule()
     {
+        
+        if(initTimer) drawSkeleton(poseGT);
+        cv::putText(fullImg, 
+                    "Detection",
+                    cv::Point(285, 210), // Coordinates
+                    cv::FONT_HERSHEY_SIMPLEX, // Font
+                    0.35, // Scale
+                    cv::Scalar(0.0, 0.0, 0.8), // BGR Color
+                    1, // Line Thickness 
+                    cv:: LINE_AA); // Anti-alias 
+        cv::putText(fullImg, 
+                    "Tracking",
+                    cv::Point(285, 225), // Coordinates
+                    cv::FONT_HERSHEY_SIMPLEX, // Font
+                    0.35, // Scale
+                    cv::Scalar(0.8, 0.0, 0.0), // BGR Color
+                    1, // Line Thickness
+                    cv:: LINE_AA); // Anti-alias
+        std::string strF = std::to_string(int(avgF));
+        cv::putText(fullImg, 
+                    "Freq = " + strF + "Hz",
+                    cv::Point(20, 225), // Coordinates
+                    cv::FONT_HERSHEY_SIMPLEX, // Font
+                    0.35, // Scale
+                    cv::Scalar(0.8, 0.8, 0.8), // BGR Color
+                    1, // Line Thickness
+                    cv:: LINE_AA); // Anti-alias
+        cv::putText(fullImg, 
+                    "HPE-core EDPR",
+                    cv::Point(125, 20), // Coordinates
+                    cv::FONT_HERSHEY_SIMPLEX, // Font
+                    0.5, // Scale
+                    cv::Scalar(0.8, 0.8, 0.8), // BGR Color
+                    1, // Line Thickness 
+                    cv:: LINE_AA); // Anti-alias 
+        
+
+        // plot tracked joint
+        while(!pose2img.empty())
+        {
+            int x = pose2img.front()[jointName].u;
+            int y = pose2img.front()[jointName].v;
+            cv::Point pt(x, y);
+            cv::drawMarker(fullImg, pt, cv::Scalar(0.8, 0, 0), 0, 4);
+            pose2img.pop_front();
+        }
         if(plotCv)
         {
-            if(initTimer) drawSkeleton(poseGT);
-            cv::putText(fullImg, 
-                        "Detection",
-                        cv::Point(285, 210), // Coordinates
-                        cv::FONT_HERSHEY_SIMPLEX, // Font
-                        0.35, // Scale
-                        cv::Scalar(0.0, 0.0, 0.8), // BGR Color
-                        1, // Line Thickness 
-                        cv:: LINE_AA); // Anti-alias 
-            cv::putText(fullImg, 
-                        "Tracking",
-                        cv::Point(285, 225), // Coordinates
-                        cv::FONT_HERSHEY_SIMPLEX, // Font
-                        0.35, // Scale
-                        cv::Scalar(0.8, 0.0, 0.0), // BGR Color
-                        1, // Line Thickness
-                        cv:: LINE_AA); // Anti-alias
-            std::string strF = std::to_string(int(avgF));
-            cv::putText(fullImg, 
-                        "Freq = " + strF + "Hz",
-                        cv::Point(20, 225), // Coordinates
-                        cv::FONT_HERSHEY_SIMPLEX, // Font
-                        0.35, // Scale
-                        cv::Scalar(0.8, 0.8, 0.8), // BGR Color
-                        1, // Line Thickness
-                        cv:: LINE_AA); // Anti-alias
-            cv::putText(fullImg, 
-                        "HPE-core EDPR",
-                        cv::Point(125, 20), // Coordinates
-                        cv::FONT_HERSHEY_SIMPLEX, // Font
-                        0.5, // Scale
-                        cv::Scalar(0.8, 0.8, 0.8), // BGR Color
-                        1, // Line Thickness 
-                        cv:: LINE_AA); // Anti-alias 
-            
-
-            // plot tracked joint
-            while(!pose2img.empty())
-            {
-                int x = pose2img.front()[jointName].u;
-                int y = pose2img.front()[jointName].v;
-                cv::Point pt(x, y);
-                cv::drawMarker(fullImg, pt, cv::Scalar(0.8, 0, 0), 0, 4);
-                pose2img.pop_front();
-            }
             cv::imshow("HPE OUTPUT", fullImg);
-            // output image using yarp
-            fullImg *= 255;
-            cv::Mat img_out;
-            fullImg.convertTo(img_out, CV_8UC3);
-            image_port.prepare().copy(yarp::cv::fromCvMat<PixelRgb>(img_out));
-            image_port.write();
             cv::waitKey(1);
-            fullImg = cv::Vec3f(0.4, 0.4, 0.4);
         }
-    
+        // output image using yarp
+        fullImg *= 255;
+        cv::Mat img_out;
+        fullImg.convertTo(img_out, CV_8UC3);
+        image_port.prepare().copy(yarp::cv::fromCvMat<PixelRgb>(img_out));
+        image_port.write();
+        fullImg = cv::Vec3f(0.4, 0.4, 0.4);
+        
         return Thread::isRunning();
     }
 
