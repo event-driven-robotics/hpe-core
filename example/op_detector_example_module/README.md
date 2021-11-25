@@ -41,7 +41,8 @@ The software was tested on Ubuntu 20.04.2 LTS with an Nvidia GPU.
     $ cd shell_scripts
     $ ./launch_yarp.sh
     ```
-  In the ``yarpmanager`` window, load the configuration file ``yarpapp_demo_atis.xml`` and select the app ``e2vid_op_demo``.
+  In the ``yarpmanager`` window, load the configuration file ``yarpapp_demo_atis.xml`` (located in folder
+  ``/usr/local/hpe-core/example/op_detector_example_module/conf``) and select the app ``e2vid_op_demo``.
 
   The terminal window will show ``yarpserver``'s IP address (``172.17.0.2`` in the figure below). This might be needed 
   for the next step.
