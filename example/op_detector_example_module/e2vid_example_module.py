@@ -3,7 +3,6 @@ import argparse
 import yarp
 import sys
 import numpy as np
-import threading
 import cv2
 
 from e2vid import E2Vid
@@ -15,7 +14,7 @@ class E2VidExampleModule(yarp.RFModule):
         yarp.RFModule.__init__(self)
         self.image = np.zeros((e2vid_conf.sensor_height, e2vid_conf.sensor_width), dtype=np.uint8)
         self.image_buf = np.zeros((e2vid_conf.sensor_height, e2vid_conf.sensor_width), dtype=np.uint8)
-        self.events = np.zeros((7500, 4), dtype=np.float64)
+        self.events = np.zeros((100000, 4), dtype=np.float64)
         self.input_port = yarp.BufferedPortBottle()
 
         self.out_buf_image = yarp.ImageMono()
@@ -23,14 +22,11 @@ class E2VidExampleModule(yarp.RFModule):
         self.out_buf_image.setExternal(self.image.data, self.image.shape[1], self.image.shape[0])
 
         self.output_port = yarp.Port()
-        self.rpc_port = yarp.RpcServer()
 
         self.show_predicted_frame = e2vid_conf.show_predicted_frame
         if self.show_predicted_frame:
             cv2.namedWindow("e2vid", cv2.WINDOW_NORMAL)
         # self.mutex = threading.Lock()
-
-        self.timestamp = yarp.Stamp()
 
         self.e2vid = E2Vid(e2vid_conf)
 
@@ -47,107 +43,73 @@ class E2VidExampleModule(yarp.RFModule):
             print("Could not open output port")
             return False
 
-        if not self.rpc_port.open(self.getName() + "/rpc"):
-            print("Could not open rpc port")
-            return False
-        self.attach_rpc_server(self.rpc_port)  # rpc port receives command in the respond method
-
-        # read flags and parameters
-        example_flag = rf.check("example_flag") and rf.check("example_flag", yarp.Value(True)).asBool()
-        default_value = 0.1
-        example_parameter = rf.check("example_parameter", yarp.Value(default_value)).asDouble()
-
-        # do any other set-up required here
-        # start the asynchronous and synchronous threads
-        threading.Thread(target=self.run).start()
-
-        return True
-
-    def respond(self, command, reply):
-        # Add any command you want to receive from rpc here
-        print(command.toString())
-        reply.addString('ok')
         return True
 
     def getPeriod(self):
-        return 0.  # period of synchronous thread, return 0 update module called as fast as it can
+        return 0.2  # period of synchronous thread, return 0 update module called as fast as it can
 
     def interruptModule(self):
         # interrupting all the ports
         self.input_port.interrupt()
-        self.rpc_port.interrupt()
         return True
 
     def close(self):
         # closing ports
         self.input_port.close()
-        self.rpc_port.close()
+        self.output_port.close()
         cv2.destroyAllWindows()
         return True
 
     def updateModule(self):
         # synchronous update called every get period seconds.
 
-        # Put visualization, debug prints, etc... here
-        if self.image is None:
-            print('image is None')
-            return True
+        print(self.input_port.getPendingReads())
+        bottle = self.input_port.read()
+        timestamp = yarp.Stamp()
+        self.input_port.getEnvelope(timestamp)
 
-        if self.timestamp:
-            res = self.output_port.setEnvelope(self.timestamp)
-            # print(f'setEnvelope result: {res}')
-            # print(f'setEnvelope timestamp: {self.timestamp}')
+        # Data in the bottle is organized as <event_type> (<timestamp 1> <event 1> .... <timestamp n> <event n>)
+        vType = bottle.get(0).asString()
+        if vType != "AE":
+            return False        
+        event_bottle = np.array(bottle.get(1).toString().split(' '), dtype=np.uint32).reshape(-1, 2)
+
+        # get timestamp
+        timestamps = event_bottle[:, 0]
+        timestamps = timestamps.reshape(-1, 1).astype(np.float32)
+
+        # get x and y coordinates
+        events_buf = event_bottle[:, 1]
+
+        # use these masks with an atis3 (640x480)
+        y = events_buf >> 12 & 0x1FF
+        x = events_buf >> 1 & 0x3FF
+
+        # use these masks with an atis1 (304x240)
+        # y = events_buf >> 12 & 0xFF
+        # x = events_buf >> 1 & 0x1FF
+
+        y = y.reshape(-1, 1)
+        x = x.reshape(-1, 1)
+
+        # get polarity
+        pol = events_buf & 0x01
+        pol = pol.reshape(-1, 1)
+
+        self.events = np.concatenate((timestamps, x, y, pol), axis=1)
+        self.image_buf = self.e2vid.predict_grayscale_frame(self.events)
+        # self.mutex.acquire()
+        self.image[:, :] = self.image_buf  # self.image is a shared resource between threads
+        # self.mutex.release()
+
+        self.output_port.setEnvelope(timestamp)
         self.output_port.write(self.out_buf_image)
 
         if self.show_predicted_frame:
             cv2.imshow("e2vid", self.image)
             cv2.waitKey(10)
 
-        return True
-
-    def run(self):
-
-        # asynchronous thread runs as fast as it can
-        while not self.isStopping():
-
-            bottle = self.input_port.read()
-            res = self.input_port.getEnvelope(self.timestamp)
-            # print(f'getEnvelope result: {res}')
-            # print(f'getEnvelope timestamp: {self.timestamp}')
-
-            # Data in the bottle is organized as <event_type> (<timestamp 1> <event 1> .... <timestamp n> <event n>)
-            vType = bottle.get(0).asString()
-            if vType != "AE":
-                continue
-            event_bottle = np.array(bottle.get(1).toString().split(' '), dtype=np.uint32).reshape(-1, 2)
-
-            # get timestamp
-            timestamps = event_bottle[:, 0]
-            timestamps = timestamps.reshape(-1, 1).astype(np.float32)
-
-            # get x and y coordinates
-            events_buf = event_bottle[:, 1]
-
-            # use these masks with an atis3 (640x480)
-            y = events_buf >> 12 & 0x1FF
-            x = events_buf >> 1 & 0x3FF
-
-            # use these masks with an atis3 (304x240)
-            # y = events_buf >> 12 & 0xFF
-            # x = events_buf >> 1 & 0x1FF
-
-            y = y.reshape(-1, 1)
-            x = x.reshape(-1, 1)
-
-            # get polarity
-            pol = events_buf & 0x01
-            pol = pol.reshape(-1, 1)
-
-            self.events = np.concatenate((timestamps, x, y, pol), axis=1)
-            self.image_buf = self.e2vid.predict_grayscale_frame(self.events)
-            # self.mutex.acquire()
-            self.image[:, :] = self.image_buf  # self.image is a shared resource between threads
-            # self.mutex.release()
+        return True           
 
 
 if __name__ == '__main__':

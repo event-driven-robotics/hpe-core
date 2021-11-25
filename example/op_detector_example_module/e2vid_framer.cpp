@@ -18,6 +18,7 @@ private:
     Stamp yarpstamp;
     std::mutex m;
 
+    bool send_update{false};
     int window_size;
 
 public:
@@ -53,7 +54,7 @@ public:
 
     virtual double getPeriod()
     {
-        return 0.1; //period of synchrnous thread
+        return 0.2; //period of synchrnous thread
     }
 
     bool interruptModule()
@@ -75,9 +76,11 @@ public:
     {
 
         m.lock();
-        if(window_queue.size())
-            output_port.write(window_queue, yarpstamp);
-        m.unlock();
+        deque<AE> fakeq = window_queue;
+	m.unlock();
+        if(send_update && fakeq.size())
+            	output_port.write(fakeq, yarpstamp);
+        send_update = false;
 
         return Thread::isRunning();
     }
@@ -86,6 +89,8 @@ public:
     void run() {
         
         while (true) {
+            //if(input_port.queryunprocessed() > 10)
+            //      yInfo() <<  "delay" << input_port.queryunprocessed() << "packets";
             const vector<AE>* q = input_port.read(yarpstamp);
             if(!q || Thread::isStopping()) return;
 
@@ -93,8 +98,12 @@ public:
             for (auto& qi : *q)
                 window_queue.push_back(qi);
 
-            while(window_queue.size() > window_size)
-                window_queue.pop_front();
+            int ntoerase = window_queue.size() - window_size;
+            if(ntoerase > 0)
+                window_queue.erase(window_queue.begin(), window_queue.begin()+ntoerase);
+            send_update = true;
+            //while(window_queue.size() > window_size)
+            //    window_queue.pop_front();
             m.unlock();
         }
     }
