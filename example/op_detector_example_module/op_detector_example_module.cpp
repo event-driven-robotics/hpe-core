@@ -138,7 +138,19 @@ public:
         else
             yInfo() << "Conversion from " << pose_model << " to DHP19 not implemented yet";
 
-        output_port_skeleton.prepare().copy(hpecore::skeleton_to_string(pose_dhp19));
+        // create a Bottle containing the list of joints coordinates
+        Bottle coordinates_bottle;
+        for(auto &t : pose_dhp19)
+        {
+            coordinates_bottle.addInt32(std::get<0>(t));
+            coordinates_bottle.addInt32(std::get<1>(t));
+        }
+
+        // add the Bottle with the list of coordinates to the output_port Bottle
+        Bottle& output_bottle = output_port_skeleton.prepare();
+        output_bottle.clear();
+        output_bottle.addString("SKLT");
+        output_bottle.addList() = coordinates_bottle;
         output_port_skeleton.setEnvelope(timestamp);
         output_port_skeleton.write();
 
