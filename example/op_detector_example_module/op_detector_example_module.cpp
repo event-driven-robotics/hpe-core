@@ -57,7 +57,7 @@ public:
 
         // list of body parts and indexes available here, https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/src/openpose/pose/poseParameters.cpp
 //        std::string default_pose_model = "BODY_25";
-        std::string default_pose_model = "COCO_18";
+        std::string default_pose_model = "COCO";
 //        std::string default_pose_model = "MPI_15";
         pose_model = rf.check("pose_model", Value(default_pose_model)).asString();
 
@@ -133,8 +133,10 @@ public:
         // write openpose's output skeleton to the output port
 
         hpecore::skeleton pose_dhp19;
-        if(pose_model == "COCO_18")
-            pose_dhp19 = hpecore::coco18_to_dhp19(pose);
+        if(pose_model == "COCO")
+            pose_dhp19 = hpecore::coco_to_dhp19(pose);
+        else if(pose_model == "BODY_25")
+            pose_dhp19 = hpecore::body25_to_dhp19(pose);
         else
             yInfo() << "Conversion from " << pose_model << " to DHP19 not implemented yet";
 
