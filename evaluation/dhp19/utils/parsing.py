@@ -25,7 +25,7 @@ DHP19_BODY_PARTS = {
     'footL': 12
 }
 
-OPENPOSE_TO_DHP19_INDICES = np.array([
+OPENPOSE_BODY_25_TO_DHP19_INDICES = np.array([
     # TODO: compute head
     [0, 0],  # head
     [2, 1],  # shoulderR
@@ -45,7 +45,7 @@ OPENPOSE_TO_DHP19_INDICES = np.array([
 
 def openpose_to_dhp19(pose_op):
     # TODO: compute dhp19's head joints from openpose
-    return pose_op[OPENPOSE_TO_DHP19_INDICES[:, 0], :]
+    return pose_op[OPENPOSE_BODY_25_TO_DHP19_INDICES[:, 0], :]
 
 
 class Dhp19EventsIterator:
