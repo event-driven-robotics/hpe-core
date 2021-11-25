@@ -6,13 +6,17 @@ Raw events, grayscale frames and poses are sent to `vFramer` for the final visua
 The application has been designed to run using docker for simple set-up of the environment.
 
 ## Files Description
-- `Dockerfile`: file containing instructions for building a docker image able to run openpose and e2vid
-- `e2vid_example_module.py`: python yarp module running E2Vid
-- `e2vid_framer.cpp`: c++ yarp module creating batches of events that are sent to E2Vid
-- `op_detector_example_module.cpp`: c++ yarp module running OpenPose.
+- `Dockerfile`: file containing instructions for building a `Docker` image able to run `OpenPose` and `E2Vid`
+- `e2vid_example_module.py`: python `yarp` module running `E2Vid`
+- `e2vid_framer.cpp`: c++ `yarp` module creating batches of events that are sent to `E2Vid`
+- `op_detector_example_module.cpp`: c++ `yarp` module running `OpenPose`
+- `/conf/yarpapp_demo*.xml`: `yarp` applications configuration files
+- `/shell_scripts/launch_yarp.sh`: bash script that runs `yarpmanager` and `yarpserver`
+- `/shell_scripts/launch_yarpview.sh`: bash script to be run outside `Docker`; installs `yarp` if missing, configures `yarpserver` and runs `yarpview`
 
-The example contains also two c++ wrappers that call python code using Python's c++ api, `wrappers/e2vid.cpp` and 
-`wrappers/e2vid.h`. Currently, it seems that PyTorch's `torch.device()` fails if YARP is included in c++.
+The example contains also two c++ wrappers that call python code using Python's c++ api, `/wrappers/e2vid.cpp` and 
+`/wrappers/e2vid.h`. Currently, it seems that PyTorch's `torch.device()` fails if yarp is included in c++. Nonetheless,
+the code can be used as an example on how to execute python scripts from c++.
 
 ## Installation
 The software was tested on Ubuntu 20.04.2 LTS with an Nvidia GPU.
