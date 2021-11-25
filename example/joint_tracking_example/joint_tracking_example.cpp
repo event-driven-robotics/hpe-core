@@ -199,7 +199,7 @@ public:
         // Add text
         cv::putText(aux, 
                     "Detection",
-                    cv::Point(550, 420), // Coordinates
+                    cv::Point(dimX*1.6, dimY*1.8), // Coordinates
                     cv::FONT_HERSHEY_SIMPLEX, // Font
                     0.8, // Scale
                     cv::Scalar(0.0, 0.0, 0.8), // BGR Color
@@ -207,7 +207,7 @@ public:
                     cv:: LINE_AA); // Anti-alias 
         cv::putText(aux, 
                     "Tracking",
-                    cv::Point(550, 450), // Coordinates
+                    cv::Point(dimX*1.6, dimY*1.9), // Coordinates
                     cv::FONT_HERSHEY_SIMPLEX, // Font
                     0.8, // Scale
                     cv::Scalar(0.8, 0.0, 0.0), // BGR Color
@@ -216,7 +216,7 @@ public:
         std::string strF = std::to_string(int(avgF));
         cv::putText(aux, 
                     "Freq = " + strF + "Hz",
-                    cv::Point(15, 450), // Coordinates
+                    cv::Point(dimX*0.05, dimY*1.9), // Coordinates
                     cv::FONT_HERSHEY_SIMPLEX, // Font
                     0.8, // Scale
                     cv::Scalar(0.8, 0.8, 0.8), // BGR Color
@@ -224,7 +224,7 @@ public:
                     cv:: LINE_AA); // Anti-alias
         cv::putText(aux, 
                     "HPE-core EDPR",
-                    cv::Point(200, 40), // Coordinates
+                    cv::Point(dimX*0.5, dimY*0.2), // Coordinates
                     cv::FONT_HERSHEY_SIMPLEX, // Font
                     1.2, // Scale
                     cv::Scalar(0.8, 0.8, 0.8), // BGR Color
