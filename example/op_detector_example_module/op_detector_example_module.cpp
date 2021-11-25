@@ -14,7 +14,8 @@ class OPDetectorExampleModule : public RFModule {
 private:
 
     BufferedPort<ImageOf<PixelMono>> input_port;
-    BufferedPort<ImageOf<PixelRgb> > output_port;
+    BufferedPort<ImageOf<PixelRgb>> output_port_frame;
+    BufferedPort<Bottle> output_port_skeleton;
 
     std::string models_path;
     std::string pose_model;
@@ -40,8 +41,13 @@ public:
             return false;
         }
 
-        if(!output_port.open(getName() + "/img:o")) {
-            yError() << "Could not open input port";
+        if(!output_port_frame.open(getName() + "/img:o")) {
+            yError() << "Could not open output frame port";
+            return false;
+        }
+
+        if(!output_port_skeleton.open(getName() + "/skl:o")) {
+            yError() << "Could not open output skeleton port";
             return false;
         }
 
@@ -68,7 +74,8 @@ public:
     {
         //if the module is asked to stop ask the asynchronous thread to stop
         input_port.interrupt();
-        output_port.interrupt();
+        output_port_frame.interrupt();
+        output_port_skeleton.interrupt();
         return true;
     }
 
@@ -77,14 +84,20 @@ public:
         //when the asynchronous thread is asked to stop, close ports and do other clean up
         detector.stop();
         input_port.close();
-        output_port.close();
+        output_port_frame.close();
+        output_port_skeleton.close();
         return true;
     }
 
     //synchronous thread
-    virtual bool updateModule() {
-        //read greyscale image from yarp
+    virtual bool updateModule()
+    {
+        // read greyscale image from yarp
         ImageOf<PixelMono>* img_yarp = input_port.read();
+
+        Stamp timestamp;
+        input_port.getEnvelope(timestamp);
+
         if (img_yarp == nullptr)
             return false;
 
@@ -109,8 +122,15 @@ public:
             t_count = 0;
         }
 
-        output_port.prepare().copy(yarp::cv::fromCvMat<PixelBgr>(rgbimage));
-        output_port.write();
+        // write opnepose's output frame to the output port
+        output_port_frame.prepare().copy(yarp::cv::fromCvMat<PixelBgr>(rgbimage));
+//        output_port_frame.setEnvelope(timestamp);
+        output_port_frame.write();
+
+//        // write opnepose's output skeleton to the output port
+//        output_port_skeleton.prepare().copy(yarp::cv::fromCvMat<PixelBgr>(rgbimage));
+//        output_port_skeleton.setEnvelope(timestamp);
+//        output_port_skeleton.write();
 
 //        //visualisation
 //        cv::imshow("OpenPose", rgbimage);
