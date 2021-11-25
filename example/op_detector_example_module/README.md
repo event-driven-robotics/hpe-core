@@ -68,3 +68,6 @@ The software was tested on Ubuntu 20.04.2 LTS with an Nvidia GPU.
 - Setup Docker's image for running ATIS Gen3 camera by using [this](https://github.com/event-driven-robotics/atis-gen3-docker/tree/a7edfb2d5813b5edfdc68986a6384ec73cbc6af2) guide
 
 - Once the camera is connected and running, activate all YARP connections by clicking on the green button ``Connect all`` in ``yarpmanager``'s GUI.
+
+## OpenPose Parameters
+List of available body models, joints and indices available [here](https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/src/openpose/pose/poseParameters.cpp).
