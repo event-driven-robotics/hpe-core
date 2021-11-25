@@ -179,42 +179,8 @@ public:
     //synchronous thread
     virtual bool updateModule()
     {
-        
+        // plot ground-truth skeleton
         if(initTimer) drawSkeleton(poseGT);
-        cv::putText(fullImg, 
-                    "Detection",
-                    cv::Point(285, 210), // Coordinates
-                    cv::FONT_HERSHEY_SIMPLEX, // Font
-                    0.35, // Scale
-                    cv::Scalar(0.0, 0.0, 0.8), // BGR Color
-                    1, // Line Thickness 
-                    cv:: LINE_AA); // Anti-alias 
-        cv::putText(fullImg, 
-                    "Tracking",
-                    cv::Point(285, 225), // Coordinates
-                    cv::FONT_HERSHEY_SIMPLEX, // Font
-                    0.35, // Scale
-                    cv::Scalar(0.8, 0.0, 0.0), // BGR Color
-                    1, // Line Thickness
-                    cv:: LINE_AA); // Anti-alias
-        std::string strF = std::to_string(int(avgF));
-        cv::putText(fullImg, 
-                    "Freq = " + strF + "Hz",
-                    cv::Point(20, 225), // Coordinates
-                    cv::FONT_HERSHEY_SIMPLEX, // Font
-                    0.35, // Scale
-                    cv::Scalar(0.8, 0.8, 0.8), // BGR Color
-                    1, // Line Thickness
-                    cv:: LINE_AA); // Anti-alias
-        cv::putText(fullImg, 
-                    "HPE-core EDPR",
-                    cv::Point(125, 20), // Coordinates
-                    cv::FONT_HERSHEY_SIMPLEX, // Font
-                    0.5, // Scale
-                    cv::Scalar(0.8, 0.8, 0.8), // BGR Color
-                    1, // Line Thickness 
-                    cv:: LINE_AA); // Anti-alias 
-        
 
         // plot tracked joint
         while(!pose2img.empty())
@@ -225,15 +191,56 @@ public:
             cv::drawMarker(fullImg, pt, cv::Scalar(0.8, 0, 0), 0, 4);
             pose2img.pop_front();
         }
-        if(plotCv)
+    
+        // double the resolution to add text
+        cv::Mat aux;
+        fullImg.copyTo(aux);
+        cv::resize(fullImg, aux, cv::Size(dimX*2,dimY*2), 0, 0, cv::INTER_CUBIC);
+        // Add text
+        cv::putText(aux, 
+                    "Detection",
+                    cv::Point(550, 420), // Coordinates
+                    cv::FONT_HERSHEY_SIMPLEX, // Font
+                    0.8, // Scale
+                    cv::Scalar(0.0, 0.0, 0.8), // BGR Color
+                    1, // Line Thickness 
+                    cv:: LINE_AA); // Anti-alias 
+        cv::putText(aux, 
+                    "Tracking",
+                    cv::Point(550, 450), // Coordinates
+                    cv::FONT_HERSHEY_SIMPLEX, // Font
+                    0.8, // Scale
+                    cv::Scalar(0.8, 0.0, 0.0), // BGR Color
+                    1, // Line Thickness
+                    cv:: LINE_AA); // Anti-alias
+        std::string strF = std::to_string(int(avgF));
+        cv::putText(aux, 
+                    "Freq = " + strF + "Hz",
+                    cv::Point(15, 450), // Coordinates
+                    cv::FONT_HERSHEY_SIMPLEX, // Font
+                    0.8, // Scale
+                    cv::Scalar(0.8, 0.8, 0.8), // BGR Color
+                    1, // Line Thickness
+                    cv:: LINE_AA); // Anti-alias
+        cv::putText(aux, 
+                    "HPE-core EDPR",
+                    cv::Point(200, 40), // Coordinates
+                    cv::FONT_HERSHEY_SIMPLEX, // Font
+                    1.2, // Scale
+                    cv::Scalar(0.8, 0.8, 0.8), // BGR Color
+                    1, // Line Thickness 
+                    cv:: LINE_AA); // Anti-alias 
+        
+        if(plotCv) // output image using opencv
         {
-            cv::imshow("HPE OUTPUT", fullImg);
+            cv::imshow("HPE OUTPUT", aux);
             cv::waitKey(1);
         }
+
         // output image using yarp
-        fullImg *= 255;
+        aux *= 255;
         cv::Mat img_out;
-        fullImg.convertTo(img_out, CV_8UC3);
+        aux.convertTo(img_out, CV_8UC3);
         image_port.prepare().copy(yarp::cv::fromCvMat<PixelRgb>(img_out));
         image_port.write();
         fullImg = cv::Vec3f(0.4, 0.4, 0.4);
