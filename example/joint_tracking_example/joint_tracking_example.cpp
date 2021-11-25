@@ -1,5 +1,6 @@
 #include <yarp/os/all.h>
 #include <yarp/sig/all.h>
+#include <yarp/cv/Cv.h>
 #include <event-driven/all.h>
 #include <mutex>
 #include <hpe-core/utility.h>
@@ -32,6 +33,7 @@ private:
     BufferedPort<Bottle> input_sklt;
     std::ofstream output_writer, aux_out, vel_out;
     deque<AE> evs_queue, evsFullImg;
+    deque<sklt> pose2img;
     std::mutex m;
     sklt pose, dpose, poseGT;
     hpecore::jointMotionEstimator tracker;
@@ -44,6 +46,9 @@ private:
     int nevs = 0;
     bool plotCv = false;
     cv::Mat fullImg;
+    bool initTimer = false;
+    double avgF = 0;
+    BufferedPort<ImageOf<PixelRgb> > image_port;
 
 public:
     jointTrack() {}
@@ -76,9 +81,15 @@ public:
             return false;
         }
 
+        if(!image_port.open(getName("/img:o"))) {
+            yError() << "Could not open output port";
+            return false;
+        }
+
         // connect ports
         yarp.connect("/file/ch3dvs:o", getName("/AE:i"), "fast_tcp");
         yarp.connect("/file/ch3GT10Hzskeleton:o", getName("/SKLT:i"), "fast_tcp");
+        yarp.connect(getName("/img:o"), "/yarpview/img:i", "fast_tcp");
 
         output_writer.open("output.txt");
         if (!output_writer.is_open())
@@ -126,7 +137,7 @@ public:
 
     virtual double getPeriod()
     {
-        return 0.025; //period of synchrnous thread
+        return 0.04; //period of synchrnous thread
     }
 
     bool interruptModule()
@@ -134,6 +145,7 @@ public:
         //if the module is asked to stop ask the asynchrnous thread to stop
         input_port.interrupt();
         input_sklt.interrupt();
+        image_port.interrupt();
         std::cout << "\033c";
         return Thread::stop();
     }
@@ -144,6 +156,7 @@ public:
         //other clean up
         input_port.close();
         input_sklt.close();
+        image_port.close();
         output_writer.close();
         aux_out.close();
         // output_port.close();
@@ -167,6 +180,7 @@ public:
     {
         if(plotCv)
         {
+            if(initTimer) drawSkeleton(poseGT);
             cv::putText(fullImg, 
                         "Detection",
                         cv::Point(285, 210), // Coordinates
@@ -183,15 +197,41 @@ public:
                         cv::Scalar(0.8, 0.0, 0.0), // BGR Color
                         1, // Line Thickness
                         cv:: LINE_AA); // Anti-alias
+            std::string strF = std::to_string(int(avgF));
             cv::putText(fullImg, 
-                        "HPE-core IIT",
+                        "Freq = " + strF + "Hz",
+                        cv::Point(20, 225), // Coordinates
+                        cv::FONT_HERSHEY_SIMPLEX, // Font
+                        0.35, // Scale
+                        cv::Scalar(0.8, 0.8, 0.8), // BGR Color
+                        1, // Line Thickness
+                        cv:: LINE_AA); // Anti-alias
+            cv::putText(fullImg, 
+                        "HPE-core EDPR",
                         cv::Point(125, 20), // Coordinates
                         cv::FONT_HERSHEY_SIMPLEX, // Font
                         0.5, // Scale
                         cv::Scalar(0.8, 0.8, 0.8), // BGR Color
                         1, // Line Thickness 
                         cv:: LINE_AA); // Anti-alias 
+            
+
+            // plot tracked joint
+            while(!pose2img.empty())
+            {
+                int x = pose2img.front()[jointName].u;
+                int y = pose2img.front()[jointName].v;
+                cv::Point pt(x, y);
+                cv::drawMarker(fullImg, pt, cv::Scalar(0.8, 0, 0), 0, 4);
+                pose2img.pop_front();
+            }
             cv::imshow("HPE OUTPUT", fullImg);
+            // output image using yarp
+            fullImg *= 255;
+            cv::Mat img_out;
+            fullImg.convertTo(img_out, CV_8UC3);
+            image_port.prepare().copy(yarp::cv::fromCvMat<PixelRgb>(img_out));
+            image_port.write();
             cv::waitKey(1);
             fullImg = cv::Vec3f(0.4, 0.4, 0.4);
         }
@@ -200,7 +240,7 @@ public:
     }
 
 
-    void drawSkeleton(sklt pose, sklt poseGT)
+    void drawSkeleton(sklt poseGT)
     {
         // plot detected joints
         for(int i=0; i<13; i++)
@@ -242,19 +282,10 @@ public:
         cv::line(fullImg, hipR, kneeR, colorS, th);
         cv::line(fullImg, kneeR, footR, colorS, th);
         cv::line(fullImg, kneeL, footL, colorS, th);
-
-
-        // plot tracked joint
-        int x = int(pose[jointName].u);
-        int y = int(pose[jointName].v);
-        cv::Point pt(x, y);
-        cv::drawMarker(fullImg, pt, cv::Scalar(0.8, 0, 0), 0, 4);
-        if(jointName == 8)
-            cv::line(fullImg, elbowL, pt, cv::Scalar(0.5, 0, 0), th);
     }
 
 
-    void evsToImage(deque<AE> &evs, sklt pose, sklt poseGT)
+    void evsToImage(deque<AE> &evs)
     {
         while(!evs.empty())
         {
@@ -270,7 +301,6 @@ public:
             }
             evs.pop_front();
         }
-        drawSkeleton(pose, poseGT);
     }
 
     //asynchronous thread run forever
@@ -280,7 +310,6 @@ public:
         Bottle *bot_sklt;
         double skltTs;
         const vector<AE> *q;
-        bool initTimer = false;
         double t0, t1=0, tprev, t2 = 0;
         long int mes = 0;
         double freq = 0;
@@ -322,8 +351,14 @@ public:
                 t2 = Time::now() - t0;
                 freq += 1/(t2-tprev);
                 mes++;
-                double avg = freq/mes;
-                yInfo() << "\033c" << avg;
+                avgF = freq/mes; // average freq
+                if(mes>100)
+                {
+                    mes= 0;
+                    freq=0;
+                }
+                // avgF = 1/(t2-tprev); // instant freq
+                // yInfo() << "\033c" << avgF;
             }
             nevs = 0;
             for (int i = 0; i < np; i++)
@@ -346,7 +381,7 @@ public:
             qROI.setSize(int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])/5));
             
             // Add events to output image
-            if(initTimer) evsToImage(evsFullImg, pose, poseGT); 
+            if(initTimer) evsToImage(evsFullImg); 
 
             // Process data for tracking
             if(pose.size()) // a pose has been detected before
@@ -373,6 +408,7 @@ public:
                     int x = pose[jointName].u;
                     int y = pose[jointName].v;
                     // qROI.setROI(x - roiWidth / 2, x + roiWidth / 2, y - roiHeight / 2, y + roiHeight / 2);
+                    pose2img.push_back(pose);
                 }
                 else if (bot_sklt) // there weren't events to process but a detection occured
                 {
