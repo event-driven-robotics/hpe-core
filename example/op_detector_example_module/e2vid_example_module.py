@@ -30,6 +30,8 @@ class E2VidExampleModule(yarp.RFModule):
             cv2.namedWindow("e2vid", cv2.WINDOW_NORMAL)
         # self.mutex = threading.Lock()
 
+        self.timestamp = yarp.Stamp()
+
         self.e2vid = E2Vid(e2vid_conf)
 
     def configure(self, rf):
@@ -40,7 +42,6 @@ class E2VidExampleModule(yarp.RFModule):
         if not self.input_port.open(self.getName() + "/AE:i"):
             print("Could not open input port")
             return False
-        self.input_port.setStrict()
 
         if not self.output_port.open(self.getName() + "/img:o"):
             print("Could not open output port")
@@ -92,6 +93,10 @@ class E2VidExampleModule(yarp.RFModule):
             print('image is None')
             return True
 
+        if self.timestamp:
+            res = self.output_port.setEnvelope(self.timestamp)
+            # print(f'setEnvelope result: {res}')
+            # print(f'setEnvelope timestamp: {self.timestamp}')
         self.output_port.write(self.out_buf_image)
 
         if self.show_predicted_frame:
@@ -106,6 +111,9 @@ class E2VidExampleModule(yarp.RFModule):
         while not self.isStopping():
 
             bottle = self.input_port.read()
+            res = self.input_port.getEnvelope(self.timestamp)
+            # print(f'getEnvelope result: {res}')
+            # print(f'getEnvelope timestamp: {self.timestamp}')
 
             # Data in the bottle is organized as <event_type> (<timestamp 1> <event 1> .... <timestamp n> <event n>)
             vType = bottle.get(0).asString()
