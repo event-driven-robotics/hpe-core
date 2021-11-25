@@ -55,7 +55,10 @@ public:
         std::string default_models_path = "/openpose/models";
         models_path = rf.check("models_path", Value(default_models_path)).asString();
 
-        std::string default_pose_model = "BODY_25";
+        // list of body parts and indexes available here, https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/src/openpose/pose/poseParameters.cpp
+//        std::string default_pose_model = "BODY_25";
+        std::string default_pose_model = "COCO_18";
+//        std::string default_pose_model = "MPI_15";
         pose_model = rf.check("pose_model", Value(default_pose_model)).asString();
 
         detector.init(models_path, pose_model);
@@ -122,15 +125,22 @@ public:
             t_count = 0;
         }
 
-        // write opnepose's output frame to the output port
+        // write openpose's output frame to the output port
         output_port_frame.prepare().copy(yarp::cv::fromCvMat<PixelBgr>(rgbimage));
-//        output_port_frame.setEnvelope(timestamp);
+        output_port_frame.setEnvelope(timestamp);
         output_port_frame.write();
 
-//        // write opnepose's output skeleton to the output port
-//        output_port_skeleton.prepare().copy(yarp::cv::fromCvMat<PixelBgr>(rgbimage));
-//        output_port_skeleton.setEnvelope(timestamp);
-//        output_port_skeleton.write();
+        // write openpose's output skeleton to the output port
+
+        hpecore::skeleton pose_dhp19;
+        if(pose_model == "COCO_18")
+            pose_dhp19 = hpecore::coco18_to_dhp19(pose);
+        else
+            yInfo() << "Conversion from " << pose_model << " to DHP19 not implemented yet";
+
+        output_port_skeleton.prepare().copy(hpecore::skeleton_to_string(pose_dhp19));
+        output_port_skeleton.setEnvelope(timestamp);
+        output_port_skeleton.write();
 
 //        //visualisation
 //        cv::imshow("OpenPose", rgbimage);
