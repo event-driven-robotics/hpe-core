@@ -79,6 +79,7 @@ void OpenPoseDetector::stop()
 skeleton OpenPoseDetector::detect(cv::Mat &input)
 {
     skeleton pose;
+    pose.clear();
 
     try
     {
