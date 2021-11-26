@@ -345,14 +345,14 @@ public:
             yarp_vel[i] = mean_acc[i];
             yarp_vel[i] = gv[i];
             //yarp_vel[i] = cam_acc[i] - mean_acc[i];
-            yarp_vel[i+3] = cam_acc[i];// - gv[i];
+            yarp_vel[i+3] = cam_acc[i] - gv[i];
             //if(fabs(cam_acc[i] - mean_acc[i]) > 0.1)
             //double temp_vel = my_vel[i] + (cam_acc[i] - mean_acc[i]) * dt * 0.5;
             //mean_vel[i] = mean_vel[i]*(1.0-dt) + temp_vel*dt;
             my_vel[i] += (cam_acc[i] - gv[i]) * dt;
-            //my_vel[i] *= 0.99;
+            my_vel[i] *= 0.99;
             
-            //yarp_vel[i] = my_vel[i];
+            yarp_vel[i] = my_vel[i];
         }
         scope_port.write();
 
