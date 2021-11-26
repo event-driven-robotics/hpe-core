@@ -53,12 +53,14 @@ endif()
 
 set( folder_source
   detection_wrappers/detection.cpp
+  motion_estimation/jointMotionEstimator.cpp
   event_volumes/volumes.cpp
 )
 
 set( folder_header
   utility/utility.h
   detection_wrappers/detection.h
+  motion_estimation/jointMotionEstimator.h
   event_volumes/volumes.h
 )
 
@@ -78,6 +80,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "${folder_header}
                                                           SOVERSION 2)                                               
 
 target_include_directories(${PROJECT_NAME} PRIVATE utility
+                                           PRIVATE motion_estimation
                                            PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
                                                   "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>") # FIXME INSTALL PATH
 
