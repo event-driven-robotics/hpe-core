@@ -9,6 +9,23 @@
 #include <string>
 
 namespace hpecore {
+
+typedef struct pixel_event
+{
+    int p:1;
+    int x:10;
+    int _f1:1;
+    int y:9;
+    int _f:11;
+    int stamp:32;
+} pixel_event;
+
+typedef struct point_flow
+{
+    float udot;
+    float vdot;
+} point_flow;
+
 using skeleton = std::vector<std::tuple<double, double>>;
 
 typedef struct {
