@@ -69,12 +69,6 @@ if( OpenPose_FOUND )
   list(APPEND folder_header detection_wrappers/openpose_detector.h)
 endif()
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
-if( Python3_FOUND )
-  list(APPEND folder_source utility/e2vid/e2vid.cpp)
-  list(APPEND folder_header utility/e2vid/e2vid.h)
-endif()
-
 
 add_library(${PROJECT_NAME} ${folder_source} ${folder_header})
 
