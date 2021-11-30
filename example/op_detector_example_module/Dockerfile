@@ -213,7 +213,7 @@ RUN cd $SOURCE_FOLDER && \
 ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
 
 # download e2vid
-RUN cd $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python && \
+RUN cd $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/e2vid && \
     git clone git@github.com:uzh-rpg/rpg_e2vid.git && \
 
     # fix e2vid incompatibility with recent pytorch versions (https://github.com/uzh-rpg/rpg_e2vid/issues/5) \
@@ -226,10 +226,10 @@ RUN cd $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python && \
     wget "http://rpg.ifi.uzh.ch/data/E2VID/models/E2VID_lightweight.pth.tar" -O pretrained/E2VID_lightweight.pth.tar
 
 # move custom python scripts to rpg_e2vid dir
-RUN mv $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python/*.py $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python/rpg_e2vid
+RUN mv $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/e2vid/*.py $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/e2vid/rpg_e2vid
 
 # define a system variable with e2vid's location; it will be used by the C++ wrapper
-ENV E2VID_PYTHON_DIR $SOURCE_FOLDER/hpe-core/core/utility/e2vid/python/rpg_e2vid
+ENV E2VID_PYTHON_DIR $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/e2vid/rpg_e2vid
 
 
 # compile and install hpe-core
