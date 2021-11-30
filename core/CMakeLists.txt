@@ -83,7 +83,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE utility
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC ${OpenPose_LIBS} ${OpenCV_LIBRARIES} Python3::Python Python3::NumPy)
+target_link_libraries(${PROJECT_NAME} PUBLIC ${OpenPose_LIBS} ${OpenCV_LIBRARIES})
 
 install(TARGETS ${PROJECT_NAME}
         EXPORT hpecore
@@ -101,17 +101,3 @@ install_basic_package_files(${PROJECT_NAME}
                             NAMESPACE hpe-core::
                             DEPENDENCIES OpenCV)
 include(AddUninstallTarget)
-
-#########
-# E2VID #
-#########
-
-# copy e2vid python files to hpe-core install dir
-#add_custom_command(
-#        TARGET ${PROJECT_NAME} POST_BUILD
-#        COMMAND ${CMAKE_COMMAND} -E copy
-#                ${CMAKE_SOURCE_DIR}/test/input.txt
-#                ${CMAKE_CURRENT_BINARY_DIR}/input.txt)
-
-# define C++ macro specifying e2vid path that will be used at runtime
-add_compile_definitions(E2VID_PYTHON_DIR="$ENV{E2VID_PYTHON_DIR}")
