@@ -11,7 +11,6 @@ The application has been designed to run using docker for simple set-up of the e
 - `e2vid_framer.cpp`: c++ `yarp` module creating batches of events that are sent to `E2Vid`
 - `op_detector_example_module.cpp`: c++ `yarp` module running `OpenPose`
 - `/conf/yarpapp_demo*.xml`: `yarp` applications configuration files
-- `/shell_scripts/launch_yarp.sh`: bash script that runs `yarpmanager` and `yarpserver`
 - `/shell_scripts/launch_yarpview.sh`: bash script to be run outside `Docker`; installs `yarp` if missing, configures `yarpserver` and runs `yarpview`
 
 The example contains also two c++ wrappers that call python code using Python's c++ api, `/wrappers/e2vid.cpp` and 
@@ -42,28 +41,34 @@ The software was tested on Ubuntu 20.04.2 LTS with an Nvidia GPU.
     ```shell
     $ xhost +
     $ docker run -it -v /tmp/.X11-unix/:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY --runtime=nvidia <image_id>
-    $ cd shell_scripts
-    $ ./launch_yarp.sh
+    $ yarpmanager &
+    $ yarpserver &
     ```
   In the ``yarpmanager`` window, load the configuration file ``yarpapp_demo_atis.xml`` (located in folder
   ``/usr/local/hpe-core/example/op_detector_example_module/conf``) and select the app ``e2vid_op_demo``.
 
-  The terminal window will show ``yarpserver``'s IP address (``172.17.0.2`` in the figure below). This might be needed 
+  The terminal window will show ``yarpserver``'s IP address (e.g. ``172.17.0.2``). This might be needed 
   for the next step.
-  ![image](images/yarpserver_ip.png)
 
-- Open the script ``launch_yarpview.sh`` and check if line ``11`` has the correct IP address of ``yarpserver`` (gathered
-  previously, figure below).
-  If not, set the correct one.
-  ![image](images/yarpview_conf.png)
-
+- Install (if not present already) and configure ``yarp`` on the local machine
+    ```shell
+    # install yarp
+    $ sudo sh -c 'echo "deb http://www.icub.org/ubuntu focal contrib/science" > /etc/apt/sources.list.d/icub.list'
+    $ sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 57A5ACB6110576A6
+    $ sudo apt-get update
+    $ sudo apt-get install -y yarp
+ 
+    # make yarpserver in the Docker container visible to local yarp
+    $ yarp conf <yarpserver_ip_address> 10000  # e.g. 172.17.0.2
+    $ yarp check
+    $ yarp detect
+    ```
+  
 - Run ``yarpview`` on the local machine (``yarpview`` cannot be currently run in the Docker container; this will be fixed in
   a future release)
     ```shell
-    $ cd shell_scripts
-    $ ./launch_yarpview.sh
+    $ yarpview --name /img_vis --x 30 --y 30 --h 720 --w 960 --synch --compact
     ```
-  The script will also download and install locally ``yarp``.
   
 - In the ``yarpmanager`` window, load the configuration file ``yarpapp_demo_atis.xml`` and select the app ``e2vid_op_demo``
  
