@@ -35,11 +35,12 @@ def export_to_yarp(input_file_path, output_folder):
     container = {'info': {}, 'data': {}}
     start_time = dataDvs['out']['extra']['startTime']
     for cn in range(dhp19_const.DHP19_CAM_NUM):
-        container['data'][f'ch{cn}'] = dataDvs['out']['data'][f'cam{cn}']
-        container['data'][f'ch{cn}']['dvs']['x'] = container['data'][f'ch{cn}']['dvs']['x'] - 1 - dhp19_const.DHP19_SENSOR_WIDTH * cn
-        container['data'][f'ch{cn}']['dvs']['y'] = container['data'][f'ch{cn}']['dvs']['y'] - 1
-        container['data'][f'ch{cn}']['dvs']['ts'] = (container['data'][f'ch{cn}']['dvs']['ts'] - start_time) * 1e-6
-        container['data'][f'ch{cn}']['dvs']['pol'] = np.array(container['data'][f'ch{cn}']['dvs']['pol'], dtype=bool)
+        data = dataDvs['out']['data'][f'cam{cn}']
+        data['dvs']['x'] = data['dvs']['x'] - 1 - dhp19_const.DHP19_SENSOR_WIDTH * cn
+        data['dvs']['y'] = data['dvs']['y'] - 1
+        data['dvs']['ts'] = (data['dvs']['ts'] - start_time) * 1e-6
+        data['dvs']['pol'] = np.array(data['dvs']['pol'], dtype=bool)
+        container['data'][f'ch{cn}'] = data
 
     exportIitYarp.exportIitYarp(container, exportFilePath=str(output_folder / input_file_path.stem), protectedWrite=True)
 
