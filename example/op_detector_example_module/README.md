@@ -1,7 +1,21 @@
-# OpenPose Example
-Use the hpecore installed with OpenPose functionality to perform HPE on greyscale images streamed over YARP.
+# Online OpenPose Example
+A yarp application for online human pose estimation. The `YARP dataplayer` streams events to `e2vid_framer`, which creates 
+batches of events and sends them to `E2Vid`. `E2Vid` predicts grayscale frames and sends them to `OpenPose` for pose estimation.
+Raw events, grayscale frames and poses are sent to `vFramer` for the final visualization.
 
 The application has been designed to run using docker for simple set-up of the environment.
+
+## Files Description
+- `Dockerfile`: file containing instructions for building a `Docker` image able to run `OpenPose` and `E2Vid`
+- `e2vid_example_module.py`: python `yarp` module running `E2Vid`
+- `e2vid_framer.cpp`: c++ `yarp` module creating batches of events that are sent to `E2Vid`
+- `op_detector_example_module.cpp`: c++ `yarp` module running `OpenPose`
+- `/conf/yarpapp_demo*.xml`: `yarp` applications configuration files
+- `/shell_scripts/launch_yarpview.sh`: bash script to be run outside `Docker`; installs `yarp` if missing, configures `yarpserver` and runs `yarpview`
+
+The example contains also two c++ wrappers that call python code using Python's c++ api, `/wrappers/e2vid.cpp` and 
+`/wrappers/e2vid.h`. Currently, it seems that PyTorch's `torch.device()` fails if yarp is included in c++. Nonetheless,
+the code can be used as an example on how to execute python scripts from c++.
 
 ## Installation
 The software was tested on Ubuntu 20.04.2 LTS with an Nvidia GPU.
@@ -22,26 +36,47 @@ The software was tested on Ubuntu 20.04.2 LTS with an Nvidia GPU.
 
 :warning: Ensure your ssh key is built without a passphrase.
 
-## Usage
-- Run the Docker container and, inside it, run the pose detector
+## Live Atis Camera Usage
+- Run the Docker container and, inside it, run the yarp manager and server
     ```shell
     $ xhost +
-    $ docker run -it -v /tmp/.X11-unix/:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY --runtime=nvidia op-yarp
+    $ docker run -it -v /tmp/.X11-unix/:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY --runtime=nvidia <image_id>
+    $ yarpmanager &
+    $ yarpserver &
+    ```
+  In the ``yarpmanager`` window, load the configuration file ``yarpapp_demo_atis.xml`` (located in folder
+  ``/usr/local/hpe-core/example/op_detector_example_module/conf``) and select the app ``e2vid_op_demo``.
+
+  The terminal window will show ``yarpserver``'s IP address (e.g. ``172.17.0.2``). This might be needed 
+  for the next step.
+
+- Install (if not present already) and configure ``yarp`` on the local machine
+    ```shell
+    # install yarp
+    $ sudo sh -c 'echo "deb http://www.icub.org/ubuntu focal contrib/science" > /etc/apt/sources.list.d/icub.list'
+    $ sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 57A5ACB6110576A6
+    $ sudo apt-get update
+    $ sudo apt-get install -y yarp
+ 
+    # make yarpserver in the Docker container visible to local yarp
+    $ yarp conf <yarpserver_ip_address> 10000  # e.g. 172.17.0.2
+    $ yarp check
+    $ yarp detect
     ```
   
-- At the terminal inside the container run the following commands
-  ```shell 
-  $ yarpserver &
-  $ yarpdataplayer &
-  $ op_detector_example_module &
-  ```
-  :warning: the `&` runs the process in the background enabling a single terminal to run all three processes.
+- Run ``yarpview`` on the local machine (``yarpview`` cannot be currently run in the Docker container; this will be fixed in
+  a future release)
+    ```shell
+    $ yarpview --name /img_vis --x 30 --y 30 --h 720 --w 960 --synch --compact
+    ```
+  
+- In the ``yarpmanager`` window, load the configuration file ``yarpapp_demo_atis.xml`` and select the app ``e2vid_op_demo``
+ 
+- Run all components by clicking on the green button ``Run all``
 
-- In the `yarpdataplayer` GUI use the drop-down menus to load the test dataset at `/usr/local/hpe-core/example/test_dataset`
+- Setup Docker's image for running ATIS Gen3 camera by using [this](https://github.com/event-driven-robotics/atis-gen3-docker/tree/a7edfb2d5813b5edfdc68986a6384ec73cbc6af2) guide
 
-- Connect the output port of the `yarpdatplayer` to the input port of the `op_detector_example_module`
-  ```shell 
-  $ yarp connect /file/ch3frames:o /op_detector_example_module/img:i fast_tcp
-  ```
+- Once the camera is connected and running, activate all YARP connections by clicking on the green button ``Connect all`` in ``yarpmanager``'s GUI.
 
-- Press play on the `yarpdataplayer` and the `op_detector_example_module` should display the detected skeleton overlaid on the images
+## OpenPose Parameters
+List of available body models, joints and indices available [here](https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/src/openpose/pose/poseParameters.cpp).

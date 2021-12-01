@@ -72,7 +72,6 @@ if( OpenPose_FOUND )
 endif()
 
 
-
 add_library(${PROJECT_NAME} ${folder_source} ${folder_header})
 
 set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "${folder_header}"

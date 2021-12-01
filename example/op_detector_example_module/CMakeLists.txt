@@ -10,16 +10,15 @@ find_package(event-driven REQUIRED)
 
 add_executable(${PROJECT_NAME} ${PROJECT_NAME}.cpp)
 
-target_link_libraries(${PROJECT_NAME} YARP::YARP_OS 
-                                      YARP::YARP_sig 
+target_link_libraries(${PROJECT_NAME} YARP::YARP_OS
+                                      YARP::YARP_sig
                                       hpe-core::hpe-core)
-                                      
+
 add_executable(e2vid_framer e2vid_framer.cpp)
 
-target_link_libraries(e2vid_framer YARP::YARP_OS 
+target_link_libraries(e2vid_framer YARP::YARP_OS
                                    YARP::YARP_sig
-                                   ev::event-driven 
+                                   ev::event-driven
                                    hpe-core::hpe-core)
 
 install(TARGETS ${PROJECT_NAME} e2vid_framer DESTINATION ${CMAKE_INSTALL_BINDIR})
-
