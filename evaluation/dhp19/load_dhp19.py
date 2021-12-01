@@ -14,7 +14,7 @@ import sys
 
 from os.path import join
 
-import utils.mat_files as mat_utils
+import datasets.dhp19.utils.mat_files as mat_utils
 
 # Load env variables set on .bashrc
 bimvee_path = os.environ.get('BIMVEE_PATH')
@@ -165,7 +165,6 @@ figManager.window.showMaximized()
 plt.show()
 
 # %% Plot events (RoI) + GT  (2 Roi values)
-import math
 import matplotlib.pyplot as plt
 
 plt.close('all')

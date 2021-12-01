@@ -4,7 +4,7 @@ import pickle
 from pathlib import Path
 from utils import metrics
 from utils import parse_openpose_keypoints_json
-from dhp19.utils import DHP19_BODY_PARTS, openpose_to_dhp19
+from datasets.dhp19.utils import DHP19_BODY_PARTS, openpose_to_dhp19
 
 # selected recording
 subj, sess, mov = 1, 1, 1

@@ -6,8 +6,8 @@ rootDataFolder = '/mnt/0058555E5855540E'; % root directory of the data downloade
 outFolder = '/home/fdipietro/hpe-data/DVS';
 
 addpath(fullfile(rootCodeFolder));
-addpath(fullfile(rootCodeFolder, 'evaluation/dhp19/'));
-addpath(fullfile(rootCodeFolder, 'evaluation/dhp19/utils/matlab'));
+addpath(fullfile(rootCodeFolder, 'datasets/dhp19/'));
+addpath(fullfile(rootCodeFolder, 'datasets/dhp19/utils/matlab'));
 
 DVSrecFolder = fullfile(rootDataFolder,'DVS_movies/');
 numSubjects = 17;
