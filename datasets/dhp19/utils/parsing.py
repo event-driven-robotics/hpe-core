@@ -1,12 +1,7 @@
 
 import numpy as np
 
-
-# DVS camera
-DHP19_SENSOR_HEIGHT = 260
-DHP19_SENSOR_WIDTH = 346
-DHP19_CAM_FRAME_EVENTS_NUM = 7500  # fixed number of events used in DHP19 for generating event frames
-DHP19_CAM_NUM = 4  # number of synchronized cameras used for recording events
+import constants as dhp19_const
 
 # map from body parts to indices for dhp19
 DHP19_BODY_PARTS = {
@@ -27,19 +22,19 @@ DHP19_BODY_PARTS = {
 
 OPENPOSE_BODY_25_TO_DHP19_INDICES = np.array([
     # TODO: compute head
-    [0, 0],  # head
-    [2, 1],  # shoulderR
-    [5, 2],  # shoulderL
-    [3, 3],  # elbowR
-    [6, 4],  # elbowL
-    [12, 5],  # hipL
-    [9, 6],  # hipR
-    [4, 7],  # handR
-    [7, 8],  # handL
-    [10, 9],  # kneeR
-    [13, 10],  # kneeL
-    [11, 11],  # footR
-    [14, 12]  # footL
+    [0, DHP19_BODY_PARTS['head']],
+    [2, DHP19_BODY_PARTS['shoulderR']],
+    [5, DHP19_BODY_PARTS['shoulderL']],
+    [3, DHP19_BODY_PARTS['elbowR']],
+    [6, DHP19_BODY_PARTS['elbowL']],
+    [12, DHP19_BODY_PARTS['hipL']],
+    [9, DHP19_BODY_PARTS['hipR']],
+    [4, DHP19_BODY_PARTS['handR']],
+    [7, DHP19_BODY_PARTS['handL']],
+    [10, DHP19_BODY_PARTS['kneeR']],
+    [13, DHP19_BODY_PARTS['kneeL']],
+    [11, DHP19_BODY_PARTS['footR']],
+    [14, DHP19_BODY_PARTS['footL']]
 ])
 
 
@@ -52,7 +47,7 @@ class Dhp19EventsIterator:
 
     # TODO: add param for overlapping?
     # def __init__(self, data, cam_id, window_size=DHP19_FRAME_EVENTS_NUM, stride=None):
-    def __init__(self, data, cam_id, window_size=DHP19_CAM_FRAME_EVENTS_NUM):
+    def __init__(self, data, cam_id, window_size=dhp19_const.DHP19_CAM_FRAME_EVENTS_NUM):
 
         self.timestamps = data['out']['extra']['ts']  # array containing timestamps of events from all cameras
 
@@ -63,12 +58,12 @@ class Dhp19EventsIterator:
         self.events['y'] = self.events['y'] - 1
 
         # events x indices are shifted by sensor_width * camera id
-        self.events['x'] = self.events['x'] - DHP19_SENSOR_WIDTH * cam_id
+        self.events['x'] = self.events['x'] - dhp19_const.DHP19_SENSOR_WIDTH * cam_id
 
         # events are sampled from all cameras, thus the actual window size is the desired input one (representing the
         # desired number of frames from a single camera) multiplied by the number of cameras (for an explanation, see
         # Section 4.1 of paper "DHP19: Dynamic Vision Sensor 3D Human Pose Dataset")
-        self.window_size = window_size * DHP19_CAM_NUM
+        self.window_size = window_size * dhp19_const.DHP19_CAM_NUM
 
         self.curr_ind = 0
 
