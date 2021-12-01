@@ -7,7 +7,6 @@ project(op_detector_example_module)
 find_package(YARP COMPONENTS os sig REQUIRED)
 find_package(hpe-core REQUIRED)
 find_package(event-driven REQUIRED)
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
 
 add_executable(${PROJECT_NAME} ${PROJECT_NAME}.cpp)
 
