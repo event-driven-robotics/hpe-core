@@ -9,6 +9,7 @@
 
 <module>
     <name> /usr/local/hpe-core/example/op_detector_example_module/build/e2vid_framer </name>
+    <parameters> --window 100000 </parameters>
     <node> localhost </node>
 </module>
 
