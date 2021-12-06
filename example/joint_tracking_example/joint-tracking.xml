@@ -1,0 +1,37 @@
+<application>
+<name> jointTrack </name>
+
+<dependencies>
+</dependencies>
+
+<module>
+   <name> /mnt/Shared/code/hpe-core/example/joint_tracking_example/build/joint_track </name>
+   <parameters>--dimX 640 --dimY 480 --cv --F 24 --joint handR</parameters>
+   <node> localhost </node>
+</module>
+
+<connection>
+  <from>/file/ch3dvs:o</from>
+  <to>/glhpe-framer/AE:i</to>
+  <protocol> fast_tcp </protocol>
+</connection>  
+
+<connection>
+  <from>/atis3/AE:o</from>
+  <to>/jointTrack/AE:i</to>
+  <protocol> fast_tcp </protocol>
+</connection>
+
+<connection>
+  <from>/op_detector_example_module/skl:o</from>
+  <to>/jointTrack/SKLT:i</to>
+  <protocol>fast_tcp</protocol>
+</connection>
+
+<connection>
+  <from>/jointTrack/img:o</from>
+  <to>/img_vs</to>
+  <protocol>fast_tcp</protocol>
+</connection>
+
+</application>

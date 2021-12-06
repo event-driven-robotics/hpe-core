@@ -67,13 +67,25 @@ sklt jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<do
             }
         }
     }
-    double eps = 1e-20;
-    double norm = 1/(dtx*dtx + dty*dty+eps);
-    vel[jointName].u = dtx*norm/(nx+eps)*k;
-    vel[jointName].v = dty*norm/(ny+eps)*k;
-    double lim =1e2;
-    if(std::fabs(vel[jointName].u) > lim) vel[jointName].u = 0;
-    if(std::fabs(vel[jointName].v) > lim) vel[jointName].v = 0;
+    
+    if(nx == 0 && ny ==0) {
+        dtx = 1e6; dty = 1e6;
+    }
+    if(nx) dtx /= nx;
+    if(ny) dty /= ny;
+
+    double dtdp = sqrt(dtx*dtx + dty*dty);
+    double speed = 1.0 / dtdp;
+    double angle = atan2(dty, dtx);
+    vel[jointName].u = speed * cos(angle);
+    vel[jointName].v = speed * sin(angle);
+    //double eps = 1e-20;
+    // double norm = 1/(dtx*dtx + dty*dty+eps);
+    // vel[jointName].u = dtx*norm/(nx+eps)*k;
+    // vel[jointName].v = dty*norm/(ny+eps)*k;
+    // double lim =1e2;
+    // if(std::fabs(vel[jointName].u) > lim) vel[jointName].u = 0;
+    // if(std::fabs(vel[jointName].v) > lim) vel[jointName].v = 0;
     return vel;
 }
 

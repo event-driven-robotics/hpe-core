@@ -23,7 +23,7 @@ using yarp::os::Bottle;
 using yarp::os::BufferedPort;
 // using std::tuple;
 // using skeleton = std::vector<std::tuple<double, double>>;
-
+static int evsF = 0;
 
 class jointTrack : public RFModule, public Thread
 {
@@ -38,7 +38,7 @@ private:
     sklt pose, dpose, poseGT;
     hpecore::jointMotionEstimator tracker;
     roiq qROI;
-    int roiWidth = 20;
+    int roiWidth = 50;
     int roiHeight = roiWidth;
     skltJoint jointName;
     string jointNameStr;
@@ -119,9 +119,9 @@ public:
         if(rf.check("cv"))
             plotCv = true;
         dimX = rf.check("dimX", Value(346)).asInt();
-        dimY = rf.check("dimX", Value(240)).asInt();
+        dimY = rf.check("dimY", Value(240)).asInt();
         yInfo() << "Image dimensions = [" << dimX << ", " << dimY << "]";
-        fullImg = cv::Mat::zeros(cv::Size(346, 240), CV_32F);
+        fullImg = cv::Mat::zeros(cv::Size(dimX, dimY), CV_32F);
         cvtColor(fullImg, fullImg, cv::COLOR_GRAY2RGB);
       
 
@@ -144,10 +144,10 @@ public:
     bool interruptModule()
     {
         //if the module is asked to stop ask the asynchrnous thread to stop
-        input_port.interrupt();
-        input_sklt.interrupt();
-        image_port.interrupt();
-        std::cout << "\033c";
+        // input_port.interrupt();
+        // input_sklt.interrupt();
+        // image_port.interrupt();
+        // std::cout << "\033c";
         return Thread::stop();
     }
 
@@ -160,6 +160,7 @@ public:
         image_port.close();
         output_writer.close();
         aux_out.close();
+        cv::destroyWindow("HPE OUTPUT");
         // output_port.close();
     }
 
@@ -178,19 +179,35 @@ public:
 
     //synchronous thread
     virtual bool updateModule()
-    {
+    {   
         // plot ground-truth skeleton
         if(initTimer) drawSkeleton(poseGT);
 
         // plot tracked joint
+        // plot tracked joints on display frquency
         while(!pose2img.empty())
         {
             int x = pose2img.front()[jointName].u;
             int y = pose2img.front()[jointName].v;
             cv::Point pt(x, y);
-            cv::drawMarker(fullImg, pt, cv::Scalar(0.8, 0, 0), 0, 4);
+            //cv::drawMarker(fullImg, pt, cv::Scalar(0.8, 0, 0), cv::MARKER_TRIANGLE_UP, 20);
+            cv::circle(fullImg, pt, 8, cv::Scalar(0.8, 0, 0), cv::FILLED);
             pose2img.pop_front();
         }
+        // plot tracked joints every second
+        // for(size_t i = 0; i< pose2img.size(); i++)
+        // {
+        //     int x = pose2img[i][jointName].u;
+        //     int y = pose2img[i][jointName].v;
+        //     cv::Point pt(x, y);
+        //     cv::drawMarker(fullImg, pt, cv::Scalar(0.8, 0, 0), 0, 12);
+        // }
+        // evsF++;
+        // if(evsF == displayF)
+        // {
+        //     evsF =0;
+        //     pose2img.clear();
+        // }
     
         // double the resolution to add text
         cv::Mat aux;
@@ -199,34 +216,34 @@ public:
         // Add text
         cv::putText(aux, 
                     "Detection",
-                    cv::Point(dimX*1.6, dimY*1.8), // Coordinates
+                    cv::Point(dimX*1.7, dimY*1.8), // Coordinates
                     cv::FONT_HERSHEY_SIMPLEX, // Font
-                    0.8, // Scale
+                    1.0, // Scale
                     cv::Scalar(0.0, 0.0, 0.8), // BGR Color
                     1, // Line Thickness 
                     cv:: LINE_AA); // Anti-alias 
         cv::putText(aux, 
                     "Tracking",
-                    cv::Point(dimX*1.6, dimY*1.9), // Coordinates
+                    cv::Point(dimX*1.7, dimY*1.9), // Coordinates
                     cv::FONT_HERSHEY_SIMPLEX, // Font
-                    0.8, // Scale
+                    1.0, // Scale
                     cv::Scalar(0.8, 0.0, 0.0), // BGR Color
                     1, // Line Thickness
                     cv:: LINE_AA); // Anti-alias
         std::string strF = std::to_string(int(avgF));
         cv::putText(aux, 
-                    "Freq = " + strF + "Hz",
+                    strF + "Hz",
                     cv::Point(dimX*0.05, dimY*1.9), // Coordinates
                     cv::FONT_HERSHEY_SIMPLEX, // Font
-                    0.8, // Scale
-                    cv::Scalar(0.8, 0.8, 0.8), // BGR Color
-                    1, // Line Thickness
+                    2.0, // Scale
+                    cv::Scalar(0.8, 0, 0), // BGR Color
+                    2, // Line Thickness
                     cv:: LINE_AA); // Anti-alias
         cv::putText(aux, 
                     "HPE-core EDPR",
                     cv::Point(dimX*0.5, dimY*0.2), // Coordinates
                     cv::FONT_HERSHEY_SIMPLEX, // Font
-                    1.2, // Scale
+                    1.4, // Scale
                     cv::Scalar(0.8, 0.8, 0.8), // BGR Color
                     1, // Line Thickness 
                     cv:: LINE_AA); // Anti-alias 
@@ -257,7 +274,7 @@ public:
             int x = int(poseGT[i].u);
             int y = int(poseGT[i].v);
             cv::Point pt(x, y);
-            cv::drawMarker(fullImg, pt, cv::Scalar(0, 0, 0.8), 1, 4);
+            if(x && y) cv::drawMarker(fullImg, pt, cv::Scalar(0, 0, 0.8), 1, 10);
             
         }
         // plot links between joints
@@ -276,21 +293,21 @@ public:
         cv::Point footL(int(poseGT[12].u), int(poseGT[12].v));
 
         cv::Scalar colorS = cv::Scalar(0, 0, 0.5);
-        int th = 1;
-        cv::line(fullImg, head, shoulderL, colorS, th);
-        cv::line(fullImg, head, shoulderR, colorS, th);
-        cv::line(fullImg, shoulderL, shoulderR, colorS, th);
-        cv::line(fullImg, shoulderL, elbowL, colorS, th);
-        cv::line(fullImg, shoulderR, elbowR, colorS, th);
-        cv::line(fullImg, shoulderL, hipL, colorS, th);
-        cv::line(fullImg, shoulderR, hipR, colorS, th);
-        cv::line(fullImg, hipL, hipR, colorS, th);
-        cv::line(fullImg, elbowL, handL, colorS, th);
-        cv::line(fullImg, elbowR, handR, colorS, th);
-        cv::line(fullImg, hipL, kneeL, colorS, th);
-        cv::line(fullImg, hipR, kneeR, colorS, th);
-        cv::line(fullImg, kneeR, footR, colorS, th);
-        cv::line(fullImg, kneeL, footL, colorS, th);
+        int th = 5;
+        if(head.x && head.y && shoulderL.x && shoulderL.y) cv::line(fullImg, head, shoulderL, colorS, th);
+        if(head.x && head.y && shoulderR.x && shoulderR.y) cv::line(fullImg, head, shoulderR, colorS, th);
+        if(shoulderL.x && shoulderL.y && shoulderR.x && shoulderR.y) cv::line(fullImg, shoulderL, shoulderR, colorS, th);
+        if(shoulderL.x && shoulderL.y && elbowL.x && elbowL.y) cv::line(fullImg, shoulderL, elbowL, colorS, th);
+        if(shoulderR.x && shoulderR.y && elbowR.x && elbowR.y) cv::line(fullImg, shoulderR, elbowR, colorS, th);
+        if(shoulderL.x && shoulderL.y && hipL.x && hipL.y) cv::line(fullImg, shoulderL, hipL, colorS, th);
+        if(shoulderR.x && shoulderR.y && hipR.x && hipR.y) cv::line(fullImg, shoulderR, hipR, colorS, th);
+        if(hipL.x && hipL.y && hipR.x && hipR.y) cv::line(fullImg, hipL, hipR, colorS, th);
+        if(elbowL.x && elbowL.y && handL.x && handL.y) cv::line(fullImg, elbowL, handL, colorS, th);
+        if(elbowR.x && elbowR.y && handR.x && handR.y) cv::line(fullImg, elbowR, handR, colorS, th);
+        if(hipL.x && hipL.y && kneeL.x && kneeL.y) cv::line(fullImg, hipL, kneeL, colorS, th);
+        if(hipR.x && hipR.y && kneeR.x && kneeR.y) cv::line(fullImg, hipR, kneeR, colorS, th);
+        if(kneeR.x && kneeR.y && footR.x && footR.y) cv::line(fullImg, kneeR, footR, colorS, th);
+        if(kneeL.x && kneeL.y && footL.x && footL.y) cv::line(fullImg, kneeL, footL, colorS, th);
     }
 
 
@@ -322,9 +339,9 @@ public:
         double t0, t1=0, tprev, t2 = 0;
         long int mes = 0;
         double freq = 0;
+        bool firstDet = false;
         
-        
-        while (true)
+        while (!Thread::isStopping())
         {
             double dt = 0.0;
             t1 = Time::now() - t0;
@@ -350,6 +367,7 @@ public:
                 for (auto &t : builtPose)
                     aux_out << t.u << " " << t.v << " ";
                 aux_out << std::endl;
+                firstDet = true;
             }
 
             // read events
@@ -388,23 +406,24 @@ public:
                 }
             }
             qROI.setSize(int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])/5));
-            
+
             // Add events to output image
             if(initTimer) evsToImage(evsFullImg); 
+           
 
             // Process data for tracking
-            if(pose.size()) // a pose has been detected before
+            if(pose.size() && firstDet) // a pose has been detected before
             {
                 if (nevs && qROI.q.size() && !bot_sklt)// && qROI.q.front().stamp * vtsHelper::tsscaler > skltTs) // there are events to process
                 {
                     std::deque<joint> evs;
                     std::deque<double> evsTs;
                     std::deque<int> evsPol;
-                    tracker.getEventsUV(qROI.q, evs, evsTs, vtsHelper::tsscaler, evsPol); // get events u,v coords
+                    tracker.getEventsUV(qROI.q, evs, evsTs, 0.0001, evsPol); // get events u,v coords
                     // Velocity estimation Method 1: time diff on adjacent events 
                     if(nevs > 20)
                         dpose = tracker.estimateVelocity(evs, evsTs, jointName, nevs/4, dpose);  // get veocities from delta ts
-                    double dt = (qROI.q.front().stamp - qROI.q.back().stamp) * vtsHelper::tsscaler;
+                    double dt = (qROI.q.front().stamp - qROI.q.back().stamp) * 0.000001;//vtsHelper::tsscaler;
                     if(nevs > 20)
                         tracker.fusion(&pose, dpose, dt); // should integrate from pose eith new velocity
                     // write integrated output to file
@@ -416,7 +435,7 @@ public:
                     // update roi
                     int x = pose[jointName].u;
                     int y = pose[jointName].v;
-                    // qROI.setROI(x - roiWidth / 2, x + roiWidth / 2, y - roiHeight / 2, y + roiHeight / 2);
+                    qROI.setROI(x - roiWidth / 2, x + roiWidth / 2, y - roiHeight / 2, y + roiHeight / 2);
                     pose2img.push_back(pose);
                 }
                 else if (bot_sklt) // there weren't events to process but a detection occured
