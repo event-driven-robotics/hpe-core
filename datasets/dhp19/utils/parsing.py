@@ -153,9 +153,9 @@ def project_poses_to_2d(poses_3d, projection_mat):
 
 class Dhp19EventsIterator:
 
-    # TODO: add param for overlapping?
-    # def __init__(self, data, cam_id, window_size=DHP19_FRAME_EVENTS_NUM, stride=None):
-    def __init__(self, data, cam_id, window_size=dhp19_const.DHP19_CAM_FRAME_EVENTS_NUM):
+    # TODO: return 3d/2d poses too?
+
+    def __init__(self, data, cam_id, window_size=dhp19_const.DHP19_CAM_FRAME_EVENTS_NUM, stride=None):
 
         self.timestamps = data['out']['extra']['ts']  # array containing timestamps of events from all cameras
 
@@ -172,6 +172,9 @@ class Dhp19EventsIterator:
         # desired number of frames from a single camera) multiplied by the number of cameras (for an explanation, see
         # Section 4.1 of paper "DHP19: Dynamic Vision Sensor 3D Human Pose Dataset")
         self.window_size = window_size * dhp19_const.DHP19_CAM_NUM
+
+        # defines the stride of the events' window
+        self.stride = stride
 
         self.curr_ind = 0
 
@@ -195,9 +198,18 @@ class Dhp19EventsIterator:
                                np.reshape(self.events['y'][event_indices], (-1, 1)),
                                np.reshape(self.events['pol'][event_indices], (-1, 1))), axis=1, dtype=np.float64)
 
+        self.__update_current_index(end_ind)
+
+        return data
+
+    def __update_current_index(self, end_ind):
+
         if end_ind >= self.timestamps.shape[0]:
             self.curr_ind = -1
         else:
-            self.curr_ind = end_ind
-
-        return data
+            if self.stride:
+                self.curr_ind += self.stride
+                if self.curr_ind >= self.timestamps.shape[0]:
+                    self.curr_ind = -1
+            else:
+                self.curr_ind = end_ind
