@@ -57,7 +57,7 @@ with `n` varying according to the length of the DHP19 recording (see [DHP19's we
 Run
 ```shell
 $ cd hpe-core/evaluation
-$ python evaluate_openpose.py
+$ python example_evaluation.py
             -gt /path/to/recording/gt/poses.npy
             -p /path/to/json/files
             -if /path/to/grayscale/frames
