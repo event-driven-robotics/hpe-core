@@ -134,8 +134,6 @@ def project_poses_to_2d(poses_3d, projection_mat):
     u = coord_pix_homog_norm[:, :, 0]
     v = dhp19_const.DHP19_SENSOR_HEIGHT - coord_pix_homog_norm[:, :, 1]  # flip v coordinate to match the image direction
 
-    # TODO: use mask to select joints inside frame
-
     # mask is used to make sure that pixel positions are in frame range
     mask = np.ones(u.shape).astype(np.float32)
     mask[np.isnan(u)] = 0
@@ -151,15 +149,17 @@ def project_poses_to_2d(poses_3d, projection_mat):
     return np.stack((v, u), axis=-1), mask
 
 
-class Dhp19EventsIterator:
+class Dhp19Iterator:
 
-    # TODO: return 3d/2d poses too?
+    def __init__(self, data_dvs, cam_id, window_size=dhp19_const.DHP19_CAM_FRAME_EVENTS_NUM, data_vicon=None, proj_mat_folder=None, stride=None):
 
-    def __init__(self, data, cam_id, window_size=dhp19_const.DHP19_CAM_FRAME_EVENTS_NUM, stride=None):
+        # self.start_time = data_dvs['out']['extra']['startTime']
 
-        self.timestamps = data['out']['extra']['ts']  # array containing timestamps of events from all cameras
+        self.timestamps = data_dvs['out']['extra']['ts']  # array containing timestamps of events from all cameras
+        # self.timestamps = (self.timestamps - self.start_time) * 1e-6
 
-        self.events = data['out']['data'][f'cam{cam_id}']['dvs']  # events specific to selected camera
+        self.events = data_dvs['out']['data'][f'cam{cam_id}']['dvs']  # events specific to selected camera
+        # self.events['ts'] = (self.events['ts'] - self.startTime) * 1e-6
 
         # events location indices follow matlab indexing convention, i.e. they start from 1 instead of 0
         self.events['x'] = self.events['x'] - 1
@@ -178,6 +178,12 @@ class Dhp19EventsIterator:
 
         self.curr_ind = 0
 
+        if data_vicon:
+            self.vicon = data_vicon['XYZPOS']
+
+        if proj_mat_folder:
+            self.proj_mat = get_projection_matrix(cam_id, proj_mat_folder)
+
     def __iter__(self):
         return self
 
@@ -193,14 +199,36 @@ class Dhp19EventsIterator:
         # select events from the specified camera with timestamps within the current window
         window_timestamps = self.timestamps[self.curr_ind:end_ind]
         event_indices = np.isin(self.events['ts'], window_timestamps)
-        data = np.concatenate((np.reshape(self.events['ts'][event_indices], (-1, 1)),
-                               np.reshape(self.events['x'][event_indices], (-1, 1)),
-                               np.reshape(self.events['y'][event_indices], (-1, 1)),
-                               np.reshape(self.events['pol'][event_indices], (-1, 1))), axis=1, dtype=np.float64)
+        window_events = np.concatenate((np.reshape(self.events['ts'][event_indices], (-1, 1)),
+                                        np.reshape(self.events['x'][event_indices], (-1, 1)),
+                                        np.reshape(self.events['y'][event_indices], (-1, 1)),
+                                        np.reshape(self.events['pol'][event_indices], (-1, 1))),
+                                       axis=1, dtype=np.float64)
 
         self.__update_current_index(end_ind)
 
-        return data
+        if self.vicon is None:
+            return window_events
+
+        # get indices of the 3d poses inside the window
+        # poses_start_ind = int(np.floor((window_timestamps[0] - self.start_time) * 1e-4))
+        # poses_end_ind = int(np.floor((window_timestamps[-1] - self.start_time) * 1e-4))
+        poses_start_ind = window_timestamps[0]
+        poses_end_ind = window_timestamps[-1]
+
+        # compute the average 3d pose
+        avg_pose_3d = np.zeros(shape=(len(DHP19_BODY_PARTS), 3))
+        for body_part in DHP19_BODY_PARTS:
+            coords = self.vicon[body_part][poses_start_ind:poses_end_ind, :]
+            avg_pose_3d[DHP19_BODY_PARTS[body_part], :] = np.nanmean(coords, axis=0)
+
+        if self.proj_mat is None:
+            return window_events, avg_pose_3d
+
+        # project the 3d pose to the camera plane
+        avg_pose_2d, joints_mask = project_poses_to_2d(avg_pose_3d[np.newaxis, :, :], np.transpose(self.proj_mat))
+
+        return window_events, avg_pose_2d
 
     def __update_current_index(self, end_ind):
 
