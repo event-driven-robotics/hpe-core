@@ -17,6 +17,7 @@ class Rectangle:
         if x_tl < x_br and y_tl < y_br:
             return Rectangle(x_tl, y_tl, x_br - x_tl, y_br - y_tl)
         return None
+
     __and__ = intersect
 
     def equal(self, rect):
@@ -28,6 +29,7 @@ class Rectangle:
         if diff == 0:
             return True
         return False
+
     __eq__ = equal
 
 
@@ -44,8 +46,7 @@ class EROS:
         return self._image
 
     def update(self, vx, vy):
-
-        odecay = self.decay_base**(1.0/self.kernel_size)
+        odecay = self.decay_base ** (1.0 / self.kernel_size)
         half_kernel = int(self.kernel_size / 2)
         roi_full = Rectangle(0, 0, self.frame_width, self.frame_height)
         roi_raw = Rectangle(0, 0, self.kernel_size, self.kernel_size)
@@ -76,7 +77,6 @@ class TOS:
         return self._image
 
     def update(self, vx, vy):
-
         thick_thresh = 255 - self.kernel_size * self.line_thickness
         half_kernel = int(self.kernel_size / 2)
         roi_full = Rectangle(0, 0, self.frame_width, self.frame_height)
@@ -100,24 +100,27 @@ class TOS:
 
 class TOSSynthetic:
 
-    def __init__(self):
-        pass
+    def __init__(self, gaussian_blur_k_size=5, gaussian_blur_sigma=0, canny_low_th=0, canny_high_th=1000,
+                 canny_aperture=5, canny_l2_grad=False):
 
-    def get_frame(self):
-        pass
+        # gaussian blur params
+        self.gaussian_blur_k = (gaussian_blur_k_size, gaussian_blur_k_size)
+        self.gaussian_blur_sigma = gaussian_blur_sigma
 
-    def create(self, image):
+        # canny edge detection params
+        self.canny_low_th = canny_low_th
+        self.canny_high_th = canny_high_th
+        self.canny_aperture = canny_aperture
+        self.canny_l2_grad = canny_l2_grad
+
+    def get_frame(self, image):
 
         # apply gaussian blur
-        image = cv2.GaussianBlur(image, (5, 5), 0)
+        image = cv2.GaussianBlur(image, self.gaussian_blur_k, self.gaussian_blur_sigma)
 
         # apply canny edge detection
-        low_th = 0
-        high_th = 1000
-        aperture = 5
-        l2_grad = False
-        image = cv2.Canny(image, low_th, high_th, aperture, l2_grad)
+        image = cv2.Canny(image, self.canny_low_th, self.canny_high_th, self.canny_aperture, self.canny_l2_grad)
 
-        # add salt and pepper/gaussian noise?
+        # TODO: add salt and pepper/gaussian noise?
 
         return image
