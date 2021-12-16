@@ -11,10 +11,10 @@ import cv2
 import pathlib
 
 import datasets.dhp19.utils.constants as dhp19_const
-import datasets.dhp19.utils.mat_files as mat_utils
+import datasets.utils.mat_files as mat_utils
 import datasets.dhp19.utils.parsing as dhp19_parse
 
-from datasets.utils.representation_utils import EROS
+from datasets.utils.events_representation import EROS
 
 
 def export_to_eros(data_dvs, data_vicon, cam_id, events_window_size, output_folder, proj_mat_folder=None,

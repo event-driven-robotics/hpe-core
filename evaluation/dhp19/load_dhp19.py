@@ -14,7 +14,7 @@ import sys
 
 from os.path import join
 
-import datasets.dhp19.utils.mat_files as mat_utils
+import datasets.utils.mat_files as mat_utils
 
 # Load env variables set on .bashrc
 bimvee_path = os.environ.get('BIMVEE_PATH')

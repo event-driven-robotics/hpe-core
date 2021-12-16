@@ -14,7 +14,7 @@ import numpy as np
 import pathlib
 
 import datasets.dhp19.utils.constants as dhp19_const
-import datasets.dhp19.utils.mat_files as mat_utils
+import datasets.utils.mat_files as mat_utils
 import datasets.dhp19.utils.parsing as dhp19_parse
 
 from bimvee import exportIitYarp
