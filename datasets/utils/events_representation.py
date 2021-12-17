@@ -2,6 +2,14 @@ import cv2
 import numpy as np
 
 
+def add_salt_and_pepper(image, low_th, high_th):
+    saltpepper_noise = np.zeros_like(image)
+    cv2.randu(saltpepper_noise, 0, 255)
+
+    image[saltpepper_noise < low_th] = 0
+    image[saltpepper_noise > high_th] = 255
+
+
 class Rectangle:
     def __init__(self, x_tl, y_tl, width, height):
         self.x_tl = x_tl
@@ -101,7 +109,7 @@ class TOS:
 class TOSSynthetic:
 
     def __init__(self, gaussian_blur_k_size=5, gaussian_blur_sigma=0, canny_low_th=0, canny_high_th=1000,
-                 canny_aperture=5, canny_l2_grad=False):
+                 canny_aperture=5, canny_l2_grad=False, salt_pepper_low_th=30, salt_pepper_high_th=225):
 
         # gaussian blur params
         self.gaussian_blur_k = (gaussian_blur_k_size, gaussian_blur_k_size)
@@ -113,14 +121,17 @@ class TOSSynthetic:
         self.canny_aperture = canny_aperture
         self.canny_l2_grad = canny_l2_grad
 
+        # salt and pepper params
+        self.salt_pepper_low_th = salt_pepper_low_th
+        self.salt_pepper_high_th = salt_pepper_high_th
+
     def get_frame(self, image):
 
-        # apply gaussian blur
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         image = cv2.GaussianBlur(image, self.gaussian_blur_k, self.gaussian_blur_sigma)
-
-        # apply canny edge detection
-        image = cv2.Canny(image, self.canny_low_th, self.canny_high_th, self.canny_aperture, self.canny_l2_grad)
-
-        # TODO: add salt and pepper/gaussian noise?
+        image = cv2.Canny(image, threshold1=self.canny_low_th, threshold2=self.canny_high_th,
+                          apertureSize=self.canny_aperture, L2gradient=self.canny_l2_grad)
+        add_salt_and_pepper(image, self.salt_pepper_low_th, self.salt_pepper_high_th)
+        image = cv2.GaussianBlur(image, self.gaussian_blur_k, self.gaussian_blur_sigma)
 
         return image
