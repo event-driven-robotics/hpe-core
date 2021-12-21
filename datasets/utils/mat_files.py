@@ -66,7 +66,7 @@ def _parse(elem):
         data = []
         for sub_elem in elem:
             data.append(_parse(sub_elem))
-        return data
+        return np.array(data)
     elif isinstance(elem, list):
         for ei, sub_elem in enumerate(elem):
             elem[ei] = _parse(sub_elem)
