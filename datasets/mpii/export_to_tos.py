@@ -36,7 +36,7 @@ def main(args):
 
     output_folder_path = pathlib.Path(args.o)
     output_folder_path = pathlib.Path(output_folder_path.resolve())
-    output_folder_path.mkdir(parents=True, exist_ok=False)
+    output_folder_path.mkdir(parents=True, exist_ok=True)
 
     export_to_tos(data_ann, img_folder_path, output_folder_path,
                   gaussian_blur_k_size=args.gk, gaussian_blur_sigma=args.gs,
@@ -62,8 +62,8 @@ if __name__ == '__main__':
     parser.set_defaults(cg=False)
 
     # salt and pepper params
-    parser.add_argument('-sl', help='salt and pepper low threshold', type=int, default=30)
-    parser.add_argument('-sh', help='salt and pepper high threshold', type=int, default=225)
+    parser.add_argument('-sl', help='salt and pepper low threshold', type=int, default=5)
+    parser.add_argument('-sh', help='salt and pepper high threshold', type=int, default=250)
 
     args = parser.parse_args()
 
