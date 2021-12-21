@@ -131,6 +131,10 @@ class TOSSynthetic:
         image = cv2.GaussianBlur(image, self.gaussian_blur_k, self.gaussian_blur_sigma)
         image = cv2.Canny(image, threshold1=self.canny_low_th, threshold2=self.canny_high_th,
                           apertureSize=self.canny_aperture, L2gradient=self.canny_l2_grad)
+
+        # add pepper only: this adds noise to the canny edges, making them look like closer to the real tos
+        add_salt_and_pepper(image, 90, 255)
+
         add_salt_and_pepper(image, self.salt_pepper_low_th, self.salt_pepper_high_th)
         image = cv2.GaussianBlur(image, self.gaussian_blur_k, self.gaussian_blur_sigma)
 
