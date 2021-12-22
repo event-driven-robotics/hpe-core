@@ -32,22 +32,22 @@ class MPIIIterator:
 
         annotation = self.data['annolist'][ind]
 
-        img = self._get_image(annotation)
+        img = self.__get_image(annotation)
 
         # get pose annotations, i.e. list of dictionaries containing bounding box, keypoints, scale and object position
-        pose_ann = self._get_pose_annotation(annotation)
+        pose_ann = self.__get_pose_annotation(annotation)
 
         return img, pose_ann, annotation['image']['name']
 
-    def _get_image(self, annotation):
+    def __get_image(self, annotation):
         image_path = self.images_folder / 'images' / annotation['image']['name']
         return cv2.imread(str(image_path.resolve()))
 
-    def _get_pose_annotation(self, annotation):
-        if isinstance(annotation['annorect'], list):
-            return annotation['annorect']
-        elif isinstance(annotation['annorect'], dict):
+    def __get_pose_annotation(self, annotation):
+        if isinstance(annotation['annorect'], dict):
             return [annotation['annorect']]
+        else:
+            return annotation['annorect']
 
     def __update_current_index(self):
 
