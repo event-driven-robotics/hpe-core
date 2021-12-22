@@ -23,8 +23,8 @@ from bimvee import exportIitYarp
 
 
 # Directory with 
-datadir = '/home/icub/data/h36m/events/'
-outputdir = '/home/icub/data/h36m/yarp/'
+datadir = '/data/h36m/events/'
+outputdir = '/data/h36m/yarp/'
 # datadir = '/home/fdipietro/hpe-data/h36_server/'
 dir_list = os.listdir(datadir)
 if 'yarp' in dir_list: dir_list.remove('yarp')
