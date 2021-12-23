@@ -1,5 +1,25 @@
 import cv2
 
+# map from body parts to indices for mpii
+MPII_BODY_PARTS = {
+    'headtop': 9,
+    'rshoulder': 12,
+    'lshoulder': 13,
+    'relbow': 11,
+    'lelbow': 14,
+    'lhip': 3,
+    'rhip': 2,
+    'rwrist': 10,
+    'lwrist': 15,
+    'rknee': 1,
+    'lknee': 4,
+    'rankle': 0,
+    'lankle': 5,
+    'pelvis': 6,
+    'thorax': 7,
+    'upperneck': 8
+}
+
 
 class MPIIIterator:
 
@@ -51,7 +71,7 @@ class MPIIIterator:
 
     def __update_current_index(self):
 
-        if self.curr_ind >= self.__len__():
+        if self.curr_ind >= self.__len__() - 1:
             self.curr_ind = -1
         else:
             self.curr_ind += 1
