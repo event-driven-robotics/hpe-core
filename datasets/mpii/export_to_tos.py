@@ -1,11 +1,122 @@
+
 import argparse
 import cv2
+import json
+import numpy as np
 import pathlib
+
+from tqdm import tqdm
 
 import datasets.utils.mat_files as mat_utils
 import datasets.mpii.utils.parsing as mpii_parse
 
+from datasets.mpii.utils.parsing import MPII_BODY_PARTS
 from datasets.utils.events_representation import TOSSynthetic
+
+
+MOVENET_KEYPOINTS = ['nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear',
+                    'left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow', 'left_wrist',
+                    'right_wrist', 'left_hip', 'right_hip', 'left_knee', 'right_knee', 'left_ankle',
+                    'right_ankle']
+
+MOVENET_13_TO_MPII_INDICES = np.array([
+
+    [0, None],  # head center, not present in movenet and mpii
+    [1, MPII_BODY_PARTS['lshoulder']],  # left shoulder
+    [2, MPII_BODY_PARTS['rshoulder']],  # right shoulder
+    [3, MPII_BODY_PARTS['lelbow']],  # left elbow
+    [4, MPII_BODY_PARTS['relbow']],  # right elbow
+    [5, MPII_BODY_PARTS['lwrist']],  #  left wrist
+    [6, MPII_BODY_PARTS['rwrist']],  # right wrist
+    [7, MPII_BODY_PARTS['lhip']],  # left hip
+    [8, MPII_BODY_PARTS['rhip']],  # right hip
+    [9, MPII_BODY_PARTS['lknee']],  # left knee
+    [10, MPII_BODY_PARTS['rknee']],  # right knee
+    [11, MPII_BODY_PARTS['lankle']],  # left ankle
+    [12, MPII_BODY_PARTS['rankle']]  # right ankle
+])
+
+
+def get_movenet_keypoints(mpii_annorect):
+
+    keypoints = []
+
+    # use mpii's head rectangle center as head keypoint
+    head_x = (mpii_annorect['x1'] + mpii_annorect['x2']) / 2
+    head_y = (mpii_annorect['y1'] + mpii_annorect['y2']) / 2
+    keypoints.append([head_x, head_y, 2])
+
+    for ind in MOVENET_13_TO_MPII_INDICES[1:]:
+        mpii_keypoint_ind = ind[1]
+        visibility = 0
+        for point in mpii_annorect['annopoints']['point']:
+
+            if point['id'] != mpii_keypoint_ind:
+                continue
+
+            if point['is_visible'] == 1:
+                visibility = 2
+            else:
+                visibility = 1
+
+            keypoints.append([point['x'], point['y'], visibility])
+            break
+
+        if visibility == 0:  # keypoint has not been annotated
+            keypoints.append([0, 0, visibility])
+
+    return keypoints
+
+
+def get_mpii_other_centers(ind_to_exclude, mpii_annorect):
+
+    centers = []
+    for ai, ann in enumerate(mpii_annorect):
+        if ai == ind_to_exclude:
+            continue
+        centers.append([ann['objpos']['x'], ann['objpos']['y']])
+    return centers
+
+
+def get_mpii_other_keypoints(ind_to_exclude, mpii_annorect):
+
+    keypoints = []
+    for ai, ann in enumerate(mpii_annorect):
+        if ai == ind_to_exclude:
+            continue
+        keypoints.append(get_movenet_keypoints(ann))
+    return keypoints
+
+
+def mpii_to_movenet(poses_mpii, image_name):
+    # image name
+    # center
+    # keypoints (ordered)
+    #  movenet ['nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear',
+    #         'left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow', 'left_wrist',
+    #         'right_wrist', 'left_hip', 'right_hip', 'left_knee', 'right_knee', 'left_ankle',
+    #         'right_ankle']
+    # bbox
+    # other_centers
+    # other_keypoints (ordered)
+
+    poses_movenet = []
+    for ai, p_mpii in enumerate(poses_mpii):
+
+        try:
+            p_movenet = dict()
+            p_movenet['img_name'] = image_name
+            p_movenet['keypoints'] = get_movenet_keypoints(p_mpii)
+            p_movenet['center'] = [p_mpii['objpos']['x'], p_mpii['objpos']['y']]
+            # p_movenet['bbox'] = get_movenet_bbox(p_movenet['keypoints'])
+            p_movenet['other_centers'] = get_mpii_other_centers(ai, poses_mpii)
+            p_movenet['other_keypoints'] = get_mpii_other_keypoints(ai, poses_mpii)
+        except:
+            continue
+
+        poses_movenet.append(p_movenet)
+
+    return poses_movenet
 
 
 def export_to_tos(data_ann, image_folder, output_folder, gaussian_blur_k_size, gaussian_blur_sigma, canny_low_th,
@@ -16,13 +127,34 @@ def export_to_tos(data_ann, image_folder, output_folder, gaussian_blur_k_size, g
     tos = TOSSynthetic(gaussian_blur_k_size, gaussian_blur_sigma, canny_low_th, canny_high_th,
                        canny_aperture, canny_l2_grad, salt_pepper_low_th, salt_pepper_high_th)
 
-    for fi, (img, poses_ann, img_name) in enumerate(iterator):
+    poses = []
+    for fi, (img, poses_ann, img_name) in enumerate(tqdm(iterator)):
+
+        # skip images with more than three people (as in movenet's code)
+        if len(poses_ann) > 3:
+            continue
+
+        if img is None:
+            print(f'image {img_name} does not exist')
+            continue
+
+        movenet_poses = mpii_to_movenet(poses_ann, img_name)
+
+        if len(movenet_poses) == 0:
+            print(f'no annotations for image {img_name}')
+            continue
+
+        poses.extend(movenet_poses)
+
         frame = tos.get_frame(img)
         file_path = output_folder / img_name
         if not cv2.imwrite(str(file_path), frame):
             print(f'could not save image to {str(file_path)}')
 
-        # TODO: export 2d poses
+    output_json = output_folder / 'poses.json'
+    with open(str(output_json.resolve()), 'w') as f:
+        json.dump(poses, f, ensure_ascii=False)
+
 
 
 def main(args):
