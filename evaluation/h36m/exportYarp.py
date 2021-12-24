@@ -24,6 +24,8 @@ output_height = 260
 subs = ['S1', 'S5', 'S6', 'S7', 'S8', 'S9', 'S11']
 all_cameras = {1: '54138969', 2: '55011271', 3: '58860488', 4: '60457274'}
 cam = 2  # And maybe later camera 4.
+errorlog = '/home/ggoyal/data/h36m/errorlog.txt'
+OUTPUT_FRAMES=0
 
 def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl):
     # Convert the video and annotations to yarp formats.
@@ -35,25 +37,37 @@ def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl):
     data = (cdf_file.varget("Pose")).squeeze()
     dim = (output_width, output_height)
 
-    if not os.path.exists(directory_frames):
-        os.makedirs(directory_frames)
+    if OUTPUT_FRAMES:
+        if not os.path.exists(directory_frames):
+            os.makedirs(directory_frames)
     if not os.path.exists(directory_skl):
         os.makedirs(directory_skl)
 
-    assert vid.isOpened()
+    try:
+        assert vid.isOpened()
+    except AssertionError:
+        return 1
     while vid.isOpened():
         frame_exists, frame = vid.read()
         if frame_exists:
             timestamp = vid.get(cv2.CAP_PROP_POS_MSEC) / 1000  # convert timestamp to seconds
         else:
             break
+
         if counter > 10 and timestamp == 0.0:
             break
-        frame_resized = cv2.resize(src=frame, dsize=dim, interpolation=cv2.INTER_AREA)
+
+        try:
+            pose = data[counter, :]
+        except IndexError:
+            break
+
         filename = 'frame_' + str(counter).zfill(10) + '.png'
         filename_full = os.path.join(directory_frames, filename)
-        cv2.imwrite(filename_full, frame_resized)  # create the images
-        pose = data[counter, :]
+        if OUTPUT_FRAMES:
+            frame_resized = cv2.resize(src=frame, dsize=dim, interpolation=cv2.INTER_AREA)
+            cv2.imwrite(filename_full, frame_resized)  # create the images
+
         pose = pose.reshape(-1, 2)
         pose_small = parsing.h36m_to_dhp19(pose)
 
@@ -73,9 +87,10 @@ def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl):
 
     vid.release()
 
-    print()
-    parsing.writer(directory_frames, frame_lines, frame_linesInfo)
+    if OUTPUT_FRAMES:
+        parsing.writer(directory_frames, frame_lines, frame_linesInfo)
     parsing.writer(directory_skl, pose_lines, pose_linesInfo)
+    return 0
 
 
 all_files = []
@@ -86,19 +101,24 @@ for sub in subs:
         if all_cameras[cam] in file:
             all_files.append("%s^%s" % (sub, file))
 
-print(all_files)
 for i in tqdm(range(len(all_files))):
     sub, file = all_files[i].split('^')
     video_file = (join(dataset_path, sub, 'Videos', file))
     pose_file = (join(dataset_path, sub, "Poses_D2_Positions", file.replace('mp4', 'cdf')))
     output_folder = ("%s_%s" % (sub, file.split('.')[0].replace(' ', '_')))
     dir_frames = join(data_output_path, output_folder, 'ch0frames')
-    dir_pose = join(data_output_path, output_folder, 'ch0GT50Hzskeleton/')
+    dir_pose = join(data_output_path, output_folder, 'ch0GT50Hzskeleton')
+    if isfile(join(dir_pose,'data.log')):
+        continue
     # print((isfile(video_file),isfile(pose_file),dir_frames,dir_pose))
     if not isfile(pose_file):
         continue
-    write_video_and_pose(video_file, pose_file, dir_frames, dir_pose)
-    break
+    exitcode = write_video_and_pose(video_file, pose_file, dir_frames, dir_pose)
+
+    if exitcode:
+        with open(errorlog, 'a') as f:
+            f.write("%s" % all_files[i])
+
 
 
 
