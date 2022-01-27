@@ -60,7 +60,7 @@ class MPIIIterator:
         return img, pose_ann, annotation['image']['name']
 
     def __get_image(self, annotation):
-        image_path = self.images_folder / 'images' / annotation['image']['name']
+        image_path = self.images_folder / annotation['image']['name']
         return cv2.imread(str(image_path.resolve()))
 
     def __get_pose_annotation(self, annotation):
