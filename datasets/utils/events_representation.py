@@ -106,7 +106,23 @@ class TOS:
         return roi_raw != roi_valid
 
 
-class TOSSynthetic:
+class EROSSynthetic:
+
+    def get_frame(self, image):
+
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        image = cv2.GaussianBlur(image, self.gaussian_blur_k, self.gaussian_blur_sigma)
+        image = cv2.Canny(image, threshold1=self.canny_low_th, threshold2=self.canny_high_th,
+                          apertureSize=self.canny_aperture, L2gradient=self.canny_l2_grad)
+
+        # add pepper only: this adds noise to the canny edges, making them
+        # look like closer to the real eros
+        add_salt_and_pepper(image, 90, 255)
+
+        add_salt_and_pepper(image, self.salt_pepper_low_th, self.salt_pepper_high_th)
+        image = cv2.GaussianBlur(image, self.gaussian_blur_k, self.gaussian_blur_sigma)
+
+        return image
 
     def __init__(self, gaussian_blur_k_size=5, gaussian_blur_sigma=0, canny_low_th=0, canny_high_th=1000,
                  canny_aperture=5, canny_l2_grad=False, salt_pepper_low_th=30, salt_pepper_high_th=225):
@@ -124,18 +140,3 @@ class TOSSynthetic:
         # salt and pepper params
         self.salt_pepper_low_th = salt_pepper_low_th
         self.salt_pepper_high_th = salt_pepper_high_th
-
-    def get_frame(self, image):
-
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        image = cv2.GaussianBlur(image, self.gaussian_blur_k, self.gaussian_blur_sigma)
-        image = cv2.Canny(image, threshold1=self.canny_low_th, threshold2=self.canny_high_th,
-                          apertureSize=self.canny_aperture, L2gradient=self.canny_l2_grad)
-
-        # add pepper only: this adds noise to the canny edges, making them look like closer to the real tos
-        add_salt_and_pepper(image, 90, 255)
-
-        add_salt_and_pepper(image, self.salt_pepper_low_th, self.salt_pepper_high_th)
-        image = cv2.GaussianBlur(image, self.gaussian_blur_k, self.gaussian_blur_sigma)
-
-        return image

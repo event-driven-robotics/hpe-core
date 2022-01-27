@@ -3,6 +3,7 @@ import argparse
 import cv2
 import json
 import numpy as np
+import os
 import pathlib
 
 from tqdm import tqdm
@@ -11,7 +12,7 @@ import datasets.utils.mat_files as mat_utils
 import datasets.mpii.utils.parsing as mpii_parse
 
 from datasets.mpii.utils.parsing import MPII_BODY_PARTS
-from datasets.utils.events_representation import TOSSynthetic
+from datasets.utils.events_representation import EROSSynthetic
 
 
 MOVENET_KEYPOINTS = ['nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear',
@@ -37,14 +38,21 @@ MOVENET_13_TO_MPII_INDICES = np.array([
 ])
 
 
-def get_movenet_keypoints(mpii_annorect):
+def get_movenet_keypoints(mpii_annorect, h_rescaling_factor=1., w_rescaling_factor=1., add_visibility=True):
 
     keypoints = []
 
     # use mpii's head rectangle center as head keypoint
     head_x = (mpii_annorect['x1'] + mpii_annorect['x2']) / 2
+    head_x *= w_rescaling_factor
+
     head_y = (mpii_annorect['y1'] + mpii_annorect['y2']) / 2
-    keypoints.append([head_x, head_y, 2])
+    head_y *= h_rescaling_factor
+
+    if add_visibility:
+        keypoints.append([head_x, head_y, 2])
+    else:
+        keypoints.append([head_x, head_y])
 
     for ind in MOVENET_13_TO_MPII_INDICES[1:]:
         mpii_keypoint_ind = ind[1]
@@ -59,46 +67,49 @@ def get_movenet_keypoints(mpii_annorect):
             else:
                 visibility = 1
 
-            keypoints.append([point['x'], point['y'], visibility])
+            if add_visibility:
+                keypoints.append([point['x'] * w_rescaling_factor,
+                                  point['y'] * h_rescaling_factor,
+                                  visibility])
+            else:
+                keypoints.append([point['x'] * w_rescaling_factor,
+                                  point['y'] * h_rescaling_factor])
+
             break
 
         if visibility == 0:  # keypoint has not been annotated
-            keypoints.append([0, 0, visibility])
+            if add_visibility:
+                keypoints.append([0, 0, visibility])
+            else:
+                keypoints.append([0, 0])
 
     return keypoints
 
 
-def get_mpii_other_centers(ind_to_exclude, mpii_annorect):
+def get_mpii_other_centers(ind_to_exclude, mpii_annorect, h_rescaling_factor=1., w_rescaling_factor=1.):
 
     centers = []
     for ai, ann in enumerate(mpii_annorect):
         if ai == ind_to_exclude:
             continue
-        centers.append([ann['objpos']['x'], ann['objpos']['y']])
+        centers.append([ann['objpos']['x'] * w_rescaling_factor,
+                        ann['objpos']['y'] * h_rescaling_factor])
     return centers
 
 
-def get_mpii_other_keypoints(ind_to_exclude, mpii_annorect):
+def get_mpii_other_keypoints(ind_to_exclude, mpii_annorect, h_rescaling_factor=1., w_rescaling_factor=1.):
 
     keypoints = []
     for ai, ann in enumerate(mpii_annorect):
         if ai == ind_to_exclude:
             continue
-        keypoints.append(get_movenet_keypoints(ann))
+
+        # add keypoint without visibility element (not needed in 'other_keypoints')
+        keypoints.append(get_movenet_keypoints(ann, h_rescaling_factor, w_rescaling_factor, add_visibility=False))
     return keypoints
 
 
-def mpii_to_movenet(poses_mpii, image_name):
-    # image name
-    # center
-    # keypoints (ordered)
-    #  movenet ['nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear',
-    #         'left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow', 'left_wrist',
-    #         'right_wrist', 'left_hip', 'right_hip', 'left_knee', 'right_knee', 'left_ankle',
-    #         'right_ankle']
-    # bbox
-    # other_centers
-    # other_keypoints (ordered)
+def mpii_to_movenet(poses_mpii, images_folder, image_name):
 
     poses_movenet = []
     for ai, p_mpii in enumerate(poses_mpii):
@@ -106,11 +117,19 @@ def mpii_to_movenet(poses_mpii, image_name):
         try:
             p_movenet = dict()
             p_movenet['img_name'] = image_name
-            p_movenet['keypoints'] = get_movenet_keypoints(p_mpii)
-            p_movenet['center'] = [p_mpii['objpos']['x'], p_mpii['objpos']['y']]
+
+            img_path = images_folder / image_name
+            img = cv2.imread(str(img_path.resolve()))
+            h, w, _ = img.shape
+            h_rescaling_factor = 1 / h
+            w_rescaling_factor = 1 / w
+
+            p_movenet['keypoints'] = get_movenet_keypoints(p_mpii, h_rescaling_factor, w_rescaling_factor)
+            p_movenet['center'] = [p_mpii['objpos']['x'] * w_rescaling_factor,
+                                   p_mpii['objpos']['y'] * h_rescaling_factor]
             # p_movenet['bbox'] = get_movenet_bbox(p_movenet['keypoints'])
-            p_movenet['other_centers'] = get_mpii_other_centers(ai, poses_mpii)
-            p_movenet['other_keypoints'] = get_mpii_other_keypoints(ai, poses_mpii)
+            p_movenet['other_centers'] = get_mpii_other_centers(ai, poses_mpii, h_rescaling_factor, w_rescaling_factor)
+            p_movenet['other_keypoints'] = get_mpii_other_keypoints(ai, poses_mpii, h_rescaling_factor, w_rescaling_factor)
         except:
             continue
 
@@ -124,8 +143,8 @@ def export_to_tos(data_ann, image_folder, output_folder, gaussian_blur_k_size, g
 
     iterator = mpii_parse.MPIIIterator(data_ann, image_folder)
 
-    tos = TOSSynthetic(gaussian_blur_k_size, gaussian_blur_sigma, canny_low_th, canny_high_th,
-                       canny_aperture, canny_l2_grad, salt_pepper_low_th, salt_pepper_high_th)
+    tos = EROSSynthetic(gaussian_blur_k_size, gaussian_blur_sigma, canny_low_th, canny_high_th,
+                        canny_aperture, canny_l2_grad, salt_pepper_low_th, salt_pepper_high_th)
 
     poses = []
     for fi, (img, poses_ann, img_name) in enumerate(tqdm(iterator)):
@@ -138,7 +157,7 @@ def export_to_tos(data_ann, image_folder, output_folder, gaussian_blur_k_size, g
             print(f'image {img_name} does not exist')
             continue
 
-        movenet_poses = mpii_to_movenet(poses_ann, img_name)
+        movenet_poses = mpii_to_movenet(poses_ann, image_folder, img_name)
 
         if len(movenet_poses) == 0:
             print(f'no annotations for image {img_name}')
