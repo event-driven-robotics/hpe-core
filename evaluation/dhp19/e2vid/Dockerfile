@@ -82,7 +82,7 @@ RUN cd hpe-core/evaluation/dhp19/e2vid && \
 WORKDIR hpe-core/evaluation/dhp19/e2vid/rpg_e2vid
 
 # setup scripts for creating grayscale frames
-RUN cp ../run_e2vid.py . && \
+RUN cp ../e2vid.py . && \
     cp ../../utils/mat_files.py . && \
     cp ../../utils/parsing.py . && \
     cp ../create_grayscale_frames.sh . && \

@@ -1,7 +1,9 @@
 
 # base image
 FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04
-# FROM ubuntu
+
+ENV DEBIAN_FRONTEND noninteractive
+
 
 ###########
 # OPENPOSE #
@@ -11,7 +13,7 @@ FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04
 
 # install dependencies
 RUN apt-get update && \
-DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+apt-get install -y --no-install-recommends \
 python3-dev python3-pip git g++ wget make libprotobuf-dev protobuf-compiler libopencv-dev \
 libgoogle-glog-dev libboost-all-dev libcaffe-cuda-dev libhdf5-dev libatlas-base-dev
 
@@ -68,7 +70,7 @@ ARG ssh_pub_key
 
 RUN apt-get update && \
 apt-get install -y openssh-client git
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
+RUN apt-get install -y \
     libmysqlclient-dev \
     ffmpeg libsm6 libxext6
 
@@ -83,21 +85,18 @@ RUN echo "$ssh_prv_key" > /root/.ssh/id_ed25519 && \
     chmod 600 /root/.ssh/id_ed25519 && \
     chmod 600 /root/.ssh/id_ed25519.pub
 
+
 ############
 #   YARP   #
 ############
 
-RUN echo "*************** building yarp ****************"
-
 ARG EVENT_DRIVEN_VERSION=1.5
-ARG YARP_VERSION=3.4.4
-ARG YCM_VERSION=0.12.1
+ARG YARP_VERSION=3.5.0
+ARG YCM_VERSION=0.13.0
 ARG BUILD_TYPE=Release
 ARG SOURCE_FOLDER=/usr/local
 ARG OPENGL=0
-ARG HPE_VERSION=main
-
-ENV DEBIAN_FRONTEND noninteractive
+ARG HPE_BRANCH=online_e2vid
 
 RUN apt update
 
@@ -106,7 +105,8 @@ RUN apt install -y \
     ca-certificates \
     gnupg \
     software-properties-common \
-    lsb-core
+    lsb-core \
+    swig
 
 # Install useful packages
 RUN apt install -y \
@@ -132,10 +132,13 @@ RUN apt install -y \
         qml-module-qtquick-controls
 
 
+# Install YCM
 RUN cd $SOURCE_FOLDER && \
     git clone https://github.com/robotology/ycm.git && \
     cd ycm && \
     git checkout v$YCM_VERSION && \
+#    # FIXME: remove this line after gitlab fix!!!!!
+#    sed -ie 's/libeigen/cantonios/g' 3rdparty/eigen3.cmake && \
     mkdir build && cd build && \
     cmake .. && \
     make -j `nproc` install
@@ -148,19 +151,22 @@ RUN cd $SOURCE_FOLDER && \
     git checkout v$YARP_VERSION && \
     mkdir build && cd build && \
     cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-          -DYARP_COMPILE_BINDINGS=OFF \
-          -DCREATE_PYTHON=OFF \
+          -DYARP_COMPILE_BINDINGS=ON \
+          -DCREATE_PYTHON=ON \
           .. && \
     make -j `nproc` install
 
 RUN yarp check
 EXPOSE 10000/tcp 10000/udp
 
+# make yarp's python binding visible to python interpreter
+ENV PYTHONPATH $SOURCE_FOLDER/yarp/build/lib/python3:$PYTHONPATH
+
 # Some QT-Apps don't show controls without this
 ENV QT_X11_NO_MITSHM 1
 
 
-# Install event-driven
+# Install EVENT-DRIVEN
 RUN cd $SOURCE_FOLDER && \
     git clone https://github.com/robotology/event-driven.git && \
     cd event-driven && \
@@ -171,32 +177,85 @@ RUN cd $SOURCE_FOLDER && \
           .. && \
     make install -j$(nproc)
 
-RUN echo "*************** building hpe-core ****************"
 
-# Install hpe-core
+
+
+
+
+
+
+
+
+
+
+
+
+############
+# HPE-CORE #
+############
+
+# install e2vid dependencies
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install torch==1.9.1 torchvision==0.10.1 pandas scipy opencv-python
+
+#ENV PYTHONHOME=/root/anaconda/bin
+#ENV PYTHONPATH=/root/anaconda/lib:/root/anaconda/lib/python3.8:/root/anaconda/lib/python3.8/site-packages
+#ENV PATH=$PYTHONHOME:$PATH
+
+# download hpe-core
 RUN cd $SOURCE_FOLDER && \
     git clone git@github.com:event-driven-robotics/hpe-core.git && \
     cd hpe-core && \
-    git checkout $HPE_VERSION && \
-    cd core && \
+    git checkout $HPE_BRANCH
+
+# add /usr/local/lib to the library path, so that libcaffe.so compiled with openpose will be used
+# instead of the one provided by the nvidia/cuda docker image
+ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
+
+# download e2vid
+RUN cd $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/e2vid && \
+    git clone git@github.com:uzh-rpg/rpg_e2vid.git && \
+
+    # fix e2vid incompatibility with recent pytorch versions (https://github.com/uzh-rpg/rpg_e2vid/issues/5) \
+    cd rpg_e2vid && \
+    sed -ie 's/index=xs[valid_indices]/index=(xs[valid_indices]/g' utils/inference_utils.py && \
+    sed -ie 's/tis_long[valid_indices] * width * height/tis_long[valid_indices] * width * height).type(torch.cuda.LongTensor)/g' utils/inference_utils.py && \
+    sed -ie 's/tis_long[valid_indices] + 1) * width * height/tis_long[valid_indices] + 1) * width * height).type(torch.cuda.LongTensor)/g' utils/inference_utils.py && \
+
+    # download e2vid pretrained model
+    wget "http://rpg.ifi.uzh.ch/data/E2VID/models/E2VID_lightweight.pth.tar" -O pretrained/E2VID_lightweight.pth.tar
+
+# move custom python scripts to rpg_e2vid dir
+RUN mv $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/e2vid/*.py $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/e2vid/rpg_e2vid
+
+# define a system variable with e2vid's location; it will be used by the C++ wrapper
+ENV E2VID_PYTHON_DIR $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/e2vid/rpg_e2vid
+
+
+# compile and install hpe-core
+RUN cd $SOURCE_FOLDER/hpe-core/core && \
     mkdir build && cd build && \
     cmake .. && \
-    make install -j$(nproc) && \
-    cd ../.. && cd example/op_detector_example_module/ && \
+    make install -j$(nproc)
+
+# make e2vid scripts visible to python interpreter
+ENV PYTHONPATH $E2VID_PYTHON_DIR:$PYTHONPATH
+
+RUN cd $SOURCE_FOLDER/hpe-core/example/op_detector_example_module && \
     mkdir build && cd build && \
     cmake .. && \
     make install -j$(nproc)
 
 
 
-# add /usr/local/lib to the library path, so that libcaffe.so compiled with openpose will be used
-# instead of the one provided by the nvidia/cuda docker image
-ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
 
 
-#####################
-# OPENPOSE DOWNLOADS#
-#####################
+
+
+
+######################
+# OPENPOSE DOWNLOADS #
+######################
 
 # download models from google drive (https://drive.google.com/file/d/1QCSxJZpnWvM00hx49CJ2zky7PWGzpcEh/view)
 # see https://github.com/CMU-Perceptual-Computing-Lab/openpose/issues/1602#issuecomment-641653411
@@ -212,5 +271,4 @@ RUN unzip models.zip && \
     rm models.zip
 
 
-WORKDIR $SOURCE_FOLDER/hpe-core/example/op_detector_example_module/build
-
+WORKDIR $SOURCE_FOLDER/hpe-core/example/op_detector_example_module

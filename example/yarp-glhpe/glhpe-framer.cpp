@@ -1,7 +1,9 @@
 #include <yarp/os/all.h>
 #include <yarp/sig/all.h>
+#include <yarp/cv/Cv.h>
 #include <event-driven/all.h>
 #include <mutex>
+#include <hpe-core/volumes.h>
 
 using namespace ev;
 using namespace yarp::os;
@@ -79,61 +81,25 @@ public:
     virtual bool updateModule()
     {
         //add any synchronous operations here, visualisation, debug out prints
-        ImageOf<PixelMono> &image = output_port.prepare();
-        image.resize(res.width, res.height);
-        image.zero();
+        //ImageOf<PixelMono> &image = output_port.prepare();
+        //image.resize(res.width, res.height);
+        //image.zero();
+
+        cv::Mat cv_image(res.height, res.width, CV_8U);
 
         m.lock();
-
-        int count_unique = 0;
-        for(auto &v : window_queue) 
-        {
-            PixelMono &p = image(v.x, v.y);
-            if(p == 0) count_unique++;
-            p += 1;
-        }
-        // const vector<AE>* q = input_port.read(yarpstamp);
+        hpecore::createCountImage(window_queue, cv_image);
         m.unlock();
-
-        //count unique pixels
-        double mean_pval = (double)window_queue.size() / count_unique;
-
-        double var = 0;
-        for(auto x = 0; x < res.width; x++) {
-            for(auto y = 0; y < res.height; y++) {
-                PixelMono &p = image(x, y);
-                if(p > 0) {
-                    double e = p - mean_pval;
-                    var += e*e;
-                }
-            }
-        }
-        var /= count_unique;
-        double sigma = sqrt(var);
-        constexpr double threshold = 0.1/255;
-        if(sigma < threshold) sigma = threshold;
-        double scale_factor = 255.0 / (3.0 * sigma);
-
-        for (auto x = 0; x < res.width; x++) {
-            for(auto y = 0; y < res.height; y++) {
-                PixelMono &p = image(x, y);
-                if(p > 0) {
-                    double v = p * scale_factor;
-                    if(v > 255.0) v = 255.0;
-                    if(v < 0.0) v = 0.0;
-                    p = (unsigned char)v;
-                }
-            }
-        }
+        hpecore::varianceNormalisation(cv_image);
 
         output_port.setEnvelope(yarpstamp);
+        output_port.prepare().copy(yarp::cv::fromCvMat<PixelMono>(cv_image));
         output_port.write();
         return Thread::isRunning();
     }
 
     //asynchronous thread run forever
     void run() {
-//        Stamp yarpstamp;
 
         while (true) {
             const vector<AE>* q = input_port.read(yarpstamp);
