@@ -38,6 +38,13 @@ MOVENET_13_TO_MPII_INDICES = np.array([
 ])
 
 
+def compute_head_size(mpii_annorect, h_rescaling_factor=1., w_rescaling_factor=1.):
+    sc_bias = 0.6  # 0.8 * 0.75 constant used in mpii matlab code for computing the head size
+    head_size = sc_bias * np.linalg.norm([(mpii_annorect['x2'] - mpii_annorect['x1']) * w_rescaling_factor,
+                                          (mpii_annorect['y2'] - mpii_annorect['y1']) * h_rescaling_factor])
+    return head_size
+
+
 def get_movenet_keypoints(mpii_annorect, h_rescaling_factor=1., w_rescaling_factor=1., add_visibility=True):
 
     keypoints = []
@@ -50,9 +57,9 @@ def get_movenet_keypoints(mpii_annorect, h_rescaling_factor=1., w_rescaling_fact
     head_y *= h_rescaling_factor
 
     if add_visibility:
-        keypoints.append([head_x, head_y, 2])
+        keypoints.extend([head_x, head_y, 2])
     else:
-        keypoints.append([head_x, head_y])
+        keypoints.extend([head_x, head_y])
 
     for ind in MOVENET_13_TO_MPII_INDICES[1:]:
         mpii_keypoint_ind = ind[1]
@@ -68,20 +75,20 @@ def get_movenet_keypoints(mpii_annorect, h_rescaling_factor=1., w_rescaling_fact
                 visibility = 1
 
             if add_visibility:
-                keypoints.append([point['x'] * w_rescaling_factor,
+                keypoints.extend([point['x'] * w_rescaling_factor,
                                   point['y'] * h_rescaling_factor,
                                   visibility])
             else:
-                keypoints.append([point['x'] * w_rescaling_factor,
+                keypoints.extend([point['x'] * w_rescaling_factor,
                                   point['y'] * h_rescaling_factor])
 
             break
 
         if visibility == 0:  # keypoint has not been annotated
             if add_visibility:
-                keypoints.append([0, 0, visibility])
+                keypoints.extend([0, 0, visibility])
             else:
-                keypoints.append([0, 0])
+                keypoints.extend([0, 0])
 
     return keypoints
 
@@ -99,13 +106,37 @@ def get_mpii_other_centers(ind_to_exclude, mpii_annorect, h_rescaling_factor=1.,
 
 def get_mpii_other_keypoints(ind_to_exclude, mpii_annorect, h_rescaling_factor=1., w_rescaling_factor=1.):
 
-    keypoints = []
+    keypoints = [[] for _ in range(len(MOVENET_13_TO_MPII_INDICES))]
+
     for ai, ann in enumerate(mpii_annorect):
         if ai == ind_to_exclude:
             continue
 
-        # add keypoint without visibility element (not needed in 'other_keypoints')
-        keypoints.append(get_movenet_keypoints(ann, h_rescaling_factor, w_rescaling_factor, add_visibility=False))
+        # calculate head keypoint
+        head_x = (ann['x1'] + ann['x2']) / 2
+        head_y = (ann['y1'] + ann['y2']) / 2
+
+        # append head keypoint to list
+        keypoints[MOVENET_13_TO_MPII_INDICES[0][0]].append([head_x * w_rescaling_factor, head_y * h_rescaling_factor])
+
+        for ind in MOVENET_13_TO_MPII_INDICES[1:]:
+            mpii_keypoint_ind = ind[1]
+            for point in ann['annopoints']['point']:
+
+                if point['id'] != mpii_keypoint_ind:
+                    continue
+
+                keypoints[ind[0]].append([point['x'] * w_rescaling_factor, point['y'] * h_rescaling_factor])
+                break
+
+    # keypoints = []
+    # for ai, ann in enumerate(mpii_annorect):
+    #     if ai == ind_to_exclude:
+    #         continue
+    #
+    #     # add keypoint without visibility element (not needed in 'other_keypoints')
+    #     keypoints.append(get_movenet_keypoints(ann, h_rescaling_factor, w_rescaling_factor, add_visibility=False))
+
     return keypoints
 
 
@@ -124,6 +155,8 @@ def mpii_to_movenet(poses_mpii, images_folder, image_name):
             h_rescaling_factor = 1 / h
             w_rescaling_factor = 1 / w
 
+            p_movenet['head_size'] = compute_head_size(p_mpii)
+            p_movenet['head_size_scaled'] = compute_head_size(p_mpii, h_rescaling_factor, w_rescaling_factor)
             p_movenet['keypoints'] = get_movenet_keypoints(p_mpii, h_rescaling_factor, w_rescaling_factor)
             p_movenet['center'] = [p_mpii['objpos']['x'] * w_rescaling_factor,
                                    p_mpii['objpos']['y'] * h_rescaling_factor]
