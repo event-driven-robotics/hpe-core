@@ -2,25 +2,32 @@
 import numpy as np
 
 
-# TODO: what if a gt joint is not present in a frame?
-def compute_pck(predicted_joints, gt_joints, threshold, head_size=None):
+def compute_pckh(predicted_joints, gt_joints, threshold, head_sizes):
     """
     Computes PCK (Percentage of Correct Keypoints)
+    It expects predicted_joints and gt_joints with shape [batch_size, joints_num, 2 or 3] and
+    not annotated joints as [-1, -1] or [-1, -1, -1]
     """
+
+    # compute PCK's threshold as percentage of head size in pixels for each pose
+    thresholds_head = head_sizes * threshold
+    thresholds_head = thresholds_head.reshape([-1, 1]).tile((1, gt_joints.shape[1]))
+
     # compute euclidean distances between joints
     distances = np.linalg.norm(predicted_joints - gt_joints, axis=2)
 
-    # normalize distances according to head size
-    if head_size:
-        distances = distances / head_size
-
     # compute correct keypoints
-    correct_keypoints = (distances <= threshold).astype(int)
+    correct_keypoints = (distances <= np.array(thresholds_head)).astype(int)
+
+    # remove not annotated keypoints from pck computation
+    correct_keypoints = correct_keypoints * (gt_joints[:, :, 0] != -1).astype(int)
+    annotated_keypoints_num = np.sum((gt_joints[:, :, 0] != -1).astype(int), axis=0)
 
     # compute pck
-    pck = np.sum(correct_keypoints, axis=0) / correct_keypoints.shape[0]
+    pck_joints = np.sum(correct_keypoints, axis=0) / annotated_keypoints_num
+    pck_avg = np.mean(pck_joints)
 
-    return pck
+    return pck_joints, pck_avg
 
 
 def compute_mpjpe(predicted_joints, gt_joints):
