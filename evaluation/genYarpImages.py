@@ -3,7 +3,7 @@
 """
 Created on Thu Sep  9 14:59:09 2021
 
-@author: fdipietro
+@author: fdipietro and ggoyal
 """
 
 # %% Preliminaries
@@ -13,6 +13,7 @@ from os.path import join
 import sys
 from pathlib import Path
 from dhp19.utils import mat_files
+from h36m.utils import parsing
 
 # Load env variables set on .bashrc
 bimvee_path = os.environ.get('BIMVEE_PATH')
@@ -26,24 +27,6 @@ sys.path.insert(0, mustard_path)
 datadir = '/home/ggoyal/data/h36m/'
 
 input_type = 'videos' # 'images' or 'videos'
-
-def writer(directory,datalines,infolines):
-
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-    # datafile.log
-    dataFile = directory + '/data.log'
-    with open(dataFile, 'w') as f:
-        for line in datalines:
-            f.write("%s\n" % line)
-    # info.log
-
-    infoFile = directory + '/info.log'
-    with open(infoFile, 'w') as f:
-        for line in infolines:
-            f.write("%s\n" % line)
-
 
 if input_type == 'images':
     # Selected recording
@@ -89,7 +72,7 @@ if input_type == 'images':
         # info.log
         linesInfo = ['Type: Image;', '[0.0] /file/ch'+ str(ch) +'frames:o [connected]']
 
-        writer(directory, lines, linesInfo)
+        parsing.writer(directory, lines, linesInfo)
 
 if input_type == 'videos':
     import cv2
@@ -130,6 +113,6 @@ if input_type == 'videos':
     # info.log
     linesInfo = ['Type: Image;', '[0.0] /file/ch0frames:o [connected]']
 
-    writer(directory, lines, linesInfo)
+    parsing.writer(directory, lines, linesInfo)
     print(lines)
     print(linesInfo)
