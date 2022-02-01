@@ -80,3 +80,7 @@ $ python3 export_gt_to_numpy.py
 ```
 
 The output of this script is a set of `.npy` files containing numpy arrays of skeletons.
+
+
+## Export to TOS
+...
