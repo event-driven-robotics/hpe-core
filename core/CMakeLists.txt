@@ -54,21 +54,24 @@ endif()
 set( folder_source
   detection_wrappers/detection.cpp
   motion_estimation/jointMotionEstimator.cpp
+  event_representations/representations.cpp
 )
 
 set( folder_header
   utility/utility.h
   detection_wrappers/detection.h
   motion_estimation/jointMotionEstimator.h
+  event_representations/representations.h
 )
 
-find_package(OpenPose)
+find_package(OpenPose QUIET)
 if( OpenPose_FOUND )
   message(STATUS "Found Openpose: (found version ${OpenPose_VERSION})")
   list(APPEND folder_source detection_wrappers/openpose_detector.cpp)
   list(APPEND folder_header detection_wrappers/openpose_detector.h)
+else ()
+  message(STATUS "Not Found Openpose: wrappers not compiled")
 endif()
-
 
 
 add_library(${PROJECT_NAME} ${folder_source} ${folder_header})

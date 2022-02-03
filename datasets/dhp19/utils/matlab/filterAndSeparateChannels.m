@@ -81,8 +81,8 @@ function [] = filterAndSeparateChannels(subj, sess, mov, rootCodeFolder, rootDat
 %     out_folder_append = ['h5_dataset_',num2str(eventsPerFrame),'_events'];
     % 
     addpath(fullfile(rootCodeFolder));
-    addpath(fullfile(rootCodeFolder, 'evaluation/convert_DHP19/'));
-    addpath(fullfile(rootCodeFolder, 'evaluation/convert_DHP19/functions/'));
+    addpath(fullfile(rootCodeFolder, 'datasets/dhp19/'));
+    addpath(fullfile(rootCodeFolder, 'datasets/dhp19/utils/matlab/'));
     % 
     % % Setup output folder path, according to accumulation type and spatial resolution.
 %     outFolder = fullfile(outFolder, out_folder_append,[num2str(reshapex),'x',num2str(reshapey)]);

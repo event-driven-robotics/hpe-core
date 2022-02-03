@@ -1,0 +1,78 @@
+<application>
+<name> e2vid_op_demo_dataset </name>
+
+<dependencies>
+</dependencies>
+
+
+<!-- MODULES -->
+
+<module>
+    <name> yarpdataplayer </name>
+    <parameters>  </parameters>
+    <node> localhost </node>
+</module>
+
+<module>
+    <name> /usr/local/hpe-core/example/op_detector_example_module/build/e2vid_framer </name>
+    <node> localhost </node>
+</module>
+
+<module>
+    <name> /usr/local/hpe-core/example/op_detector_example_module/build/op_detector_example_module </name>
+    <parameters> --model-folder /openpose/models --no_display true </parameters>
+    <node> localhost </node>
+</module>
+
+<module>
+    <name> python3 /usr/local/hpe-core/example/op_detector_example_module/e2vid_example_module.py </name>
+    <node> localhost </node>
+</module>
+
+<module>
+    <name> vFramerLite </name>
+    <parameters> --displays "(/events (F AE ISO))" --height 240 --width 304 </parameters>
+    <node> localhost </node>
+</module>
+
+
+<!-- CONNECTIONS -->
+
+<connection>
+    <from> /zynqGrabber/AE:o </from>
+    <to> /e2vidPacker/AE:i </to>
+    <protocol>fast_tcp</protocol>
+</connection>
+
+<connection>
+    <from>/e2vidPacker/AE:o</from>
+    <to>/e2vid_example_module/AE:i</to>
+    <protocol>fast_tcp</protocol>
+</connection>
+
+<connection>
+    <from>/e2vid_example_module/img:o</from>
+    <to>/op_detector_example_module/img:i</to>
+    <protocol> fast_tcp </protocol>
+</connection>
+
+<connection>
+    <from>/op_detector_example_module/img:o</from>
+    <to>/vFramer/events/frame:i</to>
+    <protocol>fast_tcp</protocol>
+</connection>
+
+<connection>
+    <from>/zynqGrabber/AE:o</from>
+    <to>/vFramer/events/AE:i</to>
+    <protocol> fast_tcp </protocol>
+</connection>
+
+<connection>
+    <from>/vFramer/events/image:o</from>
+    <to>/img_vis</to>
+    <protocol> fast_tcp </protocol>
+</connection>
+
+
+</application>
