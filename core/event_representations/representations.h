@@ -48,4 +48,29 @@ T spatiotemporalWarp(T original, point_flow flow, double deltat)
     return output;
 }
 
+class surface 
+{
+private:
+    int kernel_size{0};
+    int half_kernel{0};
+    cv::Rect roi_full, roi_raw, roi_valid;
+    double parameter{0};
+    cv::Mat surf;
+    cv::Mat region;
+
+    bool setRoiAndRegion(int x, int y);
+
+public:
+   
+    const cv::Mat& getSurface();
+    void init(int width, int height, int kernel_size, double parameter = 0.0);
+    bool TOSupdate(const int vx, const int vy);
+    bool SITSupdate(const int vx, const int vy);
+    bool EROSupdate(const int vx, const int vy);
+};
+
+    
+
+    
+
 }  // namespace hpecore
