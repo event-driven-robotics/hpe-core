@@ -5,6 +5,29 @@ FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04
 ENV DEBIAN_FRONTEND noninteractive
 
 
+##########
+# PYTHON #
+##########
+
+
+# update python
+ARG PYTHON_VERSION=3.8
+RUN apt-get update && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository ppa:deadsnakes/ppa && apt-get update && \
+    apt-get install -y python$PYTHON_VERSION python3-pip
+
+# create list of alternative python interpreters
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6 1 && \
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python$PYTHON_VERSION 2 && \
+    update-alternatives --config python3 && \
+    rm /usr/bin/python3 && \
+    ln -s python$PYTHON_VERSION /usr/bin/python3
+
+# upgrade pip
+RUN python3 -m pip install --upgrade pip
+
+
 ###########
 # OPENPOSE #
 ###########
@@ -12,9 +35,10 @@ ENV DEBIAN_FRONTEND noninteractive
 # ARG OPENPOSE_VERSION=1.7.0
 
 # install dependencies
+ARG PYTHON_DEV_LIBS=python3.8-dev
 RUN apt-get update && \
 apt-get install -y --no-install-recommends \
-python3-dev python3-pip git g++ wget make libprotobuf-dev protobuf-compiler libopencv-dev \
+$PYTHON_DEV_LIBS git g++ wget make libprotobuf-dev protobuf-compiler libopencv-dev \
 libgoogle-glog-dev libboost-all-dev libcaffe-cuda-dev libhdf5-dev libatlas-base-dev
 
 # install utils
@@ -96,7 +120,7 @@ ARG YCM_VERSION=0.13.0
 ARG BUILD_TYPE=Release
 ARG SOURCE_FOLDER=/usr/local
 ARG OPENGL=0
-ARG HPE_BRANCH=online_e2vid
+ARG HPE_BRANCH=evaluation_pipeline
 
 RUN apt update
 
@@ -104,7 +128,6 @@ RUN apt install -y \
     apt-transport-https \
     ca-certificates \
     gnupg \
-    software-properties-common \
     lsb-core \
     swig
 
@@ -178,10 +201,23 @@ RUN cd $SOURCE_FOLDER && \
     make install -j$(nproc)
 
 
+# install BIMVEE
+RUN python3 -m pip install setuptools Cython numpy scipy  # numpy==1.21.4 if using python3.7
+RUN cd $SOURCE_FOLDER && \
+    git clone https://github.com/event-driven-robotics/bimvee --recurse-submodules && \
+    cd bimvee && \
+    python3 setup.py install
 
 
+# install MUSTARD
+RUN cd $SOURCE_FOLDER && \
+    git clone https://github.com/event-driven-robotics/mustard && \
+    cd mustard && \
+    python3 -m pip install -r requirements.txt
 
-
+# make mustard visible to python
+ENV MUSTARD_DIR $SOURCE_FOLDER/mustard
+ENV PYTHONPATH $MUSTARD_DIR:$PYTHONPATH
 
 
 
@@ -245,11 +281,6 @@ RUN cd $SOURCE_FOLDER/hpe-core/example/op_detector_example_module && \
     mkdir build && cd build && \
     cmake .. && \
     make install -j$(nproc)
-
-
-
-
-
 
 
 

@@ -12,7 +12,7 @@ import os
 from os.path import join
 import sys
 from pathlib import Path
-from dhp19.utils import mat_files
+from datasets.utils import mat_files
 from h36m.utils import parsing
 
 # Load env variables set on .bashrc
@@ -39,7 +39,7 @@ if input_type == 'images':
     poses_pred_files = sorted(Path('/home/fdipietro/hpe-data/open-pose/' + recording).glob('*.json'))
     image_files = sorted(Path('/home/fdipietro/hpe-data/grayscale/' + recording +'/' + cam +'/reconstruction').glob('*.png'))
 
-    data_events = mat_files.loadmat('/home/fdipietro/hpe-data/DVS/' + recording +'.mat')
+    data_events = mat_files.loadmat('/home/fdipietro/hpe-data/DVS/' + recording + '.mat')
     startTime = data_events['out']['extra']['startTime']
     t_op = np.loadtxt('/home/fdipietro/hpe-data/grayscale/' + recording +'/' + cam +'/reconstruction/timestamps.txt', dtype = np.float64)
     t_op = (t_op-startTime)*1e-6

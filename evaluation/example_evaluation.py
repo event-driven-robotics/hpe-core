@@ -8,7 +8,7 @@ from pathlib import Path
 
 from utils import metrics, plots
 from utils import parse_openpose_keypoints_json
-from dhp19.utils import DHP19_BODY_PARTS, openpose_to_dhp19
+from datasets.dhp19.utils import DHP19_BODY_PARTS, openpose_to_dhp19
 
 
 # def evaluate_openpose():

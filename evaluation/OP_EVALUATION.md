@@ -11,7 +11,7 @@ DHP19 events.
 - After downloading the `.mat` files for the events and the Vicon data, run
   ```shell
   $ cd hpe-core/evaluation/dhp19
-  $ python export_gt_poses.py
+  $ python export_gt_to_numpy.py
               -e /path/to/events/files/S%d_%d_%d.mat
               -v /path/to/vicon/files/S%d_%d_%d.mat
               -c <cam_id>
@@ -57,7 +57,7 @@ with `n` varying according to the length of the DHP19 recording (see [DHP19's we
 Run
 ```shell
 $ cd hpe-core/evaluation
-$ python evaluate_openpose.py
+$ python example_evaluation.py
             -gt /path/to/recording/gt/poses.npy
             -p /path/to/json/files
             -if /path/to/grayscale/frames
