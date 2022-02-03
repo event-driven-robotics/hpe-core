@@ -34,6 +34,7 @@ private:
     std::ofstream output_writer, aux_out, vel_out;
     deque<AE> evs_queue, evsFullImg;
     deque<sklt> pose2img;
+    deque<joint> vels;
     std::mutex m;
     sklt pose, dpose, poseGT;
     hpecore::jointMotionEstimator tracker;
@@ -50,6 +51,12 @@ private:
     double avgF = 0;
     BufferedPort<ImageOf<PixelRgb> > image_port;
     float displayF = 25.0; // display frequency in Hz
+    static inline int evsF = 0;
+    bool showF = false;
+    cv::Mat matTe;
+    double** Te;
+    joint center, prev;
+    int method;
 
 public:
     jointTrack() {}
@@ -103,10 +110,18 @@ public:
             yError() << "Could not open pose writer!!";
         else
             yInfo() << "aux_out writer opened";
+
+        vel_out.open("vel_out.txt");
+        if (!vel_out.is_open())
+            yError() << "Could not open pose writer!!";
+        else
+            yInfo() << "vel_out writer opened";
         
         jointNameStr = rf.check("joint", Value("handL")).asString();
         jointName = str2enum(jointNameStr);
         displayF = rf.check("F", Value(25)).asFloat32();
+        method = rf.check("M", Value(1)).asInt();
+        yInfo() << "Method for velocity estimations = " << method;
 
         // intialize velocities
         for (size_t i = 0; i < dpose.size(); i++)
@@ -119,18 +134,36 @@ public:
         if(rf.check("cv"))
             plotCv = true;
         dimX = rf.check("dimX", Value(346)).asInt();
-        dimY = rf.check("dimX", Value(240)).asInt();
+        dimY = rf.check("dimY", Value(240)).asInt();
         yInfo() << "Image dimensions = [" << dimX << ", " << dimY << "]";
-        fullImg = cv::Mat::zeros(cv::Size(346, 240), CV_32F);
+        fullImg = cv::Mat::zeros(cv::Size(dimX, dimY), CV_32F);
         cvtColor(fullImg, fullImg, cv::COLOR_GRAY2RGB);
-      
+        if(rf.check("showF"))
+            showF = true;
 
         if(plotCv)
         {
             cv::namedWindow("HPE OUTPUT", cv::WINDOW_NORMAL);
             cv::resizeWindow("HPE OUTPUT", 346, 260);
+
+            // cv::namedWindow("METHOD II", cv::WINDOW_NORMAL);
+            // cv::resizeWindow("METHOD II", 346, 260);
         }
         
+
+        matTe = cv::Mat::zeros(cv::Size(dimX, dimY), CV_32F);
+        // Expected times
+        Te = new double*[dimY];
+        for (int i = 0; i < dimY; i++)
+            Te[i] = new double[dimX];
+
+        for (int i = 0; i < dimY; i++) 
+        {
+            for (int j = 0; j < dimX; j++)
+            {
+                Te[i][j] = 0;
+            }
+        }
 
         //start the asynchronous and synchronous threads
         return Thread::start();
@@ -144,9 +177,9 @@ public:
     bool interruptModule()
     {
         //if the module is asked to stop ask the asynchrnous thread to stop
-        input_port.interrupt();
-        input_sklt.interrupt();
-        image_port.interrupt();
+        // input_port.interrupt();
+        // input_sklt.interrupt();
+        // image_port.interrupt();
         std::cout << "\033c";
         return Thread::stop();
     }
@@ -188,7 +221,7 @@ public:
             int x = pose2img.front()[jointName].u;
             int y = pose2img.front()[jointName].v;
             cv::Point pt(x, y);
-            cv::drawMarker(fullImg, pt, cv::Scalar(0.8, 0, 0), 0, 4);
+            cv::drawMarker(fullImg, pt, cv::Scalar(0.8, 0, 0), 0, 6);
             pose2img.pop_front();
         }
     
@@ -214,6 +247,7 @@ public:
                     1, // Line Thickness
                     cv:: LINE_AA); // Anti-alias
         std::string strF = std::to_string(int(avgF));
+        if(showF)
         cv::putText(aux, 
                     "Freq = " + strF + "Hz",
                     cv::Point(dimX*0.05, dimY*1.9), // Coordinates
@@ -234,6 +268,7 @@ public:
         if(plotCv) // output image using opencv
         {
             cv::imshow("HPE OUTPUT", aux);
+            // cv::imshow("METHOD II", matTe);
             cv::waitKey(1);
         }
 
@@ -257,7 +292,7 @@ public:
             int x = int(poseGT[i].u);
             int y = int(poseGT[i].v);
             cv::Point pt(x, y);
-            cv::drawMarker(fullImg, pt, cv::Scalar(0, 0, 0.8), 1, 4);
+            if(x && y) cv::drawMarker(fullImg, pt, cv::Scalar(0, 0, 0.8), 1, 8);
             
         }
         // plot links between joints
@@ -277,20 +312,20 @@ public:
 
         cv::Scalar colorS = cv::Scalar(0, 0, 0.5);
         int th = 1;
-        cv::line(fullImg, head, shoulderL, colorS, th);
-        cv::line(fullImg, head, shoulderR, colorS, th);
-        cv::line(fullImg, shoulderL, shoulderR, colorS, th);
-        cv::line(fullImg, shoulderL, elbowL, colorS, th);
-        cv::line(fullImg, shoulderR, elbowR, colorS, th);
-        cv::line(fullImg, shoulderL, hipL, colorS, th);
-        cv::line(fullImg, shoulderR, hipR, colorS, th);
-        cv::line(fullImg, hipL, hipR, colorS, th);
-        cv::line(fullImg, elbowL, handL, colorS, th);
-        cv::line(fullImg, elbowR, handR, colorS, th);
-        cv::line(fullImg, hipL, kneeL, colorS, th);
-        cv::line(fullImg, hipR, kneeR, colorS, th);
-        cv::line(fullImg, kneeR, footR, colorS, th);
-        cv::line(fullImg, kneeL, footL, colorS, th);
+        if(head.x && head.y && shoulderL.x && shoulderL.y) cv::line(fullImg, head, shoulderL, colorS, th);
+        if(head.x && head.y && shoulderR.x && shoulderR.y) cv::line(fullImg, head, shoulderR, colorS, th);
+        if(shoulderL.x && shoulderL.y && shoulderR.x && shoulderR.y) cv::line(fullImg, shoulderL, shoulderR, colorS, th);
+        if(shoulderL.x && shoulderL.y && elbowL.x && elbowL.y) cv::line(fullImg, shoulderL, elbowL, colorS, th);
+        if(shoulderR.x && shoulderR.y && elbowR.x && elbowR.y) cv::line(fullImg, shoulderR, elbowR, colorS, th);
+        if(shoulderL.x && shoulderL.y && hipL.x && hipL.y) cv::line(fullImg, shoulderL, hipL, colorS, th);
+        if(shoulderR.x && shoulderR.y && hipR.x && hipR.y) cv::line(fullImg, shoulderR, hipR, colorS, th);
+        if(hipL.x && hipL.y && hipR.x && hipR.y) cv::line(fullImg, hipL, hipR, colorS, th);
+        if(elbowL.x && elbowL.y && handL.x && handL.y) cv::line(fullImg, elbowL, handL, colorS, th);
+        if(elbowR.x && elbowR.y && handR.x && handR.y) cv::line(fullImg, elbowR, handR, colorS, th);
+        if(hipL.x && hipL.y && kneeL.x && kneeL.y) cv::line(fullImg, hipL, kneeL, colorS, th);
+        if(hipR.x && hipR.y && kneeR.x && kneeR.y) cv::line(fullImg, hipR, kneeR, colorS, th);
+        if(kneeR.x && kneeR.y && footR.x && footR.y) cv::line(fullImg, kneeR, footR, colorS, th);
+        if(kneeL.x && kneeL.y && footL.x && footL.y) cv::line(fullImg, kneeL, footL, colorS, th);
     }
 
 
@@ -322,9 +357,9 @@ public:
         double t0, t1=0, tprev, t2 = 0;
         long int mes = 0;
         double freq = 0;
+        bool firstDet = false;
         
-        
-        while (true)
+        while (!Thread::isStopping())
         {
             double dt = 0.0;
             t1 = Time::now() - t0;
@@ -350,6 +385,7 @@ public:
                 for (auto &t : builtPose)
                     aux_out << t.u << " " << t.v << " ";
                 aux_out << std::endl;
+		firstDet = true;
             }
 
             // read events
@@ -385,39 +421,85 @@ public:
                     qROI.add(qi);
                     evsFullImg.push_back(qi);
                     nevs++;
+                    // if(qi.x >= 0 && qi.x<dimX && qi.y >= 0 && qi.y<dimY)
+                    if(qi.x >= qROI.roi[0] && qi.x<qROI.roi[1] && qi.y >= qROI.roi[2] && qi.y<qROI.roi[3])
+                        Te[qi.y][qi.x] = qi.stamp * vtsHelper::tsscaler;
                 }
             }
-            qROI.setSize(int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])/5));
-            
+            if(method == 1)
+                qROI.setSize(int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])/4));
+            else if(method == 2)
+                qROI.setSize(int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])*1));
+                
+            // normalize cv mat 
+            for (int i = 0; i < dimY; i++) 
+            {
+                for (int j = 0; j < dimX; j++) 
+                {
+                    matTe.at<float>(i, j) = float(Te[i][j]);
+                }
+            }
+            cv::normalize(matTe,matTe, 0, 1, cv::NORM_MINMAX);
+
             // Add events to output image
             if(initTimer) evsToImage(evsFullImg); 
 
             // Process data for tracking
-            if(pose.size()) // a pose has been detected before
+            if(pose.size() && firstDet) // a pose has been detected before
             {
                 if (nevs && qROI.q.size() && !bot_sklt)// && qROI.q.front().stamp * vtsHelper::tsscaler > skltTs) // there are events to process
                 {
+                    // separate events into deques to avoid using event-driven in hpe-core
                     std::deque<joint> evs;
                     std::deque<double> evsTs;
                     std::deque<int> evsPol;
                     tracker.getEventsUV(qROI.q, evs, evsTs, vtsHelper::tsscaler, evsPol); // get events u,v coords
-                    // Velocity estimation Method 1: time diff on adjacent events 
-                    if(nevs > 20)
-                        dpose = tracker.estimateVelocity(evs, evsTs, jointName, nevs/4, dpose);  // get veocities from delta ts
-                    double dt = (qROI.q.front().stamp - qROI.q.back().stamp) * vtsHelper::tsscaler;
-                    if(nevs > 20)
-                        tracker.fusion(&pose, dpose, dt); // should integrate from pose eith new velocity
+                    
+                    if(method == 1) // Velocity estimation Method 1: time diff on adjacent events 
+                    {
+                        if(nevs > 20)
+                        {
+                            dpose = tracker.estimateVelocity(evs, evsTs, jointName, nevs/2, dpose, vels);  // get veocities from delta ts
+                            double dt = (qROI.q.front().stamp - qROI.q.back().stamp) * vtsHelper::tsscaler;
+                            tracker.fusion(&pose, dpose, dt);
+                        }
+                    }
+                    else if(method == 2) // Velocity estimation Method 2: EAT 
+                    {
+                        // tracker.estimateFire(evs, evsTs, evsPol, jointName, nevs, pose, dpose, Te, matTe);
+                        // double err = tracker.getError(evs, evsTs, evsPol, jointName, nevs, pose, dpose, Te, matTe);
+                        // dpose = tracker.setVel(jointName, dpose, pose[jointName].u, pose[jointName].v, err);
+                        dpose = tracker.nearestEvent(evs, evsTs, jointName, nevs, dpose, vels); 
+                        double dt = (qROI.q.front().stamp - qROI.q.back().stamp) * vtsHelper::tsscaler;
+                        tracker.fusion(&pose, dpose, dt);
+                    }
+
                     // write integrated output to file
-                    // output_writer << qROI.q.front().stamp * vtsHelper::tsscaler << " ";
                     output_writer << t1 << " ";
                     for (auto &t : pose)
                         output_writer << t.u << " " << t.v << " ";
                     output_writer << std::endl;
+
                     // update roi
                     int x = pose[jointName].u;
                     int y = pose[jointName].v;
                     // qROI.setROI(x - roiWidth / 2, x + roiWidth / 2, y - roiHeight / 2, y + roiHeight / 2);
                     pose2img.push_back(pose);
+
+                    // output velocities estimations
+                    if(false) // true = write averaged vel - false = write event by event vel
+                    {
+                        vel_out << t1 << " " << dpose[jointName].u << " " << dpose[jointName].v << std::endl;
+                    }
+                    else
+                    {
+                        while(!vels.empty())
+                        {
+                            joint V = vels.front();
+                            vel_out << t1 << " " << V.u << " " << V.v << std::endl;
+                            vels.pop_front();
+                        }
+                    }
                 }
                 else if (bot_sklt) // there weren't events to process but a detection occured
                 {
