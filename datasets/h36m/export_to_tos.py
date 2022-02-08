@@ -13,8 +13,8 @@ import json
 import bimvee
 from datasets.utils.events_representation import EROS
 
-data_dvs_file = "/home/ggoyal/data/h36m/yarp/S1_Directions_1/ch0dvs/data.log"
-data_vicon_file = "/home/ggoyal/data/h36m/yarp/S1_Directions_1/ch0GT50Hzskeleton/data.log"
+data_dvs_file = "/home/ggoyal/data/h36m/yarp/S1_Directions/ch0dvs/data.log"
+data_vicon_file = "/home/ggoyal/data/h36m/yarp/S1_Directions/ch0GT50Hzskeleton/data.log"
 output_path = "/home/ggoyal/data/h36m/tester/yarp/S1_Directions/"
 
 with open(data_dvs_file) as f:
@@ -23,7 +23,7 @@ with open(data_dvs_file) as f:
 with open(data_vicon_file) as f:
     data_vicon = f.readlines()
 
-print(len(data_dvs)/len(data_vicon))
+print(len(data_dvs))
 print(len(data_vicon))
 
 # Set up the iterator. where the next function will call all events till the next timestamp of the skeleton
