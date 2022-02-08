@@ -34,3 +34,6 @@
 
 *.idea
 *.user
+
+#compiled python caches
+*.pyc
