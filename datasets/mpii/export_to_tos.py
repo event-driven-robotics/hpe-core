@@ -171,8 +171,44 @@ def mpii_to_movenet(poses_mpii, images_folder, image_name):
     return poses_movenet
 
 
-def export_to_tos(data_ann, image_folder, output_folder, gaussian_blur_k_size, gaussian_blur_sigma, canny_low_th,
-                  canny_high_th, canny_aperture, canny_l2_grad, salt_pepper_low_th, salt_pepper_high_th):
+def export_to_tos(data_ann: dict, image_folder: pathlib.Path, output_folder: pathlib.Path, gaussian_blur_k_size: int,
+                  gaussian_blur_sigma: int, canny_low_th: int, canny_high_th: int, canny_aperture: int,
+                  canny_l2_grad: bool, salt_pepper_low_th: int, salt_pepper_high_th: int,
+                  crop_pose: bool = False) -> None:
+
+    """Export MPII images to TOS-like frames.
+
+    The function converts MPII frames to a TOS-like representation by applying Gaussian blur, a Canny edge detector
+    and salt and pepper noise to the original RGB frames (see class EROSSynthetic in datasets/utils/events_representation.py
+    for implementation details). The function generates also a json file containing annotations in Movenet's format
+
+    Parameters
+    ----------
+    data_ann: dict
+        Dictionary containing MPII annotation data
+    image_folder: pathlib.Path
+        Path to the images folder
+    output_folder: pathlib.Path
+        Path to the output folder where the TOS-like frames and the json file will be saved
+    gaussian_blur_k_size: int
+        kernel size used for pre-Canny edge detection Gaussian blurring
+    gaussian_blur_sigma: int
+        sigma used for pre-Canny edge detection Gaussian blurring
+    canny_low_th: int
+        min value for Canny's hysteresis thresholding
+    canny_high_th: int
+        max value for Canny's hysteresis thresholding
+    canny_aperture: int
+        aperture size for Canny's Sobel operator
+    canny_l2_grad: bool
+        flag indicating if L2 norm has to be used for Canny's gradient computation
+    salt_pepper_low_th: int
+        salt and pepper min value for post-Canny edge noise addition
+    salt_pepper_high_th: int
+        salt and pepper max value for post-Canny edge noise addition
+    crop_pose: bool
+        flag indicating if frames must be cropped around single poses
+    """
 
     iterator = mpii_parse.MPIIIterator(data_ann, image_folder)
 
@@ -206,7 +242,6 @@ def export_to_tos(data_ann, image_folder, output_folder, gaussian_blur_k_size, g
     output_json = output_folder / 'poses.json'
     with open(str(output_json.resolve()), 'w') as f:
         json.dump(poses, f, ensure_ascii=False)
-
 
 
 def main(args):
