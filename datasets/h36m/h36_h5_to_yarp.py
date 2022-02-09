@@ -23,12 +23,12 @@ from bimvee import exportIitYarp
 
 
 # Directory with 
-datadir = '/data/h36m/events/'
+datadir = '/data/h36m/events_v2e/'
 outputdir = '/data/h36m/yarp/'
 # datadir = '/home/fdipietro/hpe-data/h36_server/'
 dir_list = os.listdir(datadir)
 if 'yarp' in dir_list: dir_list.remove('yarp')
-
+# dir_list = ['S1_Discussion_1']
 
 # %% Import/Export 
 for i in tqdm(range(len(dir_list))):
@@ -38,12 +38,17 @@ for i in tqdm(range(len(dir_list))):
     data = np.array(hf["events"][:]) #dataset_name is same as hdf5 object name 
     container = {}
     fileExport = outputdir + dir_list[i]
+    # if os.path.isdir(os.path.join(fileExport,'ch0dvs')):
+    #     continue
     container['info'] = {}
     container['info']['filePathOrName'] = fileExport 
     container['data'] = {}
     container['data']['ch0'] = {}
     container['data']['ch0']['dvs'] = {}
-    container['data']['ch0']['dvs']['ts'] = (data[:,0]-data[0,0])*1e-6
+    try:
+        container['data']['ch0']['dvs']['ts'] = (data[:,0]-data[0,0])*1e-6
+    except IndexError:
+        continue
     container['data']['ch0']['dvs']['x'] = data[:,1]
     container['data']['ch0']['dvs']['y'] = data[:,2]
     container['data']['ch0']['dvs']['pol'] = data[:,3].astype(bool)

@@ -25,9 +25,11 @@ subs = ['S1', 'S5', 'S6', 'S7', 'S8', 'S9', 'S11']
 all_cameras = {1: '54138969', 2: '55011271', 3: '58860488', 4: '60457274'}
 cam = 2  # And maybe later camera 4.
 errorlog = '/home/ggoyal/data/h36m/errorlog.txt'
-OUTPUT_FRAMES=0
+OUTPUT_FRAMES = False
 
-def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl):
+
+def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl, write_frames=True, write_pose=True,
+                         overwrite=False):
     # Convert the video and annotations to yarp formats.
     counter = 0
     frame_lines = []
@@ -37,7 +39,10 @@ def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl):
     data = (cdf_file.varget("Pose")).squeeze()
     dim = (output_width, output_height)
 
-    if OUTPUT_FRAMES:
+    if not overwrite:
+        if isfile(join(dir_pose, 'data.log')):
+            write_pose = False
+    if write_frames:
         if not os.path.exists(directory_frames):
             os.makedirs(directory_frames)
     if not os.path.exists(directory_skl):
@@ -64,7 +69,7 @@ def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl):
 
         filename = 'frame_' + str(counter).zfill(10) + '.png'
         filename_full = os.path.join(directory_frames, filename)
-        if OUTPUT_FRAMES:
+        if write_frames:
             frame_resized = cv2.resize(src=frame, dsize=dim, interpolation=cv2.INTER_AREA)
             cv2.imwrite(filename_full, frame_resized)  # create the images
 
@@ -73,12 +78,12 @@ def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl):
 
         pose_small[:, 0] = pose_small[:, 0] * output_width / 1000
         pose_small[:, 1] = pose_small[:, 1] * output_height / 1000
-        pose_small = np.rint(pose_small)
+        pose_small = np.rint(pose_small).astype(int)
+        pose_small_str = np.array2string(pose_small.reshape(-1), max_line_width=1000, precision=0, separator=' ')
 
         # # data.log
         frame_lines.append(" %d %.6f %s [rgb]" % (counter, timestamp, filename))
-        pose_lines.append("%d %.6f SKLT (%s)" % (counter, timestamp, str(pose_small.reshape(-1))[1:-1]))
-
+        pose_lines.append("%d %.6f SKLT (%s)" % (counter, timestamp, pose_small_str[1:-1]))
         counter += 1
 
     # info.log
@@ -87,9 +92,12 @@ def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl):
 
     vid.release()
 
-    if OUTPUT_FRAMES:
+    if write_frames:
         parsing.writer(directory_frames, frame_lines, frame_linesInfo)
-    parsing.writer(directory_skl, pose_lines, pose_linesInfo)
+    if write_pose:
+        parsing.writer(directory_skl, pose_lines, pose_linesInfo)
+    # print(pose_lines)
+    # print(pose_linesInfo)
     return 0
 
 
@@ -108,20 +116,27 @@ for i in tqdm(range(len(all_files))):
     output_folder = ("%s_%s" % (sub, file.split('.')[0].replace(' ', '_')))
     dir_frames = join(data_output_path, output_folder, 'ch0frames')
     dir_pose = join(data_output_path, output_folder, 'ch0GT50Hzskeleton')
-    if isfile(join(dir_pose,'data.log')):
-        continue
+    # if isfile(join(dir_pose,'data.log')):
+    #     continue
     # print((isfile(video_file),isfile(pose_file),dir_frames,dir_pose))
     if not isfile(pose_file):
         continue
-    exitcode = write_video_and_pose(video_file, pose_file, dir_frames, dir_pose)
+    exitcode = write_video_and_pose(video_file, pose_file, dir_frames, dir_pose, write_frames=OUTPUT_FRAMES,
+                                write_pose=True,overwrite=True)
 
     if exitcode:
         with open(errorlog, 'a') as f:
             f.write("%s" % all_files[i])
 
 
-
-
+# sub, file = all_files[10].split('^')
+# video_file = (join(dataset_path, sub, 'Videos', file))
+# pose_file = (join(dataset_path, sub, "Poses_D2_Positions", file.replace('mp4', 'cdf')))
+# output_folder = ("%s_%s" % (sub, file.split('.')[0].replace(' ', '_')))
+# dir_frames = join(data_output_path, output_folder, 'ch0frames')
+# dir_pose = join(data_output_path, output_folder, 'ch0GT50Hzskeleton')
+# exitcode = write_video_and_pose(video_file, pose_file, dir_frames, dir_pose, write_frames=OUTPUT_FRAMES,
+#                                 write_pose=True,overwrite=True)
 
 # limbs = {0: 'PelvisC', 1: 'PelvisR', 2: 'KneeR', 3: 'AnkleR', 4: 'ToeR', 5: 'ToeROther', 6: 'PelvisL', 7: 'KneeL',
 # 8: 'AnkleR', 9: 'ToeR', 10: 'ToeROther', 11: 'Spine', 12: 'SpineM', 13: 'Neck', 14: 'Head', 15: 'HeadOther',

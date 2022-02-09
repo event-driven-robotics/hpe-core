@@ -11,46 +11,74 @@ import cv2
 import pathlib
 import json
 import bimvee
+import re
+import numpy as np
+from datasets.h36m.utils.parsing import H36mEventsIterator
 from datasets.utils.events_representation import EROS
+from bimvee.importIitYarp import importIitYarp as import_dvs
 
-data_dvs_file = "/home/ggoyal/data/h36m/yarp/S1_Directions/ch0dvs/data.log"
+eros_kernel = 6
+frame_width = 346
+frame_height = 260
+
+def importSkeletonData(content):
+    # TODO: Read and safe skeletons in the movenet skeleton points.
+    pass
+    pattern = re.compile('\d* (\d*.\d*) SKLT \((.*)\)')
+
+    # data_dict = {k: [] for k in keys}
+    data_dict = {}
+    timestamps = []
+    for line in content:
+        ts, points = pattern.findall(line)[0]
+        # points = np.array(points.split(' ')).astype(int).reshape(-1, 2)
+        # for d, label in zip(data, data_dict):
+        #     data_dict[label].append(d)
+        timestamps.append(ts)
+    data_dict['ts'] = np.array(timestamps).astype(float)
+    for d in data_dict:
+         data_dict[d] = np.array(data_dict[d])
+    return data_dict
+
+data_dvs_file = "/home/ggoyal/data/h36m/yarp/S1_Directions/ch0dvs/"
 data_vicon_file = "/home/ggoyal/data/h36m/yarp/S1_Directions/ch0GT50Hzskeleton/data.log"
 output_path = "/home/ggoyal/data/h36m/tester/yarp/S1_Directions/"
 
-with open(data_dvs_file) as f:
-    data_dvs = f.readlines()
+
 
 with open(data_vicon_file) as f:
-    data_vicon = f.readlines()
+    datalines_vicon = f.readlines()
 
-print(len(data_dvs))
-print(len(data_vicon))
+print(len(datalines_vicon))
 
-# Set up the iterator. where the next function will call all events till the next timestamp of the skeleton
+data_vicon = importSkeletonData(datalines_vicon)
+data_dvs = import_dvs(filePathOrName=data_dvs_file)
+n = 0
+
+iterator = H36mEventsIterator(data_dvs['data']['left']['dvs'], data_vicon['ts'])
+eros = EROS(kernel_size=eros_kernel,frame_width=frame_width,frame_height=frame_height)
+
+if eros_kernel % 2 != 0:
+    eros_kernel += 1
+print(eros_kernel)
+for fi, (events,ts) in enumerate(iterator):
+    # print(events.shape,ts)
+    for ei in range(len(events)):
+        eros.update(vx=int(events[ei, 0]), vy=int(events[ei, 1]))
+    frame = eros.get_frame()
+    frame = cv2.GaussianBlur(frame, (3,3), 0)
+    cv2.imshow('EROS',frame)
+    cv2.waitKey(1)
+
+    if fi >400:
+        break
+
 
 # Loop on iterator.
-    # update the EROS represetnation and save the image in jpg.
-    # Save the pose information for the json file.
+# update the EROS represetnation and save the image in jpg.
+# Save the pose information for the json file.
 # Shuffle the pose files. Save the json file.
 
-def importSkeletonDataLog(filePath, keys):
-    # TODO: Read and safe skeletons in the movenet skeleton points.
-    pass
-    # pattern = re.compile('\d* (\d*.\d*) SKLT \((.*)\)')
-    # with open(filePath) as f:
-    #     content = f.readlines()
-    # data_dict = {k: [] for k in keys}
-    # timestamps = []
-    # for line in content:
-    #     ts, data = pattern.findall(line)[0]
-    #     data = np.array(data.split(' ')).astype(int).reshape(-1, 2)
-    #     for d, label in zip(data, data_dict):
-    #         data_dict[label].append(d)
-    #     timestamps.append(ts)
-    # data_dict['ts'] = np.array(timestamps).astype(float)
-    # for d in data_dict:
-    #     data_dict[d] = np.array(data_dict[d])
-    # return data_dict
 
 # def importSkeleton(**kwargs):
 #     with open(kwargs.get('filePathOrName'), 'r') as f:
@@ -61,18 +89,18 @@ def importeventDataLog(filePath, keys):
     # TODO: Read and safe dvs in the format that the EROS needs it.
     pass
 
+
 class H36M19Iterator:
 
     def __init__(self, data_dvs, data_vicon):
         self.data_dvs = data_dvs
         self.data_vicon = data_vicon
 
-
     def __iter__(self):
         return self
 
     def __len__(self):
-        return 0 #TODO: Number of poses.
+        return 0  # TODO: Number of poses.
 
     # def __next__(self):
 #         if self.curr_ind == -1:

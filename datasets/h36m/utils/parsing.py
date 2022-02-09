@@ -14,7 +14,7 @@ all_cameras = {1: '54138969', 2: '55011271', 3: '58860488', 4: '60457274'}
 H36M_BODY_PARTS_rev = {0: 'PelvisC', 1: 'PelvisR', 2: 'KneeR', 3: 'AnkleR', 4: 'ToeR', 5: 'ToeROther', 6: 'PelvisL',
                        7: 'KneeL', 8: 'AnkleL', 9: 'ToeR', 10: 'ToeROther', 11: 'Spine', 12: 'SpineM', 13: 'Neck',
                        14: 'Head', 15: 'HeadOther', 16: 'NextAgain', 17: 'ShoulderL', 18: 'ElbowL', 19: 'WristL',
-                       20: 'WristLAgain', 21: 'ThumbL', 22: 'BOHR', 23: 'BOHRAgain',  24: 'NeckAgainAgain',
+                       20: 'WristLAgain', 21: 'ThumbL', 22: 'BOHR', 23: 'BOHRAgain', 24: 'NeckAgainAgain',
                        25: 'ShoulderR', 26: 'ElbowR', 27: 'WristR', 28: 'WristAgain', 29: 'ThumbR', 30: 'BOHL',
                        31: 'BOHLAgain'}
 
@@ -71,12 +71,13 @@ def h36m_to_dhp19(pose):
 def get_h36m_body_parts(pose):
     inv_map = {v: k for k, v in pose.items()}
     return inv_map
+
+
 # def openpose_to_dhp19(pose_op):
 #     # TODO: compute dhp19's head joints from openpose
 #     return pose_op[OPENPOSE_TO_DHP19_INDICES[:, 0], :]
 
-def writer(directory,datalines,infolines):
-
+def writer(directory, datalines, infolines):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
@@ -92,7 +93,56 @@ def writer(directory,datalines,infolines):
         for line in infolines:
             f.write("%s\n" % line)
 
-#
+
+class H36mEventsIterator:
+    def __init__(self, data, target_ts):
+        # TODO: add return of skeleton
+
+        self.timestamps = data['ts']  # timestamps present in the dvs
+
+        self.events = zip(data['ts'], data['x'], data['y'], data['pol'])
+        self.events_x = data['x']
+        self.events_y = data['y']
+
+        self.target_ts = target_ts  # timestamps from vicon
+
+        self.prev = 0.0
+        self.ind = 1 if target_ts[0] == self.prev else 0
+        self.current = target_ts[self.ind]
+
+        self.stop_flag = False
+
+    def __iter__(self):
+        return self
+
+    def __len__(self):
+        return int(np.ceil(len(self.timestamps) / self.target_ts))
+
+    def __next__(self):
+        if self.stop_flag:
+            raise StopIteration
+        # print(self.ind)
+        self.prev = self.current
+        self.current = self.target_ts[self.ind]
+        events_iter = np.array([])
+        for i, t in enumerate(self.timestamps):
+            if self.prev < t <= self.current:
+                events = np.array([self.events_x[i], self.events_y[i]], dtype=int).reshape(1,2)
+                try:
+                    events_iter = np.concatenate((events, events_iter), axis=0)
+                except:
+                    events_iter = events
+
+        self.ind += 1
+        self.__update_current_index(self.ind)
+        # print(events_iter.shape)
+        return events_iter,self.current
+
+    def __update_current_index(self, end_ind):
+
+        if end_ind >= self.target_ts.shape[0]:
+            self.stop_flag = True
+
 # class Dhp19EventsIterator:
 #
 #     # TODO: add param for overlapping?
