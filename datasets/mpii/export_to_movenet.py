@@ -371,7 +371,7 @@ if __name__ == '__main__':
     parser.add_argument('-crop', help='flag; if specified, images will be cropped around single poses and saved, '
                                       'keypoint coordinates will be transformed to the bbox coordinates space',
                         dest='crop', action='store_true')
-    parser.set_defaults(crop=True)
+    parser.set_defaults(crop=False)
 
     args = parser.parse_args()
 
