@@ -11,13 +11,13 @@ import datasets.mpii.utils.parsing as mpii_parse
 from datasets.utils.events_representation import EROSSynthetic
 
 
-def export_to_tos(data_ann: dict, image_folder: pathlib.Path, output_folder: pathlib.Path, gaussian_blur_k_size: int,
-                  gaussian_blur_sigma: int, canny_low_th: int, canny_high_th: int, canny_aperture: int,
-                  canny_l2_grad: bool, salt_pepper_low_th: int, salt_pepper_high_th: int) -> None:
+def export_to_eros(data_ann: dict, image_folder: pathlib.Path, output_folder: pathlib.Path, gaussian_blur_k_size: int,
+                   gaussian_blur_sigma: int, canny_low_th: int, canny_high_th: int, canny_aperture: int,
+                   canny_l2_grad: bool, salt_pepper_low_th: int, salt_pepper_high_th: int) -> None:
 
-    """Export MPII images to TOS-like frames.
+    """Export MPII images to EROS-like frames.
 
-    The function converts MPII frames to a TOS-like representation by applying Gaussian blur, a Canny edge detector
+    The function converts MPII frames to a EROS-like representation by applying Gaussian blur, a Canny edge detector
     and salt and pepper noise to the original RGB frames (see class EROSSynthetic in datasets/utils/events_representation.py
     for implementation details).
 
@@ -28,7 +28,7 @@ def export_to_tos(data_ann: dict, image_folder: pathlib.Path, output_folder: pat
     image_folder: pathlib.Path
         Path to the images folder
     output_folder: pathlib.Path
-        Path to the output folder where the TOS-like frames and the json file will be saved
+        Path to the output folder where the EROS-like frames and the json file will be saved
     gaussian_blur_k_size: int
         kernel size used for pre-Canny edge detection Gaussian blurring
     gaussian_blur_sigma: int
@@ -49,16 +49,16 @@ def export_to_tos(data_ann: dict, image_folder: pathlib.Path, output_folder: pat
 
     iterator = mpii_parse.MPIIIterator(data_ann, image_folder)
 
-    tos = EROSSynthetic(gaussian_blur_k_size, gaussian_blur_sigma, canny_low_th, canny_high_th,
+    eros = EROSSynthetic(gaussian_blur_k_size, gaussian_blur_sigma, canny_low_th, canny_high_th,
                         canny_aperture, canny_l2_grad, salt_pepper_low_th, salt_pepper_high_th)
 
-    for fi, (img, poses_ann, img_name) in enumerate(tqdm(iterator)):
+    for fi, (img, _, img_name) in enumerate(tqdm(iterator)):
 
         if img is None:
             print(f'image {img_name} does not exist')
             continue
 
-        frame = tos.get_frame(img)
+        frame = eros.get_frame(img)
         file_path = output_folder / img_name
         if not cv2.imwrite(str(file_path), frame):
             print(f'could not save image to {str(file_path)}')
@@ -78,10 +78,10 @@ def main(args):
     output_folder_path = pathlib.Path(output_folder_path.resolve())
     output_folder_path.mkdir(parents=True, exist_ok=True)
 
-    export_to_tos(data_ann, img_folder_path, output_folder_path,
-                  gaussian_blur_k_size=args.gk, gaussian_blur_sigma=args.gs,
-                  canny_low_th=args.cl, canny_high_th=args.ch, canny_aperture=args.ca, canny_l2_grad=args.cg,
-                  salt_pepper_low_th=args.sl, salt_pepper_high_th=args.sh)
+    export_to_eros(data_ann, img_folder_path, output_folder_path,
+                   gaussian_blur_k_size=args.gk, gaussian_blur_sigma=args.gs,
+                   canny_low_th=args.cl, canny_high_th=args.ch, canny_aperture=args.ca, canny_l2_grad=args.cg,
+                   salt_pepper_low_th=args.sl, salt_pepper_high_th=args.sh)
 
 
 if __name__ == '__main__':
@@ -95,9 +95,9 @@ if __name__ == '__main__':
     parser.add_argument('-i', help='path to images folder')
     parser.add_argument('-o', help='path to output folder')
 
-    ######################
-    # synthetic TOS params
-    ######################
+    ##################
+    # EROS-like params
+    ##################
 
     # canny edge detector params
     parser.add_argument('-gk', help='gaussian blur kernel size', type=int, default=5)
