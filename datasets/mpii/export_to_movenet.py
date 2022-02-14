@@ -306,7 +306,7 @@ def export_to_movenet(data_ann: dict, image_folder: pathlib.Path, output_folder:
     image_folder: pathlib.Path
         Path to the images folder
     output_folder: pathlib.Path
-        Path to the output folder where the TOS-like frames and the json file will be saved
+        Path to the output folder where the EROS-like frames and the json file will be saved
     crop_poses: bool
         flag indicating if frames must be cropped around single poses (default: True)
     """
