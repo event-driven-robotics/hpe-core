@@ -285,6 +285,15 @@ def export_to_movenet(data_ann: dict, image_folder: pathlib.Path, output_folder:
 
     The function converts MPII annotations to Movenet's compatible json. Example format
 
+    [{"img_name": "0.jpg",
+      "keypoints": [x0,y0,z0,x1,y1,z1,...],  # flattened array of x, y coordinates and value z: 0 for no label, 1 for labeled but invisible, 2 for labeled and visible
+      "center": [x,y],  # pose center
+      "bbox":[x0,y0,x1,y1],  # pose bounding box
+      "other_centers": [[x0,y0],[x1,y1],...],  # list of other poses' centers
+      "other_keypoints": [[[x0,y0],[x1,y1],...],[[x0,y0],[x1,y1],...],...],  # list of other poses' keypoints; other_keypoints[i] = list of keypoints for joint 'i'
+     },
+     ...
+    ]
 
     If crop_poses is set to True, then frames are cropped using the bounding boxes around single poses and saved to the
     output folder as <frame_name>_<pose_num>.<ext>; additionally, keypoints coordinates are transformed to the bounding
