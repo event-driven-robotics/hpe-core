@@ -61,12 +61,40 @@ H36M_TO_DHP19_INDICES = np.array([
     [8, 12]  # footL
 ])
 
+DHP19_TO_MOVENET_INDICES = np.array([
+    # TODO: fix to be similar to the previous one.
+    [0, 0],  # head
+    [1, 2],  # lshoulder
+    [2, 1],  # rshoulder
+    [3, 4],  # lelbow
+    [4, 3],  # relbow
+    [5, 8],  # lwrist
+    [6, 7],  # rwrist
+    [7, 5],  # lhip
+    [8, 6],  # rhip
+    [9, 10],  # lknee
+    [10, 9],  # rknee
+    [11, 12],  # lankle
+    [12, 11]  # rankle
+])
 
 def h36m_to_dhp19(pose):
     return pose[H36M_TO_DHP19_INDICES[:, 0], :]
 
 
-# TODO
+def dhp19_to_movenet(pose):
+    return pose[DHP19_TO_MOVENET_INDICES[:, 1], :]
+
+def h36m_to_movenet(pose):
+    return dhp19_to_movenet(pose)
+
+def movenet_to_dhp19(pose):
+    pass
+
+
+def dhp19_to_h36m(pose):
+    # TODO
+    pass
 
 def get_h36m_body_parts(pose):
     inv_map = {v: k for k, v in pose.items()}
@@ -94,8 +122,8 @@ def writer(directory, datalines, infolines):
             f.write("%s\n" % line)
 
 
-class H36mEventsIterator:
-    def __init__(self, data, target_ts):
+class H36mIterator:
+    def __init__(self, data, data_skl):
         # TODO: add return of skeleton
 
         self.timestamps = data['ts']  # timestamps present in the dvs
@@ -104,13 +132,15 @@ class H36mEventsIterator:
         self.events_x = data['x']
         self.events_y = data['y']
 
-        self.target_ts = target_ts  # timestamps from vicon
+        self.target_ts = data_skl['ts']  # timestamps from vicon
 
         self.prev = 0.0
-        self.ind = 1 if target_ts[0] == self.prev else 0
-        self.current = target_ts[self.ind]
+        self.ind = 1 if self.target_ts[0] == self.prev else 0
+        self.current = self.target_ts[self.ind]
 
         self.stop_flag = False
+        self.skl_keys = [str(i) for i in range(0, 13)]
+        self.skl = data_skl
 
     def __iter__(self):
         return self
@@ -124,6 +154,8 @@ class H36mEventsIterator:
         # print(self.ind)
         self.prev = self.current
         self.current = self.target_ts[self.ind]
+
+        # Extracting all relevant events in the time frame
         events_iter = np.array([])
         for i, t in enumerate(self.timestamps):
             if self.prev < t <= self.current:
@@ -133,10 +165,14 @@ class H36mEventsIterator:
                 except:
                     events_iter = events
 
+        # Extracting the GT skeleton
+        skl = []
+        [skl.append(self.skl[k][self.ind]) for k in self.skl_keys]
+        skl = np.vstack(skl)
         self.ind += 1
         self.__update_current_index(self.ind)
         # print(events_iter.shape)
-        return events_iter,self.current
+        return events_iter, skl, self.current
 
     def __update_current_index(self, end_ind):
 
