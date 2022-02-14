@@ -1,5 +1,4 @@
 # MPII Human Pose Dataset
-
 [MPII Human Pose dataset](http://human-pose.mpi-inf.mpg.de) is a state of the art benchmark for evaluation of articulated human pose estimation. The dataset
 includes around 25K images containing over 40K people with annotated body joints. The images were systematically 
 collected using an established taxonomy of every day human activities. Overall the dataset covers 410 human activities 
@@ -64,3 +63,5 @@ Additionally, images will be cropped using the bounding boxes around single pose
 `<image_name>_<pose_num>.<ext>`; keypoints coordinates will also be transformed to the bounding box reference system.
 This post-processing step can be eliminated by removing parameter `-crop`.
 
+## Export to YARP Format
+Export of MPII to YARP format has not been implemented yet.
