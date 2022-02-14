@@ -1,9 +1,6 @@
 
 import argparse
 import cv2
-import json
-import numpy as np
-import os
 import pathlib
 
 from tqdm import tqdm
@@ -11,202 +8,61 @@ from tqdm import tqdm
 import datasets.utils.mat_files as mat_utils
 import datasets.mpii.utils.parsing as mpii_parse
 
-from datasets.mpii.utils.parsing import MPII_BODY_PARTS
 from datasets.utils.events_representation import EROSSynthetic
 
 
-MOVENET_KEYPOINTS = ['nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear',
-                    'left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow', 'left_wrist',
-                    'right_wrist', 'left_hip', 'right_hip', 'left_knee', 'right_knee', 'left_ankle',
-                    'right_ankle']
+def export_to_tos(data_ann: dict, image_folder: pathlib.Path, output_folder: pathlib.Path, gaussian_blur_k_size: int,
+                  gaussian_blur_sigma: int, canny_low_th: int, canny_high_th: int, canny_aperture: int,
+                  canny_l2_grad: bool, salt_pepper_low_th: int, salt_pepper_high_th: int) -> None:
 
-MOVENET_13_TO_MPII_INDICES = np.array([
+    """Export MPII images to TOS-like frames.
 
-    [0, None],  # head center, not present in movenet and mpii
-    [1, MPII_BODY_PARTS['lshoulder']],  # left shoulder
-    [2, MPII_BODY_PARTS['rshoulder']],  # right shoulder
-    [3, MPII_BODY_PARTS['lelbow']],  # left elbow
-    [4, MPII_BODY_PARTS['relbow']],  # right elbow
-    [5, MPII_BODY_PARTS['lwrist']],  #  left wrist
-    [6, MPII_BODY_PARTS['rwrist']],  # right wrist
-    [7, MPII_BODY_PARTS['lhip']],  # left hip
-    [8, MPII_BODY_PARTS['rhip']],  # right hip
-    [9, MPII_BODY_PARTS['lknee']],  # left knee
-    [10, MPII_BODY_PARTS['rknee']],  # right knee
-    [11, MPII_BODY_PARTS['lankle']],  # left ankle
-    [12, MPII_BODY_PARTS['rankle']]  # right ankle
-])
+    The function converts MPII frames to a TOS-like representation by applying Gaussian blur, a Canny edge detector
+    and salt and pepper noise to the original RGB frames (see class EROSSynthetic in datasets/utils/events_representation.py
+    for implementation details).
 
-
-def compute_head_size(mpii_annorect, h_rescaling_factor=1., w_rescaling_factor=1.):
-    sc_bias = 0.6  # 0.8 * 0.75 constant used in mpii matlab code for computing the head size
-    head_size = sc_bias * np.linalg.norm([(mpii_annorect['x2'] - mpii_annorect['x1']) * w_rescaling_factor,
-                                          (mpii_annorect['y2'] - mpii_annorect['y1']) * h_rescaling_factor])
-    return head_size
-
-
-def get_movenet_keypoints(mpii_annorect, h_rescaling_factor=1., w_rescaling_factor=1., add_visibility=True):
-
-    keypoints = []
-
-    # use mpii's head rectangle center as head keypoint
-    head_x = (mpii_annorect['x1'] + mpii_annorect['x2']) / 2
-    head_x *= w_rescaling_factor
-
-    head_y = (mpii_annorect['y1'] + mpii_annorect['y2']) / 2
-    head_y *= h_rescaling_factor
-
-    if add_visibility:
-        keypoints.extend([head_x, head_y, 2])
-    else:
-        keypoints.extend([head_x, head_y])
-
-    for ind in MOVENET_13_TO_MPII_INDICES[1:]:
-        mpii_keypoint_ind = ind[1]
-        visibility = 0
-        for point in mpii_annorect['annopoints']['point']:
-
-            if point['id'] != mpii_keypoint_ind:
-                continue
-
-            if point['is_visible'] == 1:
-                visibility = 2
-            else:
-                visibility = 1
-
-            if add_visibility:
-                keypoints.extend([point['x'] * w_rescaling_factor,
-                                  point['y'] * h_rescaling_factor,
-                                  visibility])
-            else:
-                keypoints.extend([point['x'] * w_rescaling_factor,
-                                  point['y'] * h_rescaling_factor])
-
-            break
-
-        if visibility == 0:  # keypoint has not been annotated
-            if add_visibility:
-                keypoints.extend([0, 0, visibility])
-            else:
-                keypoints.extend([0, 0])
-
-    return keypoints
-
-
-def get_mpii_other_centers(ind_to_exclude, mpii_annorect, h_rescaling_factor=1., w_rescaling_factor=1.):
-
-    centers = []
-    for ai, ann in enumerate(mpii_annorect):
-        if ai == ind_to_exclude:
-            continue
-        centers.append([ann['objpos']['x'] * w_rescaling_factor,
-                        ann['objpos']['y'] * h_rescaling_factor])
-    return centers
-
-
-def get_mpii_other_keypoints(ind_to_exclude, mpii_annorect, h_rescaling_factor=1., w_rescaling_factor=1.):
-
-    keypoints = [[] for _ in range(len(MOVENET_13_TO_MPII_INDICES))]
-
-    for ai, ann in enumerate(mpii_annorect):
-        if ai == ind_to_exclude:
-            continue
-
-        # calculate head keypoint
-        head_x = (ann['x1'] + ann['x2']) / 2
-        head_y = (ann['y1'] + ann['y2']) / 2
-
-        # append head keypoint to list
-        keypoints[MOVENET_13_TO_MPII_INDICES[0][0]].append([head_x * w_rescaling_factor, head_y * h_rescaling_factor])
-
-        for ind in MOVENET_13_TO_MPII_INDICES[1:]:
-            mpii_keypoint_ind = ind[1]
-            for point in ann['annopoints']['point']:
-
-                if point['id'] != mpii_keypoint_ind:
-                    continue
-
-                keypoints[ind[0]].append([point['x'] * w_rescaling_factor, point['y'] * h_rescaling_factor])
-                break
-
-    # keypoints = []
-    # for ai, ann in enumerate(mpii_annorect):
-    #     if ai == ind_to_exclude:
-    #         continue
-    #
-    #     # add keypoint without visibility element (not needed in 'other_keypoints')
-    #     keypoints.append(get_movenet_keypoints(ann, h_rescaling_factor, w_rescaling_factor, add_visibility=False))
-
-    return keypoints
-
-
-def mpii_to_movenet(poses_mpii, images_folder, image_name):
-
-    poses_movenet = []
-    for ai, p_mpii in enumerate(poses_mpii):
-
-        try:
-            p_movenet = dict()
-            p_movenet['img_name'] = image_name
-
-            img_path = images_folder / image_name
-            img = cv2.imread(str(img_path.resolve()))
-            h, w, _ = img.shape
-            h_rescaling_factor = 1 / h
-            w_rescaling_factor = 1 / w
-
-            p_movenet['head_size'] = compute_head_size(p_mpii)
-            p_movenet['head_size_scaled'] = compute_head_size(p_mpii, h_rescaling_factor, w_rescaling_factor)
-            p_movenet['keypoints'] = get_movenet_keypoints(p_mpii, h_rescaling_factor, w_rescaling_factor)
-            p_movenet['center'] = [p_mpii['objpos']['x'] * w_rescaling_factor,
-                                   p_mpii['objpos']['y'] * h_rescaling_factor]
-            # p_movenet['bbox'] = get_movenet_bbox(p_movenet['keypoints'])
-            p_movenet['other_centers'] = get_mpii_other_centers(ai, poses_mpii, h_rescaling_factor, w_rescaling_factor)
-            p_movenet['other_keypoints'] = get_mpii_other_keypoints(ai, poses_mpii, h_rescaling_factor, w_rescaling_factor)
-        except:
-            continue
-
-        poses_movenet.append(p_movenet)
-
-    return poses_movenet
-
-
-def export_to_tos(data_ann, image_folder, output_folder, gaussian_blur_k_size, gaussian_blur_sigma, canny_low_th,
-                  canny_high_th, canny_aperture, canny_l2_grad, salt_pepper_low_th, salt_pepper_high_th):
+    Parameters
+    ----------
+    data_ann: dict
+        Dictionary containing MPII annotation data
+    image_folder: pathlib.Path
+        Path to the images folder
+    output_folder: pathlib.Path
+        Path to the output folder where the TOS-like frames and the json file will be saved
+    gaussian_blur_k_size: int
+        kernel size used for pre-Canny edge detection Gaussian blurring
+    gaussian_blur_sigma: int
+        sigma used for pre-Canny edge detection Gaussian blurring
+    canny_low_th: int
+        min value for Canny's hysteresis thresholding
+    canny_high_th: int
+        max value for Canny's hysteresis thresholding
+    canny_aperture: int
+        aperture size for Canny's Sobel operator
+    canny_l2_grad: bool
+        flag indicating if L2 norm has to be used for Canny's gradient computation
+    salt_pepper_low_th: int
+        salt and pepper min value for post-Canny edge noise addition
+    salt_pepper_high_th: int
+        salt and pepper max value for post-Canny edge noise addition
+    """
 
     iterator = mpii_parse.MPIIIterator(data_ann, image_folder)
 
     tos = EROSSynthetic(gaussian_blur_k_size, gaussian_blur_sigma, canny_low_th, canny_high_th,
                         canny_aperture, canny_l2_grad, salt_pepper_low_th, salt_pepper_high_th)
 
-    poses = []
     for fi, (img, poses_ann, img_name) in enumerate(tqdm(iterator)):
-
-        # skip images with more than three people (as in movenet's code)
-        if len(poses_ann) > 3:
-            continue
 
         if img is None:
             print(f'image {img_name} does not exist')
             continue
 
-        movenet_poses = mpii_to_movenet(poses_ann, image_folder, img_name)
-
-        if len(movenet_poses) == 0:
-            print(f'no annotations for image {img_name}')
-            continue
-
-        poses.extend(movenet_poses)
-
         frame = tos.get_frame(img)
         file_path = output_folder / img_name
         if not cv2.imwrite(str(file_path), frame):
             print(f'could not save image to {str(file_path)}')
-
-    output_json = output_folder / 'poses.json'
-    with open(str(output_json.resolve()), 'w') as f:
-        json.dump(poses, f, ensure_ascii=False)
-
+            continue
 
 
 def main(args):
@@ -230,11 +86,18 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+
+    ################
+    # general params
+    ################
+
     parser.add_argument('-a', help='path to annotations file')
     parser.add_argument('-i', help='path to images folder')
     parser.add_argument('-o', help='path to output folder')
 
+    ######################
     # synthetic TOS params
+    ######################
 
     # canny edge detector params
     parser.add_argument('-gk', help='gaussian blur kernel size', type=int, default=5)
