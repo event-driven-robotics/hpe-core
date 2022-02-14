@@ -4,7 +4,7 @@ import pathlib
 
 
 def export_to_yarp(input_folder, annotations_path, output_folder):
-    print('export_to_yarp is not implemented for MPII dataset')
+    print('export_to_yarp is not implemented yet for MPII dataset')
     pass
 
 
