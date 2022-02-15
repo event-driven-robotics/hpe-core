@@ -6,11 +6,9 @@ Author:
 LICENSE GOES HERE
 """
 
-import argparse
+import tqdm
 import cv2
-import pathlib
 import json
-import bimvee
 import os
 import re
 import math
@@ -143,12 +141,12 @@ if __name__ == '__main__':
     dir_list = os.listdir(input_data_dir)
     print(dir_list)
 
-    for sample in dir_list:
-
-
+    # for sample in dir_list:
+    for i in tqdm(range(len(dir_list))):
+        sample = dir_list[i]
         dvs_dir = os.path.join(input_data_dir, sample, 'ch0dvs')
         data_vicon_file = os.path.join(input_data_dir, sample, 'ch0GT50Hzskeleton/data.log')
-        print(sample)
+        print(str(i) + sample)
         if os.path.exists(dvs_dir) and os.path.exists(data_vicon_file):
             poses_sample = export_to_eros(dvs_dir, data_vicon_file, output_path_images)
 
