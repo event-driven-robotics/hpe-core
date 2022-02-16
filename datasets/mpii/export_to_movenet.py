@@ -306,7 +306,7 @@ def export_to_movenet(data_ann: dict, image_folder: pathlib.Path, output_folder:
     image_folder: pathlib.Path
         Path to the images folder
     output_folder: pathlib.Path
-        Path to the output folder where the TOS-like frames and the json file will be saved
+        Path to the output folder where the EROS-like frames and the json file will be saved
     crop_poses: bool
         flag indicating if frames must be cropped around single poses (default: True)
     """
@@ -371,7 +371,7 @@ if __name__ == '__main__':
     parser.add_argument('-crop', help='flag; if specified, images will be cropped around single poses and saved, '
                                       'keypoint coordinates will be transformed to the bbox coordinates space',
                         dest='crop', action='store_true')
-    parser.set_defaults(crop=True)
+    parser.set_defaults(crop=False)
 
     args = parser.parse_args()
 
