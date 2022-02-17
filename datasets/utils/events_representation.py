@@ -50,6 +50,9 @@ class EROS:
         self.decay_base = decay_base
         self._image = np.zeros((frame_height, frame_width), dtype=np.uint8)
 
+        if self.kernel_size % 2 != 0:
+            self.kernel_size += 1
+
     def get_frame(self):
         return self._image
 

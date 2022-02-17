@@ -14,7 +14,7 @@ all_cameras = {1: '54138969', 2: '55011271', 3: '58860488', 4: '60457274'}
 H36M_BODY_PARTS_rev = {0: 'PelvisC', 1: 'PelvisR', 2: 'KneeR', 3: 'AnkleR', 4: 'ToeR', 5: 'ToeROther', 6: 'PelvisL',
                        7: 'KneeL', 8: 'AnkleL', 9: 'ToeR', 10: 'ToeROther', 11: 'Spine', 12: 'SpineM', 13: 'Neck',
                        14: 'Head', 15: 'HeadOther', 16: 'NextAgain', 17: 'ShoulderL', 18: 'ElbowL', 19: 'WristL',
-                       20: 'WristLAgain', 21: 'ThumbL', 22: 'BOHR', 23: 'BOHRAgain',  24: 'NeckAgainAgain',
+                       20: 'WristLAgain', 21: 'ThumbL', 22: 'BOHR', 23: 'BOHRAgain', 24: 'NeckAgainAgain',
                        25: 'ShoulderR', 26: 'ElbowR', 27: 'WristR', 28: 'WristAgain', 29: 'ThumbR', 30: 'BOHL',
                        31: 'BOHLAgain'}
 
@@ -61,22 +61,51 @@ H36M_TO_DHP19_INDICES = np.array([
     [8, 12]  # footL
 ])
 
+DHP19_TO_MOVENET_INDICES = np.array([
+    # TODO: fix to be similar to the previous one.
+    [0, 0],  # head
+    [1, 2],  # lshoulder
+    [2, 1],  # rshoulder
+    [3, 4],  # lelbow
+    [4, 3],  # relbow
+    [5, 8],  # lwrist
+    [6, 7],  # rwrist
+    [7, 5],  # lhip
+    [8, 6],  # rhip
+    [9, 10],  # lknee
+    [10, 9],  # rknee
+    [11, 12],  # lankle
+    [12, 11]  # rankle
+])
 
 def h36m_to_dhp19(pose):
     return pose[H36M_TO_DHP19_INDICES[:, 0], :]
 
 
-# TODO
+def dhp19_to_movenet(pose):
+    return pose[DHP19_TO_MOVENET_INDICES[:, 1], :]
+
+def h36m_to_movenet(pose):
+    return dhp19_to_movenet(pose)
+
+def movenet_to_dhp19(pose):
+    pass
+
+
+def dhp19_to_h36m(pose):
+    # TODO
+    pass
 
 def get_h36m_body_parts(pose):
     inv_map = {v: k for k, v in pose.items()}
     return inv_map
+
+
 # def openpose_to_dhp19(pose_op):
 #     # TODO: compute dhp19's head joints from openpose
 #     return pose_op[OPENPOSE_TO_DHP19_INDICES[:, 0], :]
 
-def writer(directory,datalines,infolines):
-
+def writer(directory, datalines, infolines):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
@@ -92,7 +121,64 @@ def writer(directory,datalines,infolines):
         for line in infolines:
             f.write("%s\n" % line)
 
-#
+
+class H36mIterator:
+    def __init__(self, data, data_skl):
+        # TODO: add return of skeleton
+
+        self.timestamps = data['ts']  # timestamps present in the dvs
+
+        self.events = zip(data['ts'], data['x'], data['y'], data['pol'])
+        self.events_x = data['x']
+        self.events_y = data['y']
+
+        self.target_ts = data_skl['ts']  # timestamps from vicon
+
+        self.prev = 0.0
+        self.ind = 1 if self.target_ts[0] == self.prev else 0
+        self.current = self.target_ts[self.ind]
+
+        self.stop_flag = False
+        self.skl_keys = [str(i) for i in range(0, 13)]
+        self.skl = data_skl
+
+    def __iter__(self):
+        return self
+
+    def __len__(self):
+        return int(np.ceil(len(self.timestamps) / self.target_ts))
+
+    def __next__(self):
+        if self.stop_flag:
+            raise StopIteration
+        # print(self.ind)
+        self.prev = self.current
+        self.current = self.target_ts[self.ind]
+
+        # Extracting all relevant events in the time frame
+        events_iter = np.array([])
+        for i, t in enumerate(self.timestamps):
+            if self.prev < t <= self.current:
+                events = np.array([self.events_x[i], self.events_y[i]], dtype=int).reshape(1,2)
+                try:
+                    events_iter = np.concatenate((events, events_iter), axis=0)
+                except:
+                    events_iter = events
+
+        # Extracting the GT skeleton
+        skl = []
+        [skl.append(self.skl[k][self.ind]) for k in self.skl_keys]
+        skl = np.vstack(skl)
+        self.ind += 1
+        self.__update_current_index(self.ind)
+        # print(events_iter.shape)
+        return events_iter, skl, self.current
+
+    def __update_current_index(self, end_ind):
+
+        if end_ind >= self.target_ts.shape[0]:
+            self.stop_flag = True
+
 # class Dhp19EventsIterator:
 #
 #     # TODO: add param for overlapping?
