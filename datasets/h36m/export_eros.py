@@ -17,6 +17,7 @@ from datasets.h36m.utils.parsing import H36mIterator, h36m_to_movenet
 from datasets.utils.events_representation import EROS
 from bimvee.importIitYarp import importIitYarp as import_dvs
 
+<<<<<<< HEAD
 dataset = 'DHP19' #  h36m
 frame_width = 346
 frame_height = 260
@@ -29,6 +30,12 @@ elif dataset == 'h36m':
     eros_kernel = 6
     gauss_kernel = 5
     decay_base = 0.3
+=======
+eros_kernel = 6
+frame_width = 346
+frame_height = 260
+gauss_kernel = 7
+>>>>>>> main
 
 
 def importSkeletonData(filename):
@@ -91,6 +98,7 @@ def get_center(pose, h_frame=1, w_frame=1):
 
 
 def export_to_eros(data_dvs_file, data_vicon_file, output_path_images):
+<<<<<<< HEAD
     if dataset == 'h36m':
         action_name = data_dvs_file.split(os.sep)[-2]
     elif dataset == 'DHP19':
@@ -98,11 +106,15 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path_images):
     else:
         print('invalid dataset name.')
         return None
+=======
+    action_name = data_dvs_file.split(os.sep)[-2]
+>>>>>>> main
 
     data_vicon = importSkeletonData(data_vicon_file)
     data_dvs = import_dvs(filePathOrName=data_dvs_file)
 
     iterator = H36mIterator(data_dvs['data']['left']['dvs'], data_vicon)
+<<<<<<< HEAD
     eros = EROS(kernel_size=eros_kernel, frame_width=frame_width, frame_height=frame_height, decay_base=decay_base)
 
     poses_movenet = []
@@ -110,6 +122,15 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path_images):
         for ei in range(len(events)):
             eros.update(vx=int(events[ei, 0]), vy=int(events[ei, 1]))
         frame = eros.get_frame()
+=======
+    # eros = EROS(kernel_size=eros_kernel, frame_width=frame_width, frame_height=frame_height)
+
+    poses_movenet = []
+    for fi, (events, pose, ts) in enumerate(iterator):
+        # for ei in range(len(events)):
+        #     eros.update(vx=int(events[ei, 0]), vy=int(events[ei, 1]))
+        # frame = eros.get_frame()
+>>>>>>> main
 
         if fi == 0:  # Almost empty image, not beneficial for training
             kps_old = get_keypoints(pose, frame_height, frame_width)
@@ -128,10 +149,15 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path_images):
         sample_anno['originall_sample'] = action_name
 
         # print(sample_anno)
+<<<<<<< HEAD
         frame = cv2.GaussianBlur(frame, (gauss_kernel, gauss_kernel), 0)
         cv2.imwrite(os.path.join(output_path_images, sample_anno['img_name']), frame)
         # cv2.imshow('',frame)
         # cv2.waitKey(1)
+=======
+        # frame = cv2.GaussianBlur(frame, (gauss_kernel, gauss_kernel), 0)
+        # cv2.imwrite(os.path.join(output_path_images, sample_anno['img_name']), frame)
+>>>>>>> main
 
         poses_movenet.append(sample_anno)
 
@@ -139,6 +165,7 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path_images):
     return poses_movenet
 
 
+<<<<<<< HEAD
 #
 # if __name__ == '__main__':
 #     from_scratch = True # Set to false if continuing a previous run
@@ -185,23 +212,36 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path_images):
 if __name__ == '__main__':
     # For a sample of the DHP19
 
+=======
+if __name__ == '__main__':
+>>>>>>> main
     from_scratch = True # Set to false if continuing a previous run
 
     # dvs_dir = "/home/ggoyal/data/h36m/yarp/S11_Phoning_3/ch0dvs/"
     # data_vicon_file = "/home/ggoyal/data/h36m/yarp/S11_Phoning_3/ch0GT50Hzskeleton/data.log"
 
+<<<<<<< HEAD
     output_path_images = "/home/ggoyal/data/"+dataset+"/samples_for_pred/"
     output_path_anno = "/home/ggoyal/data/"+dataset+"/samples_for_pred/"
+=======
+    output_path_images = "/home/ggoyal/data/h36m/tester/h36m_EROS/"
+    output_path_anno = "/home/ggoyal/data/h36m/tester/h36m_anno/"
+>>>>>>> main
     output_path_images = os.path.abspath(output_path_images)
     output_path_anno = os.path.abspath(output_path_anno)
     output_json = output_path_anno + '/poses.json'
 
+<<<<<<< HEAD
     input_data_dir = "/home/ggoyal/data/DHP19/subset/"
+=======
+    input_data_dir = "/home/ggoyal/data/h36m/yarp"
+>>>>>>> main
     input_data_dir = os.path.abspath(input_data_dir)
 
     dir_list = os.listdir(input_data_dir)
     print(dir_list)
 
+<<<<<<< HEAD
     # dir_list_pred = ["S9_Smoking", "S9_Posing_1", "S11_Phoning_2", "S11_Sitting"]
 
     # for sample in dir_list:
@@ -214,6 +254,14 @@ if __name__ == '__main__':
         dvs_dir = os.path.join(input_data_dir, sample, 'yarp', 'ch3', 'ch3dvs')
         data_vicon_file = os.path.join(input_data_dir, sample, 'yarp', 'ch3', 'ch3GT10Hzskeleton','data.log')
         print(i, sample, os.path.isdir(dvs_dir),os.path.exists(data_vicon_file))
+=======
+    # for sample in dir_list:
+    for i in tqdm(range(len(dir_list))):
+        sample = dir_list[i]
+        dvs_dir = os.path.join(input_data_dir, sample, 'ch0dvs')
+        data_vicon_file = os.path.join(input_data_dir, sample, 'ch0GT50Hzskeleton/data.log')
+        print(str(i) + sample)
+>>>>>>> main
         if os.path.exists(dvs_dir) and os.path.exists(data_vicon_file):
             poses_sample = export_to_eros(dvs_dir, data_vicon_file, output_path_images)
 
@@ -221,6 +269,10 @@ if __name__ == '__main__':
                 with open(str(output_json), 'w') as f:
                     json.dump(poses_sample, f, ensure_ascii=False)
                     from_scratch = False
+<<<<<<< HEAD
+=======
+                    exit() ######################################################################
+>>>>>>> main
             else:
                 with open(str(output_json), 'r+') as f:
                     poses = json.load(f)
@@ -229,4 +281,9 @@ if __name__ == '__main__':
                     poses = json.dump(poses, f, ensure_ascii=False)
             # poses.extend(poses_sample)
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> main
 # TODO: Shuffle the pose files. Save the json file.
