@@ -245,8 +245,6 @@ def arg_parser(cfg):
                         type=str)
     parser.add_argument('--predict_output_path', help='Directory to save images after prediction (without GT)',
                         default=cfg['predict_output_path'], type=str)
-    parser.add_argument('--exam_label_path', help='File (full or relative path) to validation annotation file',
-                        default=cfg['exam_label_path'], type=str)
     parser.add_argument('--eval_img_path', help='Directory to the images for evaluation', default=cfg['eval_img_path'],
                         type=str)
     parser.add_argument('--eval_label_path', help='File (full or relative path) to evaluation annotation file',

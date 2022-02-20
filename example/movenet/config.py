@@ -17,7 +17,7 @@ cfg = {
     "random_seed": 42,
     "cfg_verbose": True,
     "save_dir": home + "output/",
-    # "num_classes": 17,
+    "num_classes": 13,
     "width_mult": 1.0,
     "img_size": 192,
     'label': 'dev',
@@ -58,71 +58,31 @@ cfg = {
 
 # test_img_path is for prediction script
 
-if dataset == "coco":
-    cfg["num_classes"] = 17
-    cfg["img_path"] = "cropped/imgs"
-    cfg["separated_data"] = True
-    cfg["train_label_path"] = home + 'cropped/train2017.json'
-    cfg["val_label_path"] = home + 'cropped/val2017.json'
-
-    cfg["test_img_path"] = home + "cropped/imgs"
-    cfg["exam_label_path"] = home + '/all/data_all_new.json'
-    cfg["exam_output_path"] = home + "/exam/"
-    cfg["eval_img_path"] = home + "cropped/imgs"
-    cfg["eval_label_path"] = home + 'val.json'
 
 if dataset == "mpii2":
-    cfg["num_classes"] = 13
     cfg["img_path"] = home + "eros_synthetic_export_cropped/"
-    cfg["separated_data"] = True
     cfg["train_label_path"] = home + '/eros_synthetic_export_cropped/train.json'
     cfg["val_label_path"] = home + '/eros_synthetic_export_cropped/val.json'
 
     # cfg["test_img_path"] = home + '/tos_synthetic_export/'
-    # cfg["test_img_path"] = home + 'eval_subset/'
-    # cfg["predict_output_path"] = home + '/pred_mpii2_on-mpii-cropped/'
-    cfg["exam_label_path"] = home + 'val_subset.json'
-    cfg["exam_img_path"] = home + 'eval_subset/'
-    cfg["exam_output_path"] = home + "/exam/"
     cfg["eval_img_path"] = home + '/eros_synthetic_export_cropped/'
     cfg["eval_label_path"] = home + '/eros_synthetic_export_cropped/val.json'
-    # cfg["eval_label_path"] =  home + 'cropped/val2017.json'
 
 if dataset == 'h36m':
-    cfg["num_classes"] = 13
     cfg["img_path"] = home + "training/h36m_EROS/"
-    cfg["separated_data"] = True
     cfg["train_label_path"] = home + '/training/train_subject.json'
     cfg["val_label_path"] = home + '/training/val_subject.json'
 
     cfg["test_img_path"] = home + '/samples_for_pred/'
-    cfg["predict_output_path"] = home + "/pred_output/"
-    cfg["exam_label_path"] = home + '/samples_for_pred/poses.json'
-    cfg["exam_img_path"] = home + '/samples_for_pred/'
-    cfg["exam_output_path"] = home + "/exam/"
     cfg["eval_img_path"] = home + '/training/h36m_EROS/'
     cfg["eval_label_path"] = home + '/training/val_subject.json'
 
 # samples_for_pred
 if dataset == 'DHP19':
-    cfg["num_classes"] = 13
     cfg["img_path"] = home + "/samples_for_pred/"
-    cfg["separated_data"] = True
     cfg["train_label_path"] = home + '/poses.json'
     cfg["val_label_path"] = home + '/poses.json'
 
     cfg["test_img_path"] = home + '/samples_for_pred/'
-    cfg["predict_output_path"] = home + "/pred/"
-    cfg["exam_output_path"] = home + "/exam/"
-    cfg["exam_img_path"] = home + 'samples_for_pred/'
-    cfg["exam_label_path"] = home + '/poses.json'
     cfg["eval_img_path"] = home + '/samples_for_pred/'
     cfg["eval_label_path"] = home + "/poses.json"
-
-cfg['newest_ckpt'] = "/home/ggoyal/data/mpii/output/hypertune_0/best.pth"  # mpii original EROS
-# cfg['newest_ckpt'] = "/home/ggoyal/data/mpii2/output/best.pth"  # mpii cropped EROS
-# cfg['newest_ckpt'] = "/home/ggoyal/data/h36m/output/finetuning_subject/best.pth"  # h36m subject fromscratch
-
-# cfg["exam_output_path"] = home + "/exams_and_evals/exam_on-mpii1/"
-# cfg["exam_output_path"] = home + "/exams_and_evals/exam_on-mpii-cropped/"
-cfg["eval_output_path"] = home + "/exams_and_evals/eval_on-h36m-scratch/"
