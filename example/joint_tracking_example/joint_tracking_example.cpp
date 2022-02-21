@@ -39,7 +39,7 @@ private:
     sklt pose, dpose, poseGT;
     hpecore::jointMotionEstimator tracker;
     roiq qROI;
-    int roiWidth = 20;
+    int roiWidth = 32;
     int roiHeight = roiWidth;
     skltJoint jointName;
     string jointNameStr;
@@ -57,6 +57,7 @@ private:
     double** Te;
     joint center, prev;
     int method;
+    bool avgV = false;
 
 public:
     jointTrack() {}
@@ -120,7 +121,12 @@ public:
         jointNameStr = rf.check("joint", Value("handL")).asString();
         jointName = str2enum(jointNameStr);
         displayF = rf.check("F", Value(25)).asFloat32();
-        method = rf.check("M", Value(1)).asInt();
+        method = rf.check("M", Value(2)).asInt();
+
+        if(rf.check("avgV"))
+            avgV = true;
+
+
         yInfo() << "Method for velocity estimations = " << method;
 
         // intialize velocities
@@ -213,10 +219,11 @@ public:
     virtual bool updateModule()
     {
         // plot ground-truth skeleton
-        if(initTimer) drawSkeleton(poseGT);
+        if (initTimer)
+            drawSkeleton(poseGT);
 
         // plot tracked joint
-        while(!pose2img.empty())
+        while (!pose2img.empty())
         {
             int x = pose2img.front()[jointName].u;
             int y = pose2img.front()[jointName].v;
@@ -224,48 +231,48 @@ public:
             cv::drawMarker(fullImg, pt, cv::Scalar(0.8, 0, 0), 0, 6);
             pose2img.pop_front();
         }
-    
+
         // double the resolution to add text
         cv::Mat aux;
         fullImg.copyTo(aux);
-        cv::resize(fullImg, aux, cv::Size(dimX*2,dimY*2), 0, 0, cv::INTER_CUBIC);
+        cv::resize(fullImg, aux, cv::Size(dimX * 2, dimY * 2), 0, 0, cv::INTER_CUBIC);
         // Add text
-        cv::putText(aux, 
+        cv::putText(aux,
                     "Detection",
-                    cv::Point(dimX*1.6, dimY*1.8), // Coordinates
-                    cv::FONT_HERSHEY_SIMPLEX, // Font
-                    0.8, // Scale
-                    cv::Scalar(0.0, 0.0, 0.8), // BGR Color
-                    1, // Line Thickness 
-                    cv:: LINE_AA); // Anti-alias 
-        cv::putText(aux, 
+                    cv::Point(dimX * 1.6, dimY * 1.8), // Coordinates
+                    cv::FONT_HERSHEY_SIMPLEX,          // Font
+                    0.8,                               // Scale
+                    cv::Scalar(0.0, 0.0, 0.8),         // BGR Color
+                    1,                                 // Line Thickness
+                    cv::LINE_AA);                      // Anti-alias
+        cv::putText(aux,
                     "Tracking",
-                    cv::Point(dimX*1.6, dimY*1.9), // Coordinates
-                    cv::FONT_HERSHEY_SIMPLEX, // Font
-                    0.8, // Scale
-                    cv::Scalar(0.8, 0.0, 0.0), // BGR Color
-                    1, // Line Thickness
-                    cv:: LINE_AA); // Anti-alias
+                    cv::Point(dimX * 1.6, dimY * 1.9), // Coordinates
+                    cv::FONT_HERSHEY_SIMPLEX,          // Font
+                    0.8,                               // Scale
+                    cv::Scalar(0.8, 0.0, 0.0),         // BGR Color
+                    1,                                 // Line Thickness
+                    cv::LINE_AA);                      // Anti-alias
         std::string strF = std::to_string(int(avgF));
-        if(showF)
-        cv::putText(aux, 
-                    "Freq = " + strF + "Hz",
-                    cv::Point(dimX*0.05, dimY*1.9), // Coordinates
-                    cv::FONT_HERSHEY_SIMPLEX, // Font
-                    0.8, // Scale
-                    cv::Scalar(0.8, 0.8, 0.8), // BGR Color
-                    1, // Line Thickness
-                    cv:: LINE_AA); // Anti-alias
-        cv::putText(aux, 
+        if (showF)
+            cv::putText(aux,
+                        "Freq = " + strF + "Hz",
+                        cv::Point(dimX * 0.05, dimY * 1.9), // Coordinates
+                        cv::FONT_HERSHEY_SIMPLEX,           // Font
+                        0.8,                                // Scale
+                        cv::Scalar(0.8, 0.8, 0.8),          // BGR Color
+                        1,                                  // Line Thickness
+                        cv::LINE_AA);                       // Anti-alias
+        cv::putText(aux,
                     "HPE-core EDPR",
-                    cv::Point(dimX*0.5, dimY*0.2), // Coordinates
-                    cv::FONT_HERSHEY_SIMPLEX, // Font
-                    1.2, // Scale
-                    cv::Scalar(0.8, 0.8, 0.8), // BGR Color
-                    1, // Line Thickness 
-                    cv:: LINE_AA); // Anti-alias 
-        
-        if(plotCv) // output image using opencv
+                    cv::Point(dimX * 0.5, dimY * 0.2), // Coordinates
+                    cv::FONT_HERSHEY_SIMPLEX,          // Font
+                    1.2,                               // Scale
+                    cv::Scalar(0.8, 0.8, 0.8),         // BGR Color
+                    1,                                 // Line Thickness
+                    cv::LINE_AA);                      // Anti-alias
+
+        if (plotCv) // output image using opencv
         {
             cv::imshow("HPE OUTPUT", aux);
             // cv::imshow("METHOD II", matTe);
@@ -279,7 +286,7 @@ public:
         image_port.prepare().copy(yarp::cv::fromCvMat<PixelRgb>(img_out));
         image_port.write();
         fullImg = cv::Vec3f(0.4, 0.4, 0.4);
-        
+
         return Thread::isRunning();
     }
 
@@ -354,7 +361,7 @@ public:
         Bottle *bot_sklt;
         double skltTs;
         const vector<AE> *q;
-        double t0, t1=0, tprev, t2 = 0;
+        double t0, t1=0, tprev, t2 = 0, t3 = 0, t3prev = 0;
         long int mes = 0;
         double freq = 0;
         bool firstDet = false;
@@ -363,6 +370,7 @@ public:
         {
             double dt = 0.0;
             t1 = Time::now() - t0;
+            t3 = t1;
             // read detections
             // int N = input_sklt.getPendingReads();
             bot_sklt = input_sklt.read(false);
@@ -385,7 +393,7 @@ public:
                 for (auto &t : builtPose)
                     aux_out << t.u << " " << t.v << " ";
                 aux_out << std::endl;
-		firstDet = true;
+                firstDet = true;
             }
 
             // read events
@@ -425,24 +433,35 @@ public:
                     if(qi.x >= qROI.roi[0] && qi.x<qROI.roi[1] && qi.y >= qROI.roi[2] && qi.y<qROI.roi[3])
                         Te[qi.y][qi.x] = qi.stamp * vtsHelper::tsscaler;
                 }
+            
             }
-            if(method == 1)
-                qROI.setSize(int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])/4));
-            else if(method == 2)
-                qROI.setSize(int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])*1));
-                
-            // normalize cv mat 
-            for (int i = 0; i < dimY; i++) 
+            if(nevs)
             {
-                for (int j = 0; j < dimX; j++) 
+                if(method == 1)
+                    qROI.setSize(int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])*1.5));
+                else if(method == 2)
+                {
+                    int halfRoi = int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])*0.5);
+                    if(halfRoi < 2*nevs)
+                        qROI.setSize(nevs*2);
+                    else
+                        qROI.setSize(halfRoi);
+                }
+            }
+        
+            // normalize cv mat
+            for (int i = 0; i < dimY; i++)
+            {
+                for (int j = 0; j < dimX; j++)
                 {
                     matTe.at<float>(i, j) = float(Te[i][j]);
                 }
             }
-            cv::normalize(matTe,matTe, 0, 1, cv::NORM_MINMAX);
+            cv::normalize(matTe, matTe, 0, 1, cv::NORM_MINMAX);
 
             // Add events to output image
-            if(initTimer) evsToImage(evsFullImg); 
+            if (initTimer)
+                evsToImage(evsFullImg);
 
             // Process data for tracking
             if(pose.size() && firstDet) // a pose has been detected before
@@ -459,7 +478,13 @@ public:
                     {
                         if(nevs > 20)
                         {
-                            dpose = tracker.estimateVelocity(evs, evsTs, jointName, nevs/2, dpose, vels);  // get veocities from delta ts
+                            dpose = tracker.estimateVelocity(evs, evsTs, jointName, nevs, dpose, vels);  // get veocities from delta ts
+                            double dt = (qROI.q.front().stamp - qROI.q.back().stamp) * vtsHelper::tsscaler;
+                            tracker.fusion(&pose, dpose, dt);
+                        }
+                        else
+                        {
+                            dpose = tracker.resetVel();
                             double dt = (qROI.q.front().stamp - qROI.q.back().stamp) * vtsHelper::tsscaler;
                             tracker.fusion(&pose, dpose, dt);
                         }
@@ -470,8 +495,10 @@ public:
                         // double err = tracker.getError(evs, evsTs, evsPol, jointName, nevs, pose, dpose, Te, matTe);
                         // dpose = tracker.setVel(jointName, dpose, pose[jointName].u, pose[jointName].v, err);
                         dpose = tracker.nearestEvent(evs, evsTs, jointName, nevs, dpose, vels); 
-                        double dt = (qROI.q.front().stamp - qROI.q.back().stamp) * vtsHelper::tsscaler;
+                        // double dt = (qROI.q.front().stamp - qROI.q.back().stamp) * vtsHelper::tsscaler;
+                        double dt = t3 - t3prev;
                         tracker.fusion(&pose, dpose, dt);
+                        t3prev = t3;
                     }
 
                     // write integrated output to file
@@ -483,11 +510,11 @@ public:
                     // update roi
                     int x = pose[jointName].u;
                     int y = pose[jointName].v;
-                    // qROI.setROI(x - roiWidth / 2, x + roiWidth / 2, y - roiHeight / 2, y + roiHeight / 2);
+                    qROI.setROI(x - roiWidth / 2, x + roiWidth / 2, y - roiHeight / 2, y + roiHeight / 2);
                     pose2img.push_back(pose);
 
                     // output velocities estimations
-                    if(false) // true = write averaged vel - false = write event by event vel
+                    if(avgV) // true = write averaged vel - false = write event by event vel
                     {
                         vel_out << t1 << " " << dpose[jointName].u << " " << dpose[jointName].v << std::endl;
                     }
@@ -509,7 +536,6 @@ public:
                         output_writer << t.u << " " << t.v << " ";
                     output_writer << std::endl;
                 }
-                
             }
         }
     }

@@ -15,6 +15,7 @@ namespace hpecore
     public:
        
       sklt resetPose(sklt detection);
+      sklt resetVel();
       sklt estimateVelocity(std::deque<joint> evs, std::deque<double> evsTs, int jointName, int k, sklt dpose, std::deque<joint>& vels);
       void fusion(sklt *pose, sklt dpose, double dt);
 

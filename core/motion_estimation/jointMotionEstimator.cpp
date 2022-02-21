@@ -9,6 +9,17 @@ sklt jointMotionEstimator::resetPose(sklt detection)
     return detection;
 }
 
+sklt jointMotionEstimator::resetVel()
+{
+    sklt vel;
+    for (size_t i = 0; i < vel.size(); i++)
+    {
+        vel[i].u = 0;
+        vel[i].v = 0;
+    }
+    return vel;
+}
+
 sklt jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<double> evsTs, int jointName, int k, sklt dpose, std::deque<joint>& vels)
 {
     sklt vel;
@@ -29,68 +40,72 @@ sklt jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<do
     // calculate velocity for selected joint
     double dtx = 0.0, dty = 0.0;
     long int nx = 0, ny = 0;
-    for(std::size_t i = 0; i < evs.size()-1; i++)
-    {   
+    int delta = 1;
+    // for(std::size_t i = 0; i < evs.size()-1; i++)
+    for(std::size_t i = 0; i < k-1; i++) // new events
+    {
+        // std::cout << i << ")) " << std::endl;
         // variables for event-by-event velocities
         double tx = 0, ty = 0;
         int nxE = 0, nyE = 0;
-        for(std::size_t j = i+1; j < evs.size(); j++)
+        // for(std::size_t j = i+1; j < evs.size(); j++)
+        for(std::size_t j = k; j < evs.size(); j++) // past events
         {
             if(evs[i].v != evs[j].v || evs[i].u != evs[j].u)
             {
                 if(evs[i].v == evs[j].v) // same y value
                 {
-                    if(evs[i].u == evs[j].u+1)
+                    if(evs[i].u == evs[j].u + delta)
                     {
                         dtx += (evsTs[i] - evsTs[j]);
                         nx++;
                         tx = (evsTs[i] - evsTs[j]);
                         nxE++;
+                        // std::cout << j << ") A [" << evs[i].u << ", "<< evs[i].v
+                        // << "] - [" << evs[j].u << ", " << evs[j].v << "]" << std::endl;
                     }
-                    else if(evs[i].u == evs[j].u-1)
+                    else if(evs[i].u == evs[j].u-delta)
                     {
                         dtx -= (evsTs[i] - evsTs[j]);
                         nx++;
                         tx = -(evsTs[i] - evsTs[j]);
                         nxE++;
+                        // std::cout << j << ") B [" << evs[i].u << ", "<< evs[i].v
+                        // << "] - [" << evs[j].u << ", " << evs[j].v << "]" << std::endl;
                     }    
                 }
                 if(evs[i].u == evs[j].u) // same x value
                 {
-                    if(evs[i].v == evs[j].v+1)
+                    if(evs[i].v == evs[j].v+delta)
                     {
                         dty += (evsTs[i] - evsTs[j]);
                         ny++;
                         ty = (evsTs[i] - evsTs[j]);
                         nyE++;
+                        // std::cout << j << ") C [" << evs[i].u << ", "<< evs[i].v
+                        // << "] - [" << evs[j].u << ", " << evs[j].v << "]" << std::endl;
                     }
                         
-                    else if(evs[i].v == evs[j].v-1)
+                    else if(evs[i].v == evs[j].v-delta)
                     {
                         dty -= (evsTs[i] - evsTs[j]);
                         ny++;
                         ty = -(evsTs[i] - evsTs[j]);
                         nyE++;
+                        // std::cout << j << ") D [" << evs[i].u << ", "<< evs[i].v
+                        // << "] - [" << evs[j].u << ", " << evs[j].v << "]" << std::endl;
                     }
-                }    
+                }
             }
-            
         }
+        // std::cout << std::endl;
         // calculate and save event-by-event velocities
         if(nxE && nyE)
         {
-            if(nxE == 0 && nyE ==0)
-            {
-                tx = 1e6; ty = 1e6;
-            }
-            if(nxE) tx /= nxE;
-            if(nyE) ty /= nyE;
-
-            double dtdp = sqrt(tx*tx + ty*ty);
-            double speed = 1.0 / dtdp;
-            double angle = atan2(ty, tx);
-            double vx = speed * cos(angle);
-            double vy = speed * sin(angle);
+            double epsE = 1e-20;
+            double normE = 1/(tx*tx + ty*ty+epsE);
+            double vx = tx*normE/(nxE+epsE);
+            double vy = ty*normE/(nyE+epsE);
             joint V {vx, vy};
             vels.push_back(V);
         }
@@ -100,13 +115,13 @@ sklt jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<do
     // Calculate and save by-batch velocities
 
     // Franco's way
-    double eps = 1e-20;
-    double norm = 1/sqrt(dtx*dtx + dty*dty+eps);
-    vel[jointName].u = dtx*norm/(nx+eps)*k;
-    vel[jointName].v = dty*norm/(ny+eps)*k;
-    double lim =1e2;
-    if(std::fabs(vel[jointName].u) > lim) vel[jointName].u = 0;
-    if(std::fabs(vel[jointName].v) > lim) vel[jointName].v = 0;
+    double eps = 0;
+    double norm = 1/(dtx*dtx + dty*dty+eps);
+    vel[jointName].u = dtx*norm/(nx+eps);
+    vel[jointName].v = dty*norm/(ny+eps);
+    // double lim =1e2;
+    // if(std::fabs(vel[jointName].u) > lim) vel[jointName].u = 0;
+    // if(std::fabs(vel[jointName].v) > lim) vel[jointName].v = 0;
 
     // Arren'sway
     // if(nx == 0 && ny ==0) {
@@ -335,6 +350,7 @@ sklt jointMotionEstimator::nearestEvent(std::deque<joint> evs, std::deque<double
 {
     double vx = 0, vy = 0;
     int num = 0;
+
     sklt vel;
     for (size_t i = 0; i < vel.size(); i++)
     {
@@ -342,7 +358,7 @@ sklt jointMotionEstimator::nearestEvent(std::deque<joint> evs, std::deque<double
         vel[i].v = 0;
     }
 
-    // erase repeated events
+    // erase repeated events from the past
     for(size_t i=nevs-1; i < evs.size()-1; i++)
 	{
 		for(size_t j=i+1; j<evs.size(); j++)
@@ -377,6 +393,8 @@ sklt jointMotionEstimator::nearestEvent(std::deque<joint> evs, std::deque<double
     //         // event-by-event  velocity
     //         double vxE = (x - evs[jmin].u)/(ts - evsTs[jmin]);
     //         double vyE = (y - evs[jmin].v)/(ts - evsTs[jmin]);
+    //         vx += vxE;
+    //         vy += vyE;
     //         joint V {vxE, vyE};
     //         vels.push_back(V);
     //         // accumulated velocity
@@ -391,17 +409,15 @@ sklt jointMotionEstimator::nearestEvent(std::deque<joint> evs, std::deque<double
     //     }
     // }
 
-    
     // Estimation using more than one event from thepast
     if(nevs < int(evs.size())) // there are  past events
     {
-        
         for(std::size_t i = 0; i < nevs-1; i++) // new events
         {
             int x = evs[i].u;
             int y = evs[i].v;
             double ts = evsTs[i];
-            double rad = 2;
+            double rad = 2.97;
             double vxE = 0, vyE = 0;
             int numE = 0;
             for(std::size_t j = nevs; j < evs.size(); j++) // past events
@@ -410,7 +426,7 @@ sklt jointMotionEstimator::nearestEvent(std::deque<joint> evs, std::deque<double
                 int yp = evs[j].v;
                 double tsp = evsTs[j];
                 double dist = sqrt((xp-x)*(xp-x) + (yp-y)*(yp-y));
-                double dt = ts-tsp;   
+                double dt = ts-tsp;
                 if(dist <= rad && dist > 0)
                 // if(fabs(x-xp) <= rad && fabs(y-yp) <= rad)
                 {
@@ -419,12 +435,17 @@ sklt jointMotionEstimator::nearestEvent(std::deque<joint> evs, std::deque<double
                     numE++;
                 }  
             }
-             // event-by-event  velocity
-            vx += vxE/numE;
-            vy += vyE/numE;
-            joint V {vxE, vyE};
-            vels.push_back(V);
-            num++;
+            // event-by-event  velocity
+            if(numE)
+            {
+                vxE /= numE;
+                vyE /= numE;
+                vx += vxE;
+                vy += vyE;
+                joint V {vxE, vyE};
+                vels.push_back(V);
+                num++;
+            }
         }
         if(num) // average velocity
         {
