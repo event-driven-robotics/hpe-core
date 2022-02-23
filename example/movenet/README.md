@@ -44,4 +44,4 @@ python predict.py
 3. [TFHub：movenet/singlepose/lightning
 ](https://tfhub.dev/google/movenet/singlepose/lightning/4
 )
-4. [My article share: 2021轻量级人体姿态估计模型修炼之路（附谷歌MoveNet复现经验）](https://zhuanlan.zhihu.com/p/413313925)
+4. [My article share: 2021轻量级人体姿态估计模型修炼之路（附谷歌MoveNet复现经验）](https://zhuanlan.zhihu.com/p/413313925
