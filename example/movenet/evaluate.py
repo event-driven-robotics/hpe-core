@@ -4,7 +4,9 @@ https://github.com/fire717
 """
 import os, argparse
 import random
+import sys
 
+sys.path.append('.')
 from lib import init, Data, MoveNet, Task
 
 from config import cfg
