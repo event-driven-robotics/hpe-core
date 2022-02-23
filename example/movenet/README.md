@@ -17,10 +17,15 @@ This is A Pytorch implementation of MoveNet inspired from the [Movenet.Pytorch](
     $ cd <workspace>
     $ git clone git@github.com:event-driven-robotics/hpe-core.git
     $ cd hpe-core/example/yarp_glhpe
-    $ docker build -t gl_hpe:yarp - < Dockerfile
+    $ docker build -t movenet - < Dockerfile
     ```
 :bulb: `<workspace>` is the parent directory in which the repository is cloned
 
+## Usage
+- Run the Docker container and, inside it, run the gl-hpe pose detector
+    ```shell
+    $ docker run -it movenet bash
+    ```
 
 2.To test the model, run 
 ```
