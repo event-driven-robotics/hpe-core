@@ -23,6 +23,17 @@ def getOptimizer(optims, model, learning_rate, weight_decay):
     pass
 
 ############### Tools
+def clipGradient(optimizer, grad_clip=1):
+    """
+    Clips gradients computed during backpropagation to avoid explosion of gradients.
+
+    :param optimizer: optimizer with the gradients to be clipped
+    :param grad_clip: clip value
+    """
+    for group in optimizer.param_groups:
+        for param in group["params"]:
+            if param.grad is not None:
+                param.grad.data.clamp_(-grad_clip, grad_clip)
 
 def movenetDecode(data, kps_mask=None, mode='output', num_joints=17,
                   img_size=192, hm_th=0.1):

@@ -28,6 +28,7 @@ def main(cfg):
     run_task.modelLoad("output/mpii_pre-trained.pth")
 
     run_task.evaluate(data_loader)
+    # run_task.infer_video(data_loader,'/home/ggoyal/data/h36m/tester/out.avi')
 
 
 if __name__ == '__main__':

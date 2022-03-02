@@ -74,8 +74,10 @@ if dataset == 'h36m':
     cfg["val_label_path"] = home + '/training/val_subject.json'
 
     cfg["test_img_path"] = home + '/samples_for_pred/'
-    cfg["eval_img_path"] = home + '/training/h36m_EROS/'
-    cfg["eval_label_path"] = home + '/training/val_subject.json'
+    # cfg["eval_img_path"] = home + '/training/h36m_EROS/'
+    # cfg["eval_label_path"] = home + '/training/val_subject.json'
+    cfg["eval_img_path"] = home + '/samples_for_pred/'
+    cfg["eval_label_path"] = home + "samples_for_pred/poses.json"
 
 # samples_for_pred
 if dataset == 'DHP19':
