@@ -39,8 +39,12 @@ private:
     sklt pose, dpose, poseGT;
     hpecore::jointMotionEstimator tracker;
     roiq qROI;
+    // roi sizes for joint tracking
     int roiWidth = 32;
     int roiHeight = roiWidth;
+    // roi sizes for object tracking (Zhichao)
+    // int roiWidth = 60;
+    // int roiHeight = 100;
     skltJoint jointName;
     string jointNameStr;
     int dimY, dimX;
@@ -58,6 +62,8 @@ private:
     joint center, prev;
     int method;
     bool avgV = false;
+    int gtF, detF;
+    cv::Point ptJoint;
 
 public:
     jointTrack() {}
@@ -95,9 +101,39 @@ public:
             return false;
         }
 
+        gtF = rf.check("gtF", Value(10)).asInt();
+        detF = rf.check("detF", Value(10)).asInt();
+        yInfo() << "Ground-truth frequency = " << gtF << " Hz";
+        switch (gtF)
+        {
+        case 1:
+            // yarp.connect("/file/ch3GT1Hzskeleton:o", getName("/SKLT:i"), "fast_tcp");
+            yarp.connect("/file/1Hz:o", getName("/SKLT:i"), "fast_tcp");
+            break;
+        case 5:
+            yarp.connect("/file/ch3GT5Hzskeleton:o", getName("/SKLT:i"), "fast_tcp");
+            break;
+        case 10:
+            yarp.connect("/file/10Hz:o", getName("/SKLT:i"), "fast_tcp");
+            break;
+         case 50:
+            yarp.connect("/file/50Hz:o", getName("/SKLT:i"), "fast_tcp");
+            break;
+        case 100:
+            yarp.connect("/file/ch3GTHzskeleton:o", getName("/SKLT:i"), "fast_tcp");
+            break;
+        case 500:
+            yarp.connect("/file/502Hz:o", getName("/SKLT:i"), "fast_tcp");
+            break;
+        default:
+            yarp.connect("/file/ch3GT10Hzskeleton:o", getName("/SKLT:i"), "fast_tcp");
+            break;
+        }
+
         // connect ports
-        yarp.connect("/file/ch3dvs:o", getName("/AE:i"), "fast_tcp");
-        yarp.connect("/file/ch3GT10Hzskeleton:o", getName("/SKLT:i"), "fast_tcp");
+        // yarp.connect("/file/ch3dvs:o", getName("/AE:i"), "fast_tcp");
+        yarp.connect("/file/leftdvs:o", getName("/AE:i"), "fast_tcp");
+        // yarp.connect("/file/ch3GT10Hzskeleton:o", getName("/SKLT:i"), "fast_tcp");
         yarp.connect(getName("/img:o"), "/yarpview/img:i", "fast_tcp");
 
         output_writer.open("output.txt");
@@ -139,7 +175,7 @@ public:
         
         if(rf.check("cv"))
             plotCv = true;
-        dimX = rf.check("dimX", Value(346)).asInt();
+        dimX = rf.check("dimX", Value(304)).asInt();
         dimY = rf.check("dimY", Value(240)).asInt();
         yInfo() << "Image dimensions = [" << dimX << ", " << dimY << "]";
         fullImg = cv::Mat::zeros(cv::Size(dimX, dimY), CV_32F);
@@ -333,6 +369,19 @@ public:
         if(hipR.x && hipR.y && kneeR.x && kneeR.y) cv::line(fullImg, hipR, kneeR, colorS, th);
         if(kneeR.x && kneeR.y && footR.x && footR.y) cv::line(fullImg, kneeR, footR, colorS, th);
         if(kneeL.x && kneeL.y && footL.x && footL.y) cv::line(fullImg, kneeL, footL, colorS, th);
+
+        if(ptJoint.x && ptJoint.y)
+        {
+            cv::Point roi02(int(qROI.roi[0]), int(qROI.roi[2]));
+            cv::Point roi12(int(qROI.roi[1]), int(qROI.roi[2]));
+            cv::Point roi03(int(qROI.roi[0]), int(qROI.roi[3]));
+            cv::Point roi13(int(qROI.roi[1]), int(qROI.roi[3]));
+            cv::line(fullImg, roi02, roi12, cv::Scalar(0, 0.5, 0), 2);
+            cv::line(fullImg, roi03, roi13, cv::Scalar(0, 0.5, 0), 2);
+            cv::line(fullImg, roi02, roi03, cv::Scalar(0, 0.5, 0), 2);
+            cv::line(fullImg, roi12, roi13, cv::Scalar(0, 0.5, 0), 2);
+        }
+
     }
 
 
@@ -359,12 +408,15 @@ public:
     {
         Stamp evStamp, skltStamp;
         Bottle *bot_sklt;
-        double skltTs;
+        double skltTs, skltTsPrev;
         const vector<AE> *q;
         double t0, t1=0, tprev, t2 = 0, t3 = 0, t3prev = 0;
         long int mes = 0;
         double freq = 0;
         bool firstDet = false;
+        int detCount = 0;
+        long int fDet;
+        double t4 = 0; 
         
         while (!Thread::isStopping())
         {
@@ -375,9 +427,21 @@ public:
             // int N = input_sklt.getPendingReads();
             bot_sklt = input_sklt.read(false);
             input_sklt.getEnvelope(skltStamp);
+            
             skltTs = skltStamp.getTime();
-            if(bot_sklt) // there is a detection
+
+            ptJoint.x = int(poseGT[jointName].u);
+            ptJoint.y = int(poseGT[jointName].v);
+
+            if(bot_sklt && detCount)
             {
+                detCount--;
+            }
+                
+            if(bot_sklt && 1/(Time::now() - t4) <= detF) // there is a detection
+            // if(bot_sklt) // there is a detection
+            {
+                // yInfo() << 1/(skltTs - skltTsPrev) << " - " <<1/(Time::now() - t4);
                 // yInfo() << "\tSKLT @ " << skltTs;
                 Value &coords = (*bot_sklt).get(1);
                 Bottle *sklt_lst = coords.asList();
@@ -394,7 +458,10 @@ public:
                     aux_out << t.u << " " << t.v << " ";
                 aux_out << std::endl;
                 firstDet = true;
+                detCount = 0;
+                t4 = Time::now();
             }
+            skltTsPrev = skltTs;
 
             // read events
             int np = input_port.queryunprocessed();
@@ -426,12 +493,13 @@ public:
                     return;
                 for (auto &qi : *q)
                 {
-                    qROI.add(qi);
                     evsFullImg.push_back(qi);
-                    nevs++;
                     // if(qi.x >= 0 && qi.x<dimX && qi.y >= 0 && qi.y<dimY)
                     if(qi.x >= qROI.roi[0] && qi.x<qROI.roi[1] && qi.y >= qROI.roi[2] && qi.y<qROI.roi[3])
-                        Te[qi.y][qi.x] = qi.stamp * vtsHelper::tsscaler;
+                    {
+                        qROI.add(qi);
+                        nevs++;
+                    }
                 }
             
             }
@@ -443,22 +511,18 @@ public:
                 {
                     int halfRoi = int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])*0.5);
                     if(halfRoi < 2*nevs)
+                    {
+                        // std::cout << "a) ";
                         qROI.setSize(nevs*2);
+                    }
                     else
+                    {
+                        // std::cout << "b) ";
                         qROI.setSize(halfRoi);
+                    }
                 }
             }
         
-            // normalize cv mat
-            for (int i = 0; i < dimY; i++)
-            {
-                for (int j = 0; j < dimX; j++)
-                {
-                    matTe.at<float>(i, j) = float(Te[i][j]);
-                }
-            }
-            cv::normalize(matTe, matTe, 0, 1, cv::NORM_MINMAX);
-
             // Add events to output image
             if (initTimer)
                 evsToImage(evsFullImg);
@@ -473,6 +537,7 @@ public:
                     std::deque<double> evsTs;
                     std::deque<int> evsPol;
                     tracker.getEventsUV(qROI.q, evs, evsTs, vtsHelper::tsscaler, evsPol); // get events u,v coords
+                    // tracker.getEventsUV(qROI.q, evs, evsTs, 1e-2, evsPol); // get events u,v coords
                     
                     if(method == 1) // Velocity estimation Method 1: time diff on adjacent events 
                     {
@@ -491,6 +556,7 @@ public:
                     }
                     else if(method == 2) // Velocity estimation Method 2: EAT 
                     {
+                        // yInfo() << nevs;
                         // tracker.estimateFire(evs, evsTs, evsPol, jointName, nevs, pose, dpose, Te, matTe);
                         // double err = tracker.getError(evs, evsTs, evsPol, jointName, nevs, pose, dpose, Te, matTe);
                         // dpose = tracker.setVel(jointName, dpose, pose[jointName].u, pose[jointName].v, err);
