@@ -60,14 +60,13 @@ typedef std::array<joint, 13> skeleton13;
 typedef std::array<joint, 18> skeleton18;
 
 template <typename T>
-inline void getEventsUV(std::deque<T> &input, std::deque<joint> &output, std::deque<double> &ts, double scaler, std::deque<int> &pol) 
+inline void getEventsUV(std::deque<T> &input, std::deque<joint> &output, std::deque<double> &ts, double scaler) 
 {
     for (auto &q : input)
     {
         joint j = {q.x, q.y};
         output.push_back(j);
         ts.push_back(q.stamp*scaler);
-        pol.push_back(q.polarity);
     }
 }
 

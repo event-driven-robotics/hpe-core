@@ -526,8 +526,7 @@ public:
                     // separate events into deques to avoid using event-driven in hpe-core
                     std::deque<joint> evs;
                     std::deque<double> evsTs;
-                    std::deque<int> evsPol;
-                    getEventsUV(qROI.q, evs, evsTs, vtsHelper::tsscaler, evsPol); // get events u,v coords
+                    getEventsUV(qROI.q, evs, evsTs, vtsHelper::tsscaler); // get events u,v coords
                     
                     if(method == 1) // Velocity estimation Method 1: time diff on adjacent events 
                     {
