@@ -35,8 +35,5 @@
 *.idea
 *.user
 
-core/build/
-core/.vscode/
-datasets/dhp19/utils/__pycache__/
-evaluation/utils/__pycache__/
-datasets/utils/__pycache__/
+#compiled python caches
+*.pyc

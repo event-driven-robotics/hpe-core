@@ -4,10 +4,10 @@ import numpy as np
 import cv2
 import os
 
-sys.path.append('/home/ggoyal/code/gl_hpe/')
+HOME_DIR = '/usr/local/code'
+sys.path.append(os.path.join(HOME_DIR, 'gl_hpe/'))
 import experimenting
 import torch
-from os.path import join
 from experimenting.utils.visualization import plot_skeleton_2d, plot_skeleton_3d, plot_skeleton_2d_lined
 from experimenting.utils.skeleton_helpers import Skeleton
 from experimenting.utils import utilities
@@ -27,15 +27,12 @@ class GlHpeModule(yarp.RFModule):
         self.yarp_image = yarp.ImageMono()
         self.yarp_image_out = yarp.ImageRgb()
 
-        # self.datadir = "/usr/local/code/"
-        # self.checkpoint_path = "/usr/local/code/gl_hpe/checkpoint"
-        # self.P_mat_dir = join(self.datadir, 'gl_hpe/P_matrices/')
-        self.checkpoint_path = "/media/ggoyal/Shared/data/checkpoint_dhp19"
-        self.datadir = "/media/ggoyal/Shared/data/dhp19_sample/"
-        self.P_mat_dir = join(self.datadir, 'P_matrices/')
+        self.datadir = HOME_DIR
+        self.checkpoint_path = os.path.join(HOME_DIR, "gl_hpe/checkpoint")
+        self.P_mat_dir = os.path.join(self.datadir, 'gl_hpe/P_matrices/')
 
         self.ch_idx = 3
-        self.resultsPath = join(self.datadir, 'outputs/S1_2_3/')
+        self.resultsPath = os.path.join(self.datadir, 'outputs')
         self.image_w_model = 346 # Size of the image expected by the model
         self.image_h_model = 260 #
         self.output_w = 640  # Size of the image expected by yarp
@@ -67,14 +64,15 @@ class GlHpeModule(yarp.RFModule):
         if not self.output_port.open(self.getName() + "/img:o"):
             print("Could not open output port")
             return False
-        #
+
         # read flags and parameters
-        self.dhpcore = experimenting.dataset.DHP19Core('test', data_dir=join(self.datadir,
-                                                                             'time_count_dataset/movements_per_frame'), \
-                                                       joints_dir=join(self.datadir,
-                                                                       "time_count_dataset/labels_full_joints/"), \
+        self.dhpcore = experimenting.dataset.DHP19Core('test',
+                                                       data_dir=os.path.join(self.datadir,
+                                                                             'time_count_dataset/movements_per_frame'),
+                                                       joints_dir=os.path.join(self.datadir,
+                                                                               "time_count_dataset/labels_full_joints/"),
                                                        hm_dir="", labels_dir="", preload_dir="", n_joints=13,
-                                                       n_classes=33, \
+                                                       n_classes=33,
                                                        partition='cross-subject', n_channels=1, cams=[1, 3],
                                                        movements=None, test_subjects=[6, 7])
 
@@ -86,13 +84,13 @@ class GlHpeModule(yarp.RFModule):
         self.model = utilities.load_model(self.checkpoint_path, "MargiposeEstimator",
                                           core=self.dhpcore).eval().double()
         if self.ch_idx == 0:
-            self.P_mat_cam = np.load(join(self.P_mat_dir, 'P1.npy'))
+            self.P_mat_cam = np.load(os.path.join(self.P_mat_dir, 'P1.npy'))
         elif self.ch_idx == 3:
-            self.P_mat_cam = np.load(join(self.P_mat_dir, 'P2.npy'))
+            self.P_mat_cam = np.load(os.path.join(self.P_mat_dir, 'P2.npy'))
         elif self.ch_idx == 2:
-            self.P_mat_cam = np.load(join(self.P_mat_dir, 'P3.npy'))
+            self.P_mat_cam = np.load(os.path.join(self.P_mat_dir, 'P3.npy'))
         elif self.ch_idx == 1:
-            self.P_mat_cam = np.load(join(self.P_mat_dir, 'P4.npy'))
+            self.P_mat_cam = np.load(os.path.join(self.P_mat_dir, 'P4.npy'))
         self.extrinsics_matrix, self.camera_matrix = utils.decompose_projection_matrix(self.P_mat_cam)
 
         return True
@@ -150,7 +148,7 @@ class GlHpeModule(yarp.RFModule):
         pred_joints = pred_sk.get_2d_points(260, 346, p_mat=torch.tensor(self.P_mat_cam))
 
         # Obtain the 2D prediction as an image
-        fig2D = plot_skeleton_2d(input_image[0].squeeze(), pred_joints, fname=os.path.join(self.resultsPath, 'output_2D_'+str(self.counter)+'.png'), return_figure=True,lines = True)
+        fig2D = plot_skeleton_2d(input_image[0].squeeze(), pred_joints, return_figure=True, lines=True)
         fig2D.canvas.draw()
         img = np.fromstring(fig2D.canvas.tostring_rgb(), dtype=np.uint8, sep='')
         img = img.reshape(fig2D.canvas.get_width_height()[::-1] + (3,))
@@ -160,12 +158,12 @@ class GlHpeModule(yarp.RFModule):
         cv2.imshow("output", img)
         print(img.shape)
         k = cv2.waitKey(10)
-        cv2.imwrite(os.path.join(self.resultsPath, 'input_'+str(self.counter),'.png'), input_image)
+        # cv2.imwrite(os.path.join(self.resultsPath, 'input_'+str(self.counter), '.png'), input_image)
         # cv2.imwrite(os.path.join(self.resultsPath, 'output_2D_'+str(self.counter),'.png'), img)
 
         # write the Results into numpy arrays
-        # utilities.save_2D_prediction(pred_joints, fname=join(self.resultsPath, self.fname), overwrite=False)
-        # utilities.save_timestamp(stamp, fname=join(self.resultsPath, self.fname_ts), overwrite=False)
+        # utilities.save_2D_prediction(pred_joints, fname=os.path.join(self.resultsPath, self.fname), overwrite=False)
+        # utilities.save_timestamp(stamp, fname=os.path.join(self.resultsPath, self.fname_ts), overwrite=False)
 
         #        np_output[:, :] = img
         # self.output_port.write(self.yarp_image_out)
@@ -173,6 +171,7 @@ class GlHpeModule(yarp.RFModule):
         if k == 32:
             return False
         return True
+
 
 if __name__ == '__main__':
     # prepare and configure the resource finder

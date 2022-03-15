@@ -13,7 +13,7 @@ from os.path import join
 import sys
 from pathlib import Path
 from datasets.utils import mat_files
-from h36m.utils import parsing
+from datasets.h36m.utils import parsing
 
 # Load env variables set on .bashrc
 bimvee_path = os.environ.get('BIMVEE_PATH')
