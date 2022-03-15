@@ -21,6 +21,7 @@ This is A Pytorch implementation of MoveNet inspired from the [Movenet.Pytorch](
     ```
 :bulb: `<workspace>` is the parent directory in which the repository is cloned
 
+Note: You can also, instead, install the libraries named in `requirements.py` directly on your system.
 ## Usage
 - Run the Docker container and, inside it, run the gl-hpe pose detector
     ```shell

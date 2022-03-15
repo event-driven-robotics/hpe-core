@@ -87,3 +87,9 @@ class Data():
                                     self.cfg)
         return data_loader
 
+    def getTestDataloader(self):
+        data_names = getFileNames(self.cfg['test_img_path'])
+        test_loader = getDataLoader("test",
+                                    data_names,
+                                    self.cfg)
+        return test_loader

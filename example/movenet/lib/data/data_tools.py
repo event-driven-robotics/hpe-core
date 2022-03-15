@@ -338,6 +338,33 @@ class TensorDataset(Dataset):
         return len(self.data_labels)
 
 
+class TensorDatasetTest(Dataset):
+
+    def __init__(self, data_labels, img_dir, img_size, data_aug=None):
+        self.data_labels = data_labels
+        self.img_dir = img_dir
+        self.data_aug = data_aug
+        self.img_size = img_size
+
+        self.interp_methods = cv2.INTER_LINEAR
+
+    def __getitem__(self, index):
+        img_name = self.data_labels[index]
+
+        img = cv2.imread(img_name, cv2.IMREAD_COLOR)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        img = cv2.resize(img, (self.img_size, self.img_size),
+                         interpolation=self.interp_methods)
+
+        img = img.astype(np.float32)
+        img = np.transpose(img, axes=[2, 0, 1])
+
+        return img, img_name
+
+    def __len__(self):
+        return len(self.data_labels)
+
 
 ###### get data loader
 def getDataLoader(mode, input_data, cfg):
@@ -362,5 +389,18 @@ def getDataLoader(mode, input_data, cfg):
             pin_memory=False)
 
         return val_loader
+    elif mode == "test":
+
+        data_loader = torch.utils.data.DataLoader(
+            TensorDatasetTest(input_data,
+                              cfg['test_img_path'],
+                              cfg['img_size'],
+                              ),
+            batch_size=1,
+            shuffle=False,
+            num_workers=0,
+            pin_memory=False)
+
+        return data_loader
     else:
         raise Exception("Unknown mode.")

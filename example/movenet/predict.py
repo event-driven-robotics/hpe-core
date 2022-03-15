@@ -23,9 +23,9 @@ def main(cfg):
     test_loader = data.getTestDataloader()
 
     run_task = Task(cfg, model)
-    run_task.modelLoad("/output/mpii_pre-trained.pth")
+    run_task.modelLoad("models/h36m_finetuned.pth")
 
-    run_task.predict(test_loader, "/output/predict")
+    run_task.predict(test_loader, cfg['predict_output_path'])
 
 if __name__ == '__main__':
     cfg = arg_parser(cfg)

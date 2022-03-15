@@ -6,7 +6,7 @@ import gc
 import os
 import torch
 import numpy as np
-import cv2=
+import cv2
 import json
 import time
 
@@ -45,7 +45,7 @@ class Task():
         # scheduler
         self.scheduler = getSchedu(self.cfg['scheduler'], self.optimizer)
 
-        ensure_loc(os.path.join(self.cfg['save_dir'], self.cfg['label']))
+        # ensure_loc(os.path.join(self.cfg['save_dir'], self.cfg['label']))
 
     def predict(self, data_loader, save_dir):
         if not os.path.exists(save_dir):
@@ -162,11 +162,9 @@ class Task():
                             thickness,
                             lineType)
                 # cv2.line(img2, [10, 10], [10 + int(head_size_norm * 2), 10], [0, 0, 255], 3)
-                cv2.imshow("prediction", img)
-                cv2.waitKey(10)
                 basename = os.path.basename(img_names[0])
-                ensure_loc('eval_result')
-                cv2.imwrite(os.path.join('eval_result', basename), img)
+                ensure_loc(self.cfg['eval_outputs'])
+                cv2.imwrite(os.path.join(self.cfg['eval_outputs'], basename), img)
 
         acc = correct_kps / total_kps
         acc_joint_mean = np.mean(joint_correct / joint_total)
