@@ -4,7 +4,7 @@ https://github.com/fire717
 """
 
 dataset = 'dhp19'
-home = 'data/'
+home = '../test_dataset'
 cfg = {
     ##### Global Setting
     'GPU_ID': '',
@@ -49,11 +49,11 @@ cfg = {
     ##### File paths
     'predict_output_path': home + "/predict/",
     'results_path': home + "/results/",
-    "img_path": home + "/dhp19-samples/",
-    "test_img_path": home + '/dhp19-samples/',
-    "eval_img_path": home + '/dhp19-samples/',
-    "eval_outputs": home + '/dhp-outputs/',
-    "eval_label_path": home + "/dhp19-samples/poses.json",
+    "img_path": home + "/dhp19_eros/",
+    "test_img_path": home + '/dhp19_eros/',
+    "eval_img_path": home + '/dhp19_eros/',
+    "eval_outputs": home + '/dhp19_outputs/',
+    "eval_label_path": home + "/dhp19_eros/poses.json",
     'train_label_path': '',
     'val_label_path':'',
 
