@@ -42,8 +42,8 @@ RUN echo "*************** building dependencies for gl-hpe ****************"
 
 
 ARG SOURCE_FOLDER=/usr/local/code
-ARG GLHPE_BRANCH=20cf9f79a3ef5869f40143031fcab6aac0bf9c86
-ARG HPE_VERSION=main
+ARG GLHPE_BRANCH=main
+ARG HPE_VERSION=20cf9f79a3ef5869f40143031fcab6aac0bf9c86
 # GL-HPE requirements 
 
 # # Directories
