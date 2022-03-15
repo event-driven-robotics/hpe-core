@@ -32,19 +32,15 @@ private:
     vReadPort<vector<AE>> input_port;
     BufferedPort<Bottle> input_sklt;
     std::ofstream output_writer, aux_out, vel_out;
-    deque<AE> evs_queue, evsFullImg;
+    deque<AE> evsFullImg;
     deque<sklt> pose2img;
     deque<joint> vels;
     std::mutex m;
     sklt pose, dpose, poseGT;
     hpecore::jointMotionEstimator tracker;
     roiq qROI;
-    // roi sizes for joint tracking
     int roiWidth = 32;
     int roiHeight = roiWidth;
-    // roi sizes for object tracking (Zhichao)
-    // int roiWidth = 60;
-    // int roiHeight = 100;
     skltJoint jointName;
     string jointNameStr;
     int dimY, dimX;
@@ -55,14 +51,14 @@ private:
     double avgF = 0;
     BufferedPort<ImageOf<PixelRgb> > image_port;
     float displayF = 25.0; // display frequency in Hz
-    static inline int evsF = 0;
     bool showF = false;
     cv::Mat matTe;
     double** Te;
-    joint center, prev;
     int method;
     bool avgV = false;
-    int gtF, detF;
+    int detF;
+    bool objectTracking = false;
+    bool h36 = false;
     cv::Point ptJoint;
 
 public:
@@ -101,40 +97,12 @@ public:
             return false;
         }
 
-        gtF = rf.check("gtF", Value(10)).asInt();
         detF = rf.check("detF", Value(10)).asInt();
-        yInfo() << "Ground-truth frequency = " << gtF << " Hz";
-        switch (gtF)
-        {
-        case 1:
-            // yarp.connect("/file/ch3GT1Hzskeleton:o", getName("/SKLT:i"), "fast_tcp");
-            yarp.connect("/file/1Hz:o", getName("/SKLT:i"), "fast_tcp");
-            break;
-        case 5:
-            yarp.connect("/file/ch3GT5Hzskeleton:o", getName("/SKLT:i"), "fast_tcp");
-            break;
-        case 10:
-            yarp.connect("/file/10Hz:o", getName("/SKLT:i"), "fast_tcp");
-            break;
-         case 50:
-            yarp.connect("/file/50Hz:o", getName("/SKLT:i"), "fast_tcp");
-            break;
-        case 100:
-            yarp.connect("/file/ch3GTHzskeleton:o", getName("/SKLT:i"), "fast_tcp");
-            break;
-        case 500:
-            yarp.connect("/file/502Hz:o", getName("/SKLT:i"), "fast_tcp");
-            break;
-        default:
-            yarp.connect("/file/ch3GT10Hzskeleton:o", getName("/SKLT:i"), "fast_tcp");
-            break;
-        }
+        yInfo() << "Detections frequency = " << detF << " Hz";
+        if(rf.check("obj"))
+            objectTracking = true;
 
-        // connect ports
-        // yarp.connect("/file/ch3dvs:o", getName("/AE:i"), "fast_tcp");
-        yarp.connect("/file/leftdvs:o", getName("/AE:i"), "fast_tcp");
-        // yarp.connect("/file/ch3GT10Hzskeleton:o", getName("/SKLT:i"), "fast_tcp");
-        yarp.connect(getName("/img:o"), "/yarpview/img:i", "fast_tcp");
+        
 
         output_writer.open("output.txt");
         if (!output_writer.is_open())
@@ -172,17 +140,49 @@ public:
             dpose[i].v = 0;
         }
 
-        
         if(rf.check("cv"))
             plotCv = true;
         dimX = rf.check("dimX", Value(304)).asInt();
         dimY = rf.check("dimY", Value(240)).asInt();
+        if(rf.check("h36"))
+            h36 = true;
+
+        // connect ports
+        if(!objectTracking)
+        {
+            if(!h36) // dhp19 dataset
+            {
+                yarp.connect("/file/ch3dvs:o", getName("/AE:i"), "fast_tcp");
+                // yarp.connect("/file/ch3GT10Hzskeleton:o", getName("/SKLT:i"), "fast_tcp");
+                yarp.connect("/file/ch3GTskeleton:o", getName("/SKLT:i"), "fast_tcp");
+            }
+            else // H 3.6 dataset
+            {
+                yarp.connect("/file/ch0dvs:o", getName("/AE:i"), "fast_tcp");
+                yarp.connect("/file/ch0GT50Hzskeleton:o", getName("/SKLT:i"), "fast_tcp");
+                roiWidth = 20;
+                roiHeight = roiWidth;
+            }
+        }
+        else
+        {
+            yarp.connect("/file/leftdvs:o", getName("/AE:i"), "fast_tcp");
+            yarp.connect("/file/502Hz:o", getName("/SKLT:i"), "fast_tcp");
+            roiWidth = 60;
+            roiHeight = 100;
+            dimX = 640;
+            dimY = 480;
+            jointName = str2enum("head");
+        }
+
+        yarp.connect(getName("/img:o"), "/yarpview/img:i", "fast_tcp");
+
+
         yInfo() << "Image dimensions = [" << dimX << ", " << dimY << "]";
         fullImg = cv::Mat::zeros(cv::Size(dimX, dimY), CV_32F);
         cvtColor(fullImg, fullImg, cv::COLOR_GRAY2RGB);
         if(rf.check("showF"))
             showF = true;
-
         if(plotCv)
         {
             cv::namedWindow("HPE OUTPUT", cv::WINDOW_NORMAL);
@@ -211,20 +211,20 @@ public:
         return Thread::start();
     }
 
+
     virtual double getPeriod()
     {
         return 1/displayF; //period of synchrnous thread
     }
 
+
     bool interruptModule()
     {
         //if the module is asked to stop ask the asynchrnous thread to stop
-        // input_port.interrupt();
-        // input_sklt.interrupt();
-        // image_port.interrupt();
         std::cout << "\033c";
         return Thread::stop();
     }
+
 
     void onStop()
     {
@@ -238,6 +238,7 @@ public:
         // output_port.close();
     }
 
+
     sklt buildSklt(Bottle &readBottle)
     {
         sklt newPose;
@@ -250,6 +251,7 @@ public:
         }
         return newPose;
     }
+
 
     //synchronous thread
     virtual bool updateModule()
@@ -290,15 +292,17 @@ public:
                     1,                                 // Line Thickness
                     cv::LINE_AA);                      // Anti-alias
         std::string strF = std::to_string(int(avgF));
+        std::string strdetF = std::to_string(int(detF));
         if (showF)
             cv::putText(aux,
-                        "Freq = " + strF + "Hz",
+                        "Freq = " + strF + "Hz" + " - detF = " + strdetF + "Hz",
                         cv::Point(dimX * 0.05, dimY * 1.9), // Coordinates
                         cv::FONT_HERSHEY_SIMPLEX,           // Font
                         0.8,                                // Scale
                         cv::Scalar(0.8, 0.8, 0.8),          // BGR Color
                         1,                                  // Line Thickness
                         cv::LINE_AA);                       // Anti-alias
+            
         cv::putText(aux,
                     "HPE-core EDPR",
                     cv::Point(dimX * 0.5, dimY * 0.2), // Coordinates
@@ -370,6 +374,7 @@ public:
         if(kneeR.x && kneeR.y && footR.x && footR.y) cv::line(fullImg, kneeR, footR, colorS, th);
         if(kneeL.x && kneeL.y && footL.x && footL.y) cv::line(fullImg, kneeL, footL, colorS, th);
 
+        // draw Roi rectangle
         if(ptJoint.x && ptJoint.y)
         {
             cv::Point roi02(int(qROI.roi[0]), int(qROI.roi[2]));
@@ -403,26 +408,27 @@ public:
         }
     }
 
+
     //asynchronous thread run forever
     void run()
     {
         Stamp evStamp, skltStamp;
         Bottle *bot_sklt;
-        double skltTs, skltTsPrev;
+        double skltTs;
         const vector<AE> *q;
-        double t0, t1=0, tprev, t2 = 0, t3 = 0, t3prev = 0;
-        long int mes = 0;
-        double freq = 0;
-        bool firstDet = false;
-        int detCount = 0;
-        long int fDet;
-        double t4 = 0; 
+        double t0 = Time::now(), t1=t0, t2 = t0, t2prev = t0, t3 = t0, t4 = t0;
+        // t0 = initial time
+        // t1 = global timer
+        // t2 = timer used for operation frequency calculation
+        // t3 = timer used for fusion
+        // t4 =  timer used for detection frequency downsampling
+        long int mes = 0; // amount of porcessing cycles used to average operation frequency
+        double freq = 0; // operation frequenc
+        bool firstDet = false; // first detection took place
         
         while (!Thread::isStopping())
         {
-            double dt = 0.0;
             t1 = Time::now() - t0;
-            t3 = t1;
             // read detections
             // int N = input_sklt.getPendingReads();
             bot_sklt = input_sklt.read(false);
@@ -432,17 +438,9 @@ public:
 
             ptJoint.x = int(poseGT[jointName].u);
             ptJoint.y = int(poseGT[jointName].v);
-
-            if(bot_sklt && detCount)
-            {
-                detCount--;
-            }
                 
-            if(bot_sklt && 1/(Time::now() - t4) <= detF) // there is a detection
-            // if(bot_sklt) // there is a detection
+            if(bot_sklt && 1/(t1 - t4) <= detF) // there is a detection
             {
-                // yInfo() << 1/(skltTs - skltTsPrev) << " - " <<1/(Time::now() - t4);
-                // yInfo() << "\tSKLT @ " << skltTs;
                 Value &coords = (*bot_sklt).get(1);
                 Bottle *sklt_lst = coords.asList();
                 // build skeleton from reading
@@ -453,30 +451,29 @@ public:
                 int x = builtPose[jointName].u;
                 int y = builtPose[jointName].v;
                 qROI.setROI(x - roiWidth / 2, x + roiWidth / 2, y - roiHeight / 2, y + roiHeight / 2);
+                // output detections to file
                 aux_out << t1 << " ";
                 for (auto &t : builtPose)
                     aux_out << t.u << " " << t.v << " ";
                 aux_out << std::endl;
                 firstDet = true;
-                detCount = 0;
-                t4 = Time::now();
+                t4 = Time::now() - t0;
             }
-            skltTsPrev = skltTs;
 
             // read events
             int np = input_port.queryunprocessed();
             if(np && initTimer)
             {
-                tprev = t2;
                 t2 = Time::now() - t0;
-                freq += 1/(t2-tprev);
+                freq += 1/(t2-t2prev);
                 mes++;
                 avgF = freq/mes; // average freq
-                if(mes>100)
+                if(mes>1000)
                 {
                     mes= 0;
                     freq=0;
                 }
+                t2prev = t2;
                 // avgF = 1/(t2-tprev); // instant freq
                 // yInfo() << "\033c" << avgF;
             }
@@ -493,9 +490,8 @@ public:
                     return;
                 for (auto &qi : *q)
                 {
-                    evsFullImg.push_back(qi);
-                    // if(qi.x >= 0 && qi.x<dimX && qi.y >= 0 && qi.y<dimY)
-                    if(qi.x >= qROI.roi[0] && qi.x<qROI.roi[1] && qi.y >= qROI.roi[2] && qi.y<qROI.roi[3])
+                    evsFullImg.push_back(qi); // save events to visualize in sync thread
+                    if(qi.x >= qROI.roi[0] && qi.x<qROI.roi[1] && qi.y >= qROI.roi[2] && qi.y<qROI.roi[3]) // if event qi falls inside roi, save int qROI
                     {
                         qROI.add(qi);
                         nevs++;
@@ -510,16 +506,11 @@ public:
                 else if(method == 2)
                 {
                     int halfRoi = int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])*0.5);
-                    if(halfRoi < 2*nevs)
-                    {
-                        // std::cout << "a) ";
-                        qROI.setSize(nevs*2);
-                    }
-                    else
-                    {
-                        // std::cout << "b) ";
-                        qROI.setSize(halfRoi);
-                    }
+                    // if(halfRoi > 2*nevs)
+                    //     qROI.setSize(nevs*2);
+                    // else
+                    //     qROI.setSize(halfRoi);
+                    qROI.setSize(halfRoi);
                 }
             }
         
@@ -536,14 +527,13 @@ public:
                     std::deque<joint> evs;
                     std::deque<double> evsTs;
                     std::deque<int> evsPol;
-                    tracker.getEventsUV(qROI.q, evs, evsTs, vtsHelper::tsscaler, evsPol); // get events u,v coords
-                    // tracker.getEventsUV(qROI.q, evs, evsTs, 1e-2, evsPol); // get events u,v coords
+                    getEventsUV(qROI.q, evs, evsTs, vtsHelper::tsscaler, evsPol); // get events u,v coords
                     
                     if(method == 1) // Velocity estimation Method 1: time diff on adjacent events 
                     {
                         if(nevs > 20)
                         {
-                            dpose = tracker.estimateVelocity(evs, evsTs, jointName, nevs, dpose, vels);  // get veocities from delta ts
+                            dpose = tracker.method1(evs, evsTs, jointName, nevs, vels);  // get veocities from delta ts
                             double dt = (qROI.q.front().stamp - qROI.q.back().stamp) * vtsHelper::tsscaler;
                             tracker.fusion(&pose, dpose, dt);
                         }
@@ -554,20 +544,19 @@ public:
                             tracker.fusion(&pose, dpose, dt);
                         }
                     }
-                    else if(method == 2) // Velocity estimation Method 2: EAT 
+                    else if(method == 2) // Velocity estimation method 2: neighbor events
                     {
                         // yInfo() << nevs;
                         // tracker.estimateFire(evs, evsTs, evsPol, jointName, nevs, pose, dpose, Te, matTe);
                         // double err = tracker.getError(evs, evsTs, evsPol, jointName, nevs, pose, dpose, Te, matTe);
                         // dpose = tracker.setVel(jointName, dpose, pose[jointName].u, pose[jointName].v, err);
-                        dpose = tracker.nearestEvent(evs, evsTs, jointName, nevs, dpose, vels); 
-                        // double dt = (qROI.q.front().stamp - qROI.q.back().stamp) * vtsHelper::tsscaler;
-                        double dt = t3 - t3prev;
+                        dpose = tracker.estimateVelocity(evs, evsTs, jointName, nevs, vels);
+                        double dt = t1 - t3;
                         tracker.fusion(&pose, dpose, dt);
-                        t3prev = t3;
+                        t3 = t1;
                     }
 
-                    // write integrated output to file
+                    // write integrated pose output to file
                     output_writer << t1 << " ";
                     for (auto &t : pose)
                         output_writer << t.u << " " << t.v << " ";
@@ -579,7 +568,7 @@ public:
                     qROI.setROI(x - roiWidth / 2, x + roiWidth / 2, y - roiHeight / 2, y + roiHeight / 2);
                     pose2img.push_back(pose);
 
-                    // output velocities estimations
+                    // output velocities estimations to file
                     if(avgV) // true = write averaged vel - false = write event by event vel
                     {
                         vel_out << t1 << " " << dpose[jointName].u << " " << dpose[jointName].v << std::endl;
