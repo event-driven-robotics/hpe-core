@@ -19,18 +19,6 @@ namespace hpecore
       sklt estimateVelocity(std::deque<joint> evs, std::deque<double> evsTs, int jointName, int nevs, std::deque<joint>& vels);
       void fusion(sklt *pose, sklt dpose, double dt);
 
-      // template <typename T>
-      // inline void getEventsUV(std::deque<T> &input, std::deque<joint> &output, std::deque<double> &ts, double scaler, std::deque<int> &pol) 
-      // {
-      //   for (auto &q : input)
-      //   {
-      //     joint j = {q.x, q.y};
-      //     output.push_back(j);
-      //     ts.push_back(q.stamp*scaler);
-      //     pol.push_back(q.polarity);
-      //   }
-      // }
-
       // Functions no longer being used
       // method one for velocity estimation
       sklt method1(std::deque<joint> evs, std::deque<double> evsTs, int jointName, int nevs, std::deque<joint>& vels);
