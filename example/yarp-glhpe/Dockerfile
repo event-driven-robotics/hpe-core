@@ -43,6 +43,7 @@ RUN echo "*************** building dependencies for gl-hpe ****************"
 
 ARG SOURCE_FOLDER=/usr/local/code
 ARG GLHPE_BRANCH=main
+    # checkout commit where glhpe-framer.cpp is not giving a memory allocation error \
 ARG HPE_VERSION=20cf9f79a3ef5869f40143031fcab6aac0bf9c86
 # GL-HPE requirements 
 
@@ -193,7 +194,6 @@ RUN git clone git@github.com:event-driven-robotics/hpe-core.git && \
     # back up the latest version of run-model.py before the checkout of the old commit
     cp /usr/local/code/hpe-core/example/yarp-glhpe/run-model.py /usr/local/code && \
     cd hpe-core && \
-    # checkout commit where glhpe-framer.cpp is not giving a memory allocation error \
     git checkout $HPE_VERSION && \
     # restore the latest version of run-model.py
     cp /usr/local/code/run-model.py /usr/local/code/hpe-core/example/yarp-glhpe && \
