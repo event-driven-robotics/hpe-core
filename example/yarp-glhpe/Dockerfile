@@ -42,7 +42,7 @@ RUN echo "*************** building dependencies for gl-hpe ****************"
 
 
 ARG SOURCE_FOLDER=/usr/local/code
-ARG GLHPE_BRANCH=load_new_object
+ARG GLHPE_BRANCH=main
 ARG HPE_VERSION=main
 # GL-HPE requirements 
 
@@ -84,19 +84,18 @@ comet_ml
 
 # Install GL-HPE program
 RUN git clone git@github.com:gaurvigoyal/gl_hpe.git
-RUN cd gl_hpe && pwd && \
-git status && git checkout load_new_object
+RUN cd gl_hpe && pwd  # && \
+#git status && git checkout load_new_object
 ENV PYTHONPATH $PYTHONPATH:$SOURCE_FOLDER/gl_hpe
 
-# download models from google drive (https://drive.google.com/file/d/1z1XLPWMVsTpSZnXP8ERXHcR0dss_dhwy/view?usp=sharing)
-
-RUN mkdir gl_hpe/checkpoint && \
-    cd gl_hpe/checkpoint && \
-    git clone git@github.com:chentinghao/download_google_drive.git && \
-    pip install requests && \
-    cd download_google_drive && \
-    python3 download_gdrive.py 1z1XLPWMVsTpSZnXP8ERXHcR0dss_dhwy ../epoch=19-val_loss=0.09.ckpt && \
-    cd .. && rm -r download_google_drive
+## download models from google drive (https://drive.google.com/file/d/1z1XLPWMVsTpSZnXP8ERXHcR0dss_dhwy/view?usp=sharing)
+#RUN mkdir gl_hpe/checkpoint && \
+#    cd gl_hpe/checkpoint && \
+#    git clone git@github.com:chentinghao/download_google_drive.git && \
+#    pip install requests && \
+#    cd download_google_drive && \
+#    python3 download_gdrive.py 1z1XLPWMVsTpSZnXP8ERXHcR0dss_dhwy ../epoch=19-val_loss=0.09.ckpt && \
+#    cd .. && rm -r download_google_drive
 
 ############
 #   YARP   #
@@ -192,15 +191,23 @@ RUN echo "*************** building hpe-core ****************"
 # Install hpe-core
 RUN git clone git@github.com:event-driven-robotics/hpe-core.git && \
     cd hpe-core && \
-    git checkout $HPE_VERSION && \
+#    git checkout $HPE_VERSION && \
+    # checkout commit where glhpe-framer.cpp is not giving a memory allocation error
+    git checkout 20cf9f79a3ef5869f40143031fcab6aac0bf9c86 && \
     cd core && \
     mkdir build && cd build && \
     cmake .. && \
-    make install -j$(nproc) && \
-    cd ../.. && cd example/yarp-glhpe/ && \
+    make install -j$(nproc)
+
+RUN cd hpe-core/example/yarp-glhpe/ && \
     mkdir build && cd build && \
     cmake .. && \
     make install -j$(nproc)
+
+RUN git clone git@github.com:event-driven-robotics/hpe-core.git hpe-core-tmp && \
+    cd hpe-core-tmp && git checkout glhpe-fixes && \
+    cp /usr/local/code/hpe-core-tmp/example/yarp-glhpe/run-model.py /usr/local/code/hpe-core/example/yarp-glhpe/run-model.py && \
+    cd .. && rm -frd hpe-core-tmp
 
 # Adding yarp python file to the pythonpath
 ENV PYTHONPATH $PYTHONPATH:/usr/local/code/yarp/build/lib/python3
@@ -208,4 +215,4 @@ ENV PYTHONPATH $PYTHONPATH:/usr/local/code/yarp/build/lib/python3
 
 RUN rm -r /root/.ssh
 
-
+RUN rm -fdr /usr/local/code/gl_hpe/checkpoint

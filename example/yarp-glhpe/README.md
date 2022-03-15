@@ -22,10 +22,11 @@ The software was tested on Ubuntu 20.04.2 LTS without GPU support.
 :warning: Ensure your ssh key is built without a passphrase.
 
 ## Usage
-- Run the Docker container and, inside it, run the gl-hpe pose detector
+- Download the pre-trained model and store it into folder `/path/to/pre/trained/model/folder`
+- Run the Docker container
     ```shell
     $ xhost +
-    $ docker run -it -v /tmp/.X11-unix/:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY gl_hpe:yarp bash
+    $ docker run -it -v /tmp/.X11-unix/:/tmp/.X11-unix -v /path/to/pre/trained/model/folder:/usr/local/code/gl_hpe/checkpoint/ -e DISPLAY=unix$DISPLAY gl_hpe:yarp bash
     ```
   
 - At the terminal inside the container run the following commands
@@ -35,10 +36,13 @@ The software was tested on Ubuntu 20.04.2 LTS without GPU support.
   ```
   :warning: the `&` runs the process in the background enabling a single terminal to run both processes.
 
-- In the `yarpmanager`, load the application from `/usr/local/code/hpe-core/example/yarp-glhpe` and run all modules
+- In the `yarpmanager`, load the application by opening `/usr/local/code/hpe-core/example/yarp-glhpe/app_yarp-glhpe.xml` 
+  and run all modules (the first time the python script `yarp-glhpe/run-model.py` runs, it downloads an additional pre-trained 
+  model for the backbone CNN which, according to the connection speed, might take several minutes and prevent pose prediction
+  until it has finished)
 
-- In the `yarpdataplayer` GUI use the drop-down menus to load the test dataset at `/usr/local/code/hpe-core/example/test_dataset` and play
+- In the `yarpdataplayer` GUI use the drop-down menus to load the test dataset by opening folder `/usr/local/code/hpe-core/example/test_dataset` and play it
 
 - Connect all connections in the `yarpmanager` 
   
-- A new window should pop up and display the detected skeleton overlaid on the event frames
+- A new window will pop up and display the detected skeleton overlaid on the event frames
