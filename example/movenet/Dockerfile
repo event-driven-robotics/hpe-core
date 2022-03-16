@@ -4,6 +4,6 @@ LABEL maintainer="Gaurvi Goyal"
 RUN apt-get update && apt-get install -y \
     python3-pip
 
-COPY . /workspace
+COPY ../. /examples
     
-RUN pip install --upgrade pip && pip install -r workspace/requirements.txt
+RUN pip install --upgrade pip && pip install -r examples/movenet/requirements.txt
