@@ -8,13 +8,14 @@ LICENSE GOES HERE
 """
 
 # %% Preliminaries
+import math
 import numpy as np
 import os
 import sys
 
 from os.path import join
 
-import datasets.dhp19.utils.mat_files as mat_utils
+import datasets.utils.mat_files as mat_utils
 
 # Load env variables set on .bashrc
 bimvee_path = os.environ.get('BIMVEE_PATH')
@@ -25,14 +26,14 @@ sys.path.insert(0, bimvee_path)
 sys.path.insert(0, mustard_path)
 
 # Directory with DVS (after Matlab processing) and Vicon Data 
-datadir = '/home/fdipietro/hpe-data'
+datadir = '/data/dhp19'
 
 # Selected recording
-subj, sess, mov = 1, 2, 1
+subj, sess, mov = 1, 1, 1
 datafile = 'S{}_{}_{}'.format(subj, sess, mov) + '.mat'
 
 # %% Load DVS data
-DVS_dir = join(datadir, 'DVS/')
+DVS_dir = join(datadir, 'events_preprocessed')
 dataDvs = mat_utils.loadmat(join(DVS_dir, datafile))
 
 # Build container
@@ -51,7 +52,7 @@ for i in range(4):
                                                               dtype=bool)
 
 # %% Load Vicon data
-Vicon_dir = join(datadir, 'Vicon/')
+Vicon_dir = join(datadir, 'vicon')
 dataVicon = mat_utils.loadmat(join(Vicon_dir, datafile))
 
 # dt = (dataDvs['out']['extra']['ts'][-1]-startTime)/np.shape(dataVicon['XYZPOS']['head'])[0]
@@ -160,8 +161,8 @@ for i in range(2):
     ax[i].grid()
 fig.suptitle('Ground truth 2D position for ch' + str(ch) + ' camera', fontsize=18)
 
-figManager = plt.get_current_fig_manager()
-figManager.window.showMaximized()
+# figManager = plt.get_current_fig_manager()
+# figManager.window.showMaximized()
 plt.show()
 
 # %% Plot events (RoI) + GT  (2 Roi values)

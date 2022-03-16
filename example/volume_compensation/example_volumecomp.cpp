@@ -121,11 +121,19 @@ public:
         cv::Mat bgr, hsv8;
         compensated_image.convertTo(hsv8, CV_8UC3);
         cv::cvtColor(hsv8, bgr, cv::COLOR_HSV2BGR);
-        bgr.copyTo(debug_image, bgr);
-        arrow_image.copyTo(debug_image, arrow_image);
+
+        cv::Mat together = cv::Mat(bgr.rows, bgr.cols*2, CV_8UC3, cv::Scalar(128, 128, 128));
+        cv::Rect roi1 = cv::Rect(0, 0, bgr.cols, bgr.rows);
+        cv::Rect roi2 = cv::Rect(bgr.cols, 0, bgr.cols, bgr.rows);
+
+        //debug_image.copyTo(together(roi2));
+        bgr.copyTo(together(roi2), bgr);
+        //arrow_image.copyTo(together(roi2), arrow_image);
+        debug_image.copyTo(together(roi1));
+        cv::threshold(together, together, 129, 255, cv::THRESH_BINARY);
 
         cv::namedWindow("Compensated", cv::WINDOW_NORMAL);
-        cv::imshow("Compensated", debug_image);
+        cv::imshow("Compensated", together);
         cv::waitKey(3);
 
     }
@@ -307,8 +315,9 @@ public:
         double period = vtsHelper::deltaS(window.back().stamp, window.front().stamp);
         hpecore::camera_velocity cam_vel = imu_helper.extractVelocity();
         double temp3 = cam_vel[0]; cam_vel[0] = cam_vel[1]; cam_vel[1] = -temp3;
+        temp3 = cam_vel[3]; cam_vel[3] = cam_vel[4]; cam_vel[4] = -temp3;
         //cam_vel[0] = 0.0; cam_vel[1] = 0.0; cam_vel[2] = 0.0;
-        hpecore::camera_params   cam_par = {f, x0, y0};
+        hpecore::camera_params cam_par = {f, x0, y0};
         fv.reset();
         deque<AE> warped_volume;
         m.lock();
@@ -318,13 +327,13 @@ public:
             fv.addPixel(v.x, v.y, we.x, we.y, pf.udot, pf.vdot, period);
             warped_volume.push_back(we);
         }
-        fv.drawISO(window, "Original Events");
-        fv.drawISO(warped_volume, "Warped Events");
+        //fv.drawISO(window, "Original Events");
+        //fv.drawISO(warped_volume, "Warped Events");
         std::array<double, 4> qd = imu_helper.extractHeading();
         //for(auto i : qd) std::cout << i; std::cout << std::endl;
         //std::array<float, 4> qf = qd;
         cv::Mat temp = ev::drawRefAxis(qd);
-        cv::imshow("temp", temp);
+        cv::imshow("AHRS", temp);
         cv::waitKey(1);
         m.unlock();
 
@@ -341,18 +350,18 @@ public:
         double dt = yarp::os::Time::now() - tic; tic += dt;
         for(auto i = 0; i < 3; i++) {
             if(dt > 1.0) dt = 1.0;
-            mean_acc[i] = mean_acc[i]*(1.0 - dt) + cam_acc[i] * dt;
-            yarp_vel[i] = mean_acc[i];
+            //mean_acc[i] = mean_acc[i]*(1.0 - dt) + cam_acc[i] * dt;
+            //yarp_vel[i] = mean_acc[i];
             yarp_vel[i] = gv[i];
             //yarp_vel[i] = cam_acc[i] - mean_acc[i];
-            yarp_vel[i+3] = cam_acc[i] - gv[i];
+            yarp_vel[i+3] = cam_acc[i];
             //if(fabs(cam_acc[i] - mean_acc[i]) > 0.1)
             //double temp_vel = my_vel[i] + (cam_acc[i] - mean_acc[i]) * dt * 0.5;
             //mean_vel[i] = mean_vel[i]*(1.0-dt) + temp_vel*dt;
-            my_vel[i] += (cam_acc[i] - gv[i]) * dt;
-            my_vel[i] *= 0.99;
+            //my_vel[i] += (cam_acc[i] - gv[i]) * dt;
+            //my_vel[i] *= 0.99;
             
-            yarp_vel[i] = my_vel[i];
+            //yarp_vel[i] = my_vel[i];
         }
         scope_port.write();
 

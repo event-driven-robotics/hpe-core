@@ -61,8 +61,8 @@ $ python3 export_to_yarp.py
 ```
 
 The output of this script is a set of folders, one for each camera and data type (`dvs` for event data, `skeleton` for 
-ground truth poses) containing [Bimvee](https://github.com/event-driven-robotics/bimvee) and [Mustard](https://github.com/event-driven-robotics/mustard) 
-compatible `data.log` and `info.log` files, and an additional `play.xml` file for the `yarpmamnager` app.
+ground truth poses) containing [Bimvee](https://github.com/event-driven-robotics/bimvee) and [Mustard](https://github.com/event-driven-robotics/mustard)
+compatible `data.log` and `info.log` files, and an additional `play.xml` file for the `yarpmanager` app.
 
 
 ## Export to Numpy Format
@@ -80,3 +80,7 @@ $ python3 export_gt_to_numpy.py
 ```
 
 The output of this script is a set of `.npy` files containing numpy arrays of skeletons.
+
+
+## Export to TOS
+...
