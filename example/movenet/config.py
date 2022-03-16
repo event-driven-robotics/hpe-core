@@ -4,7 +4,7 @@ https://github.com/fire717
 """
 
 dataset = 'dhp19'
-home = '../test_dataset'
+home = '/data'
 cfg = {
     ##### Global Setting
     'GPU_ID': '',
@@ -26,7 +26,7 @@ cfg = {
     'save_best_only': False,
 
     'pin_memory': True,
-    'newest_ckpt': home + 'output/newest.json',
+    'newest_ckpt': home + '/output/newest.json',
     'th': 50,  # percentage of headsize
     'from_scratch': True,
 
@@ -52,10 +52,9 @@ cfg = {
     "img_path": home + "/dhp19_eros/",
     "test_img_path": home + '/dhp19_eros/',
     "eval_img_path": home + '/dhp19_eros/',
-    "eval_outputs": home + '/dhp19_outputs/',
+    "eval_outputs": home + '/dhp-outputs/',
     "eval_label_path": home + "/dhp19_eros/poses.json",
     'train_label_path': '',
-    'val_label_path':'',
-
+    'val_label_path': ''
 }
 

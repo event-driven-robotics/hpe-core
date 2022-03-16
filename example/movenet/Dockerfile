@@ -2,8 +2,10 @@ FROM ubuntu
 LABEL maintainer="Gaurvi Goyal"
 
 RUN apt-get update && apt-get install -y \
-    python3-pip
+    python3-pip vim
 
-COPY ../. /examples
-    
-RUN pip install --upgrade pip && pip install -r examples/movenet/requirements.txt
+COPY . /workspace
+
+RUN pip install --upgrade pip && pip install -r workspace/requirements.txt
+
+WORKDIR /workspace
