@@ -28,7 +28,7 @@ Note: You can also, instead, install the libraries named in `requirements.py` di
     $ docker run -it movenet bash
     ```
 
-2.To test the model, run 
+2.To test the model, ensure you are in the examples/movenet folder and run 
 ```
 python evaluate.py
 ```
