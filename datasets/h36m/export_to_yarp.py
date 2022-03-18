@@ -74,7 +74,7 @@ def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl, w
             cv2.imwrite(filename_full, frame_resized)  # create the images
 
         pose = pose.reshape(-1, 2)
-        pose_small = parsing.h36m_to_dhp19(pose)
+        pose_small = parsing.h36m_to_hpecore_skeleton(pose)
 
         pose_small[:, 0] = pose_small[:, 0] * output_width / 1000
         pose_small[:, 1] = pose_small[:, 1] * output_height / 1000

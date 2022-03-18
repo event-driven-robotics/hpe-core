@@ -1,6 +1,10 @@
 import numpy as np
 import os
 
+from collections import OrderedDict
+from time import time
+
+
 # DVS camera
 H36M_VIDEO_HEIGHT = 1000
 H36M_VIDEO_WIDTH = 1000
@@ -78,6 +82,42 @@ DHP19_TO_MOVENET_INDICES = np.array([
     [12, 11]  # rankle
 ])
 
+# H36M_TO_HPECORE_SKELETON_MAP = OrderedDict()
+# H36M_TO_HPECORE_SKELETON_MAP['head'] = 14
+# H36M_TO_HPECORE_SKELETON_MAP['shoulderL'] = 17
+# H36M_TO_HPECORE_SKELETON_MAP['shoulderR'] = 25
+# H36M_TO_HPECORE_SKELETON_MAP['elbowL'] = 18
+# H36M_TO_HPECORE_SKELETON_MAP['elbowR'] = 26
+# H36M_TO_HPECORE_SKELETON_MAP['handL'] = 19
+# H36M_TO_HPECORE_SKELETON_MAP['handR'] = 27
+# H36M_TO_HPECORE_SKELETON_MAP['hipL'] = 6
+# H36M_TO_HPECORE_SKELETON_MAP['hipR'] = 1
+# H36M_TO_HPECORE_SKELETON_MAP['kneeL'] = 7
+# H36M_TO_HPECORE_SKELETON_MAP['kneeR'] = 2
+# H36M_TO_HPECORE_SKELETON_MAP['footL'] = 8
+# H36M_TO_HPECORE_SKELETON_MAP['footR'] = 3
+
+H36M_TO_HPECORE_SKELETON_MAP = [
+    14,  # head
+    17,  # shoulderL
+    25,  # shoulderR
+    18,  # elbowL
+    26,  # elbowR
+    19,  # handL
+    27,  # handR
+    6,  # hipL
+    1,  # hipR
+    7,  # kneeL
+    2,  # kneeR
+    8,  # footL
+    3  # footR
+]
+
+
+def h36m_to_hpecore_skeleton(pose):
+    return pose[H36M_TO_HPECORE_SKELETON_MAP, :]
+
+
 def h36m_to_dhp19(pose):
     return pose[H36M_TO_DHP19_INDICES[:, 0], :]
 
@@ -134,9 +174,10 @@ class H36mIterator:
 
         self.target_ts = data_skl['ts']  # timestamps from vicon
 
-        self.prev = 0.0
-        self.ind = 1 if self.target_ts[0] == self.prev else 0
-        self.current = self.target_ts[self.ind]
+        self.prev_skl_ts = 0.0
+        self.ind = 1 if self.target_ts[0] == self.prev_skl_ts else 0
+        self.current_skl_ts = self.target_ts[self.ind]
+        self.prev_event_ts = 0
 
         self.stop_flag = False
         self.skl_keys = [str(i) for i in range(0, 13)]
@@ -149,30 +190,54 @@ class H36mIterator:
         return int(np.ceil(len(self.timestamps) / self.target_ts))
 
     def __next__(self):
+
+        t1 = time()
+
         if self.stop_flag:
             raise StopIteration
-        # print(self.ind)
-        self.prev = self.current
-        self.current = self.target_ts[self.ind]
+
+        self.prev_skl_ts = self.current_skl_ts
+        self.current_skl_ts = self.target_ts[self.ind]
 
         # Extracting all relevant events in the time frame
         events_iter = np.array([])
-        for i, t in enumerate(self.timestamps):
-            if self.prev < t <= self.current:
-                events = np.array([self.events_x[i], self.events_y[i]], dtype=int).reshape(1,2)
+
+        # print(f'self.prev: {self.prev}, self.current: {self.current}')
+        # print(f'self.prev_event_ts: {self.prev_event_ts}')
+        event_found = False
+
+        for i, t in enumerate(self.timestamps[self.prev_event_ts:]):
+            if self.prev_skl_ts < t <= self.current_skl_ts:
+
+                if not event_found:
+                    self.prev_event_ts = i
+                event_found = True
+
+                # events = np.array([self.events_x[i], self.events_y[i]], dtype=int).reshape(1, 2)
+                events = np.zeros((1, 2), dtype=int)
+                events[0, 0] = self.events_x[i]
+                events[0, 1] = self.events_y[i]
                 try:
                     events_iter = np.concatenate((events, events_iter), axis=0)
                 except:
                     events_iter = events
+            elif t > self.current_skl_ts:
+                break
 
         # Extracting the GT skeleton
-        skl = []
-        [skl.append(self.skl[k][self.ind]) for k in self.skl_keys]
-        skl = np.vstack(skl)
+        # skl = []
+        # [skl.append(self.skl[k][self.ind]) for k in self.skl_keys]
+        # skl = np.vstack(skl)
+        skl = np.zeros((13, 2), dtype=int)
+        for i, k in enumerate(self.skl_keys):
+            skl[i] = self.skl[k][self.ind]
         self.ind += 1
         self.__update_current_index(self.ind)
         # print(events_iter.shape)
-        return events_iter, skl, self.current
+
+        print(f'elapsed time for {self.__class__.__name__}.__next__: {time() - t1}')
+
+        return events_iter, skl, self.current_skl_ts
 
     def __update_current_index(self, end_ind):
 
