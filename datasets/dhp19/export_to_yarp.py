@@ -68,12 +68,12 @@ def export_to_yarp(data_dvs, data_vicon, projection_mat_folder, window_size, out
 
             # convert poses_2d to dictionary
             container['data'][f'ch{cn}']['skeleton'] = dict()
-            for joint_type in dhp19_parse.DHP19_BODY_PARTS.keys():
-                container['data'][f'ch{cn}']['skeleton'][joint_type] = poses_2d[:, dhp19_parse.DHP19_BODY_PARTS[joint_type], :]
+            for joint_type in dhp19_const.DHP19_TO_HPECORE_SKELETON_MAP.keys():
+                container['data'][f'ch{cn}']['skeleton'][joint_type] = poses_2d[:, dhp19_const.DHP19_BODY_PARTS_INDICES[joint_type], :]
         else:
             # convert poses_3d to dictionary
-            for joint_type in dhp19_parse.DHP19_BODY_PARTS.keys():
-                container['data'][f'ch{cn}']['skeleton'][joint_type] = poses_3d[:, dhp19_parse.DHP19_BODY_PARTS[joint_type], :]
+            for joint_type in dhp19_const.DHP19_TO_HPECORE_SKELETON_MAP.keys():
+                container['data'][f'ch{cn}']['skeleton'][joint_type] = poses_3d[:, dhp19_const.DHP19_BODY_PARTS_INDICES[joint_type], :]
         container['data'][f'ch{cn}']['skeleton']['ts'] = poses_ts
 
     exportIitYarp.exportIitYarp(container, exportFilePath=str(output_folder.resolve()), protectedWrite=True)
