@@ -10,17 +10,20 @@ C++ src for compiling a library of functions useful for HPE:
 
 # Build the library
 
-  * Clone the repository: e.g. `git clone https://github.com/event-driven-robotics/hpe-core.git`
-  * `cd hpe-core/core`
-  * `mkdir build && cd build`
-  * `cmake ..`
-  * `make`
+* Clone the repository: e.g. `git clone https://github.com/event-driven-robotics/hpe-core.git`
+* `cd hpe-core/core`
+* `mkdir build && cd build`
+* `cmake ..`
+* `make`
 
-Cmake will search for installed dependencies, which are needed for the pose detection wrappers.
+CMake will search for installed dependencies, which are needed for the pose detection wrappers. To install specific dependencies, check the Dockerfile in example modules for tips. If you want all dependencies we provide a (large) Dockerfile [here](todo).
 
 # Link the library to your repository
 
-Using cmake, add the following to your 
-  * 
+Using cmake, add the following to your `CMakeLists.txt`
+
+*  `find_package(hpe-core)`
+*  `target_link_libraries(${PROJECT_NAME} PRIVATE hpe-core::hpe-core)`
+
 
 
