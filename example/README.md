@@ -1,7 +1,9 @@
 # Example application and test-cases
 
-An example application which uses the library functions in core, and integrates it in a real event pipeline. (No project specific application here though)
+The following example modules are available to get an idea of how to use the core functionality in your own project. Many of the example modules are built upon [YARP](www.yarp.it) but have Dockerfiles to enable simple environment set-up.
 
-In addition, example applications can act as test cases to ensure the core library functions do not break
-
-Docker images for each application
+*  OpenPose extracing 2D joint positions, example module using e2vid functionality to produce images from events
+*  [GL-HPE](https://github.com/gianscarpe/event-based-monocular-hpe) extracing 2D joint positions from event-images, intregrated with live play-back functionality
+*  movenet extracing 2D joint positions from Exponentially-reduced Ordinal Surfaces
+*  event-based velocity estimation and simple integration > 100 Hz.
+*  event-volume compensation using IMU input to remove motion blur from rotating cameras.
