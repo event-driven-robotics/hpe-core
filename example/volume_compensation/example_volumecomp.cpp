@@ -10,6 +10,7 @@ All rights reserved. */
 #include <hpe-core/volumes.h>
 #include <mutex>
 #include <fstream>
+#include <iomanip>
 #include "visualisation.h"
 #include <event-driven/vIPT.h>
 
@@ -118,6 +119,27 @@ public:
         cv::imshow(name, base_copy);
     }
 
+    void countNonZero()
+    {
+        static double mean_val{0.0};
+        static int mean_count{0};
+
+        cv::Mat temp, temp2;
+        cv::cvtColor(debug_image, temp, cv::COLOR_BGR2GRAY);
+        cv::threshold(temp, temp, 129, 255, cv::THRESH_BINARY);
+        int c_orig = cv::countNonZero(temp);
+
+        compensated_image.convertTo(temp, CV_8UC3);
+        cv::cvtColor(temp, temp2, cv::COLOR_BGR2GRAY);
+        int c_comp = cv::countNonZero(temp2);
+
+        double score = (c_orig - c_comp) / (double)std::max(c_orig, c_comp);
+        mean_count++;
+        mean_val += (score - mean_val) / mean_count;
+
+        //yInfo() << 100 * mean_val;
+    }
+
     void show()
     {
 
@@ -132,9 +154,10 @@ public:
 
         //debug_image.copyTo(together(roi2));
         bgr.copyTo(together(roi2), bgr);
-        //arrow_image.copyTo(together(roi2), arrow_image);
+        
         debug_image.copyTo(together(roi1));
-        cv::threshold(together, together, 129, 255, cv::THRESH_BINARY);
+        arrow_image.copyTo(together(roi1), arrow_image);
+        //cv::threshold(together, together, 129, 255, cv::THRESH_BINARY);
 
         cv::namedWindow("Compensated", cv::WINDOW_NORMAL);
         cv::imshow("Compensated", together);
@@ -327,6 +350,7 @@ public:
         m.lock();
         for (auto &v : window) {
             hpecore::point_flow pf = hpecore::estimateVisualFlow({(double)v.x, (double)v.y, 0.0}, cam_vel, cam_par);
+            pf.udot *= 12.5; pf.vdot *= 12.5;
             auto we = hpecore::spatiotemporalWarp(v, pf, vtsHelper::deltaS(window.back().stamp, v.stamp));
             fv.addPixel(v.x, v.y, we.x, we.y, pf.udot, pf.vdot, period);
             warped_volume.push_back(we);
@@ -336,12 +360,13 @@ public:
         std::array<double, 4> qd = imu_helper.extractHeading();
         //for(auto i : qd) std::cout << i; std::cout << std::endl;
         //std::array<float, 4> qf = qd;
-        cv::Mat temp = ev::drawRefAxis(qd);
-        cv::imshow("AHRS", temp);
-        cv::waitKey(1);
+
         m.unlock();
 
+        //fv.countNonZero();
         fv.show();
+
+        static std::array< deque<double>, 6> values;
 
         yarp::sig::Vector &yarp_vel = scope_port.prepare();
         yarp_vel.resize(6);
@@ -352,21 +377,58 @@ public:
         std::array<double, 3> gv = imu_helper.getGravityVector();
         static double tic = yarp::os::Time::now();
         double dt = yarp::os::Time::now() - tic; tic += dt;
+        double max_diff{0.0};
+        if(dt > 1.0) dt = 1.0;
+
+        //display gravity vector
+#if 0
         for(auto i = 0; i < 3; i++) {
-            if(dt > 1.0) dt = 1.0;
-            //mean_acc[i] = mean_acc[i]*(1.0 - dt) + cam_acc[i] * dt;
-            //yarp_vel[i] = mean_acc[i];
             yarp_vel[i] = gv[i];
-            //yarp_vel[i] = cam_acc[i] - mean_acc[i];
             yarp_vel[i+3] = cam_acc[i];
-            //if(fabs(cam_acc[i] - mean_acc[i]) > 0.1)
-            //double temp_vel = my_vel[i] + (cam_acc[i] - mean_acc[i]) * dt * 0.5;
-            //mean_vel[i] = mean_vel[i]*(1.0-dt) + temp_vel*dt;
-            //my_vel[i] += (cam_acc[i] - gv[i]) * dt;
-            //my_vel[i] *= 0.99;
-            
-            //yarp_vel[i] = my_vel[i];
         }
+#endif
+
+        //display integrated velocity
+#if 1
+        for(auto i = 0; i < 3; i++) {
+
+            values[i].push_back(cam_acc[i]);
+            if(values[i].size() > 5) values[i].pop_front();
+
+            double mean = 0.0;
+            for(auto &v : values[i]) mean += v;
+            mean /= values[i].size();
+
+            double var = 0.0;
+            for(auto &v : values[i]) var += (v-mean)*(v-mean);
+            var /= values[i].size();
+            var = sqrt(var);
+            
+            if(var > 0.1) {
+                my_vel[i] += (cam_acc[i] - gv[i]) * dt;
+                mean_vel[i] = mean_vel[i]*(1.0-dt*0.5) + my_vel[i]*dt*0.5;
+            } else {
+                my_vel[i] = 0.0;
+                mean_vel[i] = 0.0;
+            }
+            
+            yarp_vel[i] = my_vel[i];
+            max_diff = std::max(std::fabs(gv[i]- cam_acc[i]), max_diff);
+        }
+#endif
+        //yInfo() << max_diff << " ms^-2";
+        static double mean_max_diff{0.0};
+        static int count_max_diff{0};
+        mean_max_diff += (max_diff - mean_max_diff) / ++count_max_diff;
+        
+        std::stringstream ss;
+        ss << std::fixed << std::setprecision(2) << mean_max_diff << "m/s^2";
+
+        cv::Mat temp = ev::drawRefAxis(qd);
+        cv::putText(temp, ss.str(), cv::Point(0, temp.rows), cv::FONT_HERSHEY_PLAIN, 1.0, cv::Scalar(255, 255, 255));
+        cv::imshow("AHRS", temp);
+        cv::waitKey(1);
+
         scope_port.write();
 
         if (vel_writer.is_open()) {
