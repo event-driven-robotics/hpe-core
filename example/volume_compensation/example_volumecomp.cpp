@@ -1,3 +1,7 @@
+/*BSD 3-Clause License
+Copyright (c) 2021, Event Driven Perception for Robotics
+All rights reserved. */
+
 #include <yarp/os/all.h>
 #include <yarp/sig/all.h>
 #include <event-driven/all.h>
