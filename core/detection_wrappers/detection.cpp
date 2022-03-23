@@ -31,11 +31,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include "detection.h"
 
 using namespace hpecore;
-using namespace cv;
-using std::tuple;
 
-skeleton detect(Mat image)
+skeleton13 detect(cv::Mat image)
 {
-    skeleton pose(1, {0.0, 0.0});
-    return pose;
+   skeleton13 pose;
+   return pose;
 }
+

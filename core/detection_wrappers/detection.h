@@ -34,5 +34,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 
 namespace hpecore {
-skeleton detect(cv::Mat image);
+
+skeleton13 detect(cv::Mat image);
+
 }

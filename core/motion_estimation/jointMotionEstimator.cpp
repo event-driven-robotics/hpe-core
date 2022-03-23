@@ -33,14 +33,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 using namespace hpecore;
 
 
-sklt jointMotionEstimator::resetPose(sklt detection)
+skeleton13 jointMotionEstimator::resetPose(skeleton13 detection)
 {
     return detection;
 }
 
-sklt jointMotionEstimator::resetVel()
+skeleton13 jointMotionEstimator::resetVel()
 {
-    sklt vel;
+    skeleton13 vel;
     for (size_t i = 0; i < vel.size(); i++)
     {
         vel[i].u = 0;
@@ -50,12 +50,12 @@ sklt jointMotionEstimator::resetVel()
 }
 
 // Velocity estimation method 2: neighbor events
-sklt jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<double> evsTs, int jointName, int nevs, std::deque<joint>& vels)
+skeleton13 jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<double> evsTs, int jointName, int nevs, std::deque<joint>& vels)
 {
     double vx = 0, vy = 0;
     int num = 0;
 
-    sklt vel;
+    skeleton13 vel;
     for (size_t i = 0; i < vel.size(); i++)
     {
         vel[i].u = 0;
@@ -164,7 +164,7 @@ sklt jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<do
     return vel;
 }
 
-void jointMotionEstimator::fusion(sklt *pose, sklt dpose, double dt)
+void jointMotionEstimator::fusion(skeleton13 *pose, skeleton13 dpose, double dt)
 {
     for (size_t i = 0; i < (*pose).size(); i++)
     {
@@ -175,9 +175,9 @@ void jointMotionEstimator::fusion(sklt *pose, sklt dpose, double dt)
 
 // Functions no longer being used
 // Velocity estimation method 1: time diff on adjacent events
-sklt jointMotionEstimator::method1(std::deque<joint> evs, std::deque<double> evsTs, int jointName, int nevs, std::deque<joint>& vels)
+skeleton13 jointMotionEstimator::method1(std::deque<joint> evs, std::deque<double> evsTs, int jointName, int nevs, std::deque<joint>& vels)
 {
-    sklt vel;
+    skeleton13 vel;
     for (size_t i = 0; i < vel.size(); i++)
     {
         vel[i].u = 0;
@@ -283,7 +283,7 @@ sklt jointMotionEstimator::method1(std::deque<joint> evs, std::deque<double> evs
 
 
 // Estimated time of fire functions
-void jointMotionEstimator::estimateFire(std::deque<joint> evs, std::deque<double> evsTs, std::deque<int> evsPol, int jointName, int nevs, sklt pose, sklt dpose, double **Te, cv::Mat matTe)
+void jointMotionEstimator::estimateFire(std::deque<joint> evs, std::deque<double> evsTs, std::deque<int> evsPol, int jointName, int nevs, skeleton13 pose, skeleton13 dpose, double **Te, cv::Mat matTe)
 {
     double du = dpose[jointName].u;
     double dv = dpose[jointName].v;
@@ -406,7 +406,7 @@ void jointMotionEstimator::estimateFire(std::deque<joint> evs, std::deque<double
 
 }
 
-double jointMotionEstimator::getError(std::deque<joint> evs, std::deque<double> evsTs, std::deque<int> evsPol, int jointName, int nevs, sklt pose, sklt dpose, double **Te, cv::Mat matTe)
+double jointMotionEstimator::getError(std::deque<joint> evs, std::deque<double> evsTs, std::deque<int> evsPol, int jointName, int nevs, skeleton13 pose, skeleton13 dpose, double **Te, cv::Mat matTe)
 {
     double sum = 0;
     int cont = 0;
@@ -431,7 +431,7 @@ double jointMotionEstimator::getError(std::deque<joint> evs, std::deque<double> 
         return 0;
 }
 
-joint jointMotionEstimator::centerMass(std::deque<joint> evs,  int jointName, int nevs, sklt pose)
+joint jointMotionEstimator::centerMass(std::deque<joint> evs,  int jointName, int nevs, skeleton13 pose)
 {
     double sumX = 0, sumY = 0;
     int cont = 0;
@@ -457,9 +457,9 @@ joint jointMotionEstimator::centerMass(std::deque<joint> evs,  int jointName, in
     return center;    
 }
 
-sklt jointMotionEstimator::setVel(int jointName, sklt dpose, double dx, double dy, double err)
+skeleton13 jointMotionEstimator::setVel(int jointName, skeleton13 dpose, double dx, double dy, double err)
 { 
-    sklt vel;
+    skeleton13 vel;
     for (size_t i = 0; i < vel.size(); i++)
     {
         vel[i].u = 0;
@@ -471,5 +471,3 @@ sklt jointMotionEstimator::setVel(int jointName, sklt dpose, double dx, double d
 
     return vel;
 }
-
-

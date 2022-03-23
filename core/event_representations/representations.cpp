@@ -177,4 +177,5 @@ bool surface::EROSupdate(const int vx, const int vy)
 
     return border;
 }
+
 }

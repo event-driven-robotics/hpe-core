@@ -33,15 +33,15 @@ private:
     BufferedPort<Bottle> input_sklt;
     std::ofstream output_writer, aux_out, vel_out;
     deque<AE> evsFullImg;
-    deque<sklt> pose2img;
+    deque<skeleton13> pose2img;
     deque<joint> vels;
     std::mutex m;
-    sklt pose, dpose, poseGT;
+    skeleton13 pose, dpose, poseGT;
     hpecore::jointMotionEstimator tracker;
     roiq qROI;
     int roiWidth = 32;
     int roiHeight = roiWidth;
-    skltJoint jointName;
+    jointNames jointName;
     string jointNameStr;
     int dimY, dimX;
     int nevs = 0;
@@ -239,9 +239,9 @@ public:
     }
 
 
-    sklt buildSklt(Bottle &readBottle)
+    skeleton13 buildSklt(Bottle &readBottle)
     {
-        sklt newPose;
+        skeleton13 newPose;
         for (size_t i = 0; i < readBottle.size(); i = i + 2)
         {
             Value &u = readBottle.get(i);
@@ -331,7 +331,7 @@ public:
     }
 
 
-    void drawSkeleton(sklt poseGT)
+    void drawSkeleton(skeleton13 poseGT)
     {
         // plot detected joints
         for(int i=0; i<13; i++)
@@ -444,7 +444,7 @@ public:
                 Value &coords = (*bot_sklt).get(1);
                 Bottle *sklt_lst = coords.asList();
                 // build skeleton from reading
-                sklt builtPose = buildSklt(*sklt_lst);
+                skeleton13 builtPose = buildSklt(*sklt_lst);
                 pose = tracker.resetPose(builtPose);   // reset pose
                 poseGT = pose;
                 // set roi for just one joint
