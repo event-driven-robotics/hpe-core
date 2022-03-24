@@ -35,7 +35,7 @@ private:
     std::ofstream output_writer, aux_out, vel_out;
     deque<AE> evsFullImg;
     deque<skeleton13> pose2img;
-    deque<joint> vels;
+    deque<joint> vels; 
     std::mutex m;
     skeleton13 pose, dpose, poseGT;
     hpecore::jointMotionEstimator tracker;
@@ -540,23 +540,8 @@ public:
                         nevs++;
                     }
                 }
+            }
             
-            }
-            if(nevs)
-            {
-                if(method == 1)
-                    qROI.setSize(int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])*1.5));
-                else if(method == 2)
-                {
-                    int halfRoi = int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])*0.5);
-                    // if(halfRoi > 2*nevs)
-                    //     qROI.setSize(nevs*2);
-                    // else
-                    //     qROI.setSize(halfRoi);
-                    if(pastSurf) qROI.setSize(nevs);
-                    else qROI.setSize(halfRoi);
-                }
-            }
         
             // Add events to output image
             if (initTimer)
@@ -565,6 +550,7 @@ public:
             // Process data for tracking
             if(pose.size() && firstDet) // a pose has been detected before
             {
+                dpose = tracker.resetVel();
                 if (nevs && qROI.q.size() && !bot_sklt)// && qROI.q.front().stamp * vtsHelper::tsscaler > skltTs) // there are events to process
                 {
                     // separate events into deques to avoid using event-driven in hpe-core
@@ -574,6 +560,7 @@ public:
                     
                     if(method == 1) // Velocity estimation Method 1: time diff on adjacent events 
                     {
+                        qROI.setSize(int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])*1.5));
                         if(nevs > 20)
                         {
                             dpose = tracker.method1(evs, evsTs, jointName, nevs, vels);  // get veocities from delta ts
@@ -589,14 +576,17 @@ public:
                     }
                     else if(method == 2) // Velocity estimation method 2: neighbor events
                     {
+                        int halfRoi = int((qROI.roi[1] - qROI.roi[0]) * (qROI.roi[3] - qROI.roi[2])*0.5);
+                        if(pastSurf) qROI.setSize(nevs);
+                        else qROI.setSize(halfRoi);
                         // yInfo() << nevs;
                         // tracker.estimateFire(evs, evsTs, evsPol, jointName, nevs, pose, dpose, Te, matTe);
                         // double err = tracker.getError(evs, evsTs, evsPol, jointName, nevs, pose, dpose, Te, matTe);
                         // dpose = tracker.setVel(jointName, dpose, pose[jointName].u, pose[jointName].v, err);
-                        if(pastSurf) dpose = tracker.estimateVelocity(evs, evsTs, jointName, nevs, vels, S.getSurface(), matTe);
-                        else dpose = tracker.estimateVelocity(evs, evsTs, jointName, nevs, vels);
+                        if(pastSurf) dpose[jointName] = tracker.estimateVelocity(evs, evsTs, nevs, vels, S.getSurface(), matTe);
+                        else dpose[jointName] = tracker.estimateVelocity(evs, evsTs, nevs, vels);
                         double dt = t1 - t3;
-                        tracker.fusion(&pose, dpose, dt);
+                        tracker.fusion(&pose[jointName], dpose[jointName], dt);
                         t3 = t1;
                     }
 

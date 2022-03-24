@@ -49,6 +49,11 @@ namespace hpecore
       skeleton13 estimateVelocity(std::deque<joint> evs, std::deque<double> evsTs, int jointName, int nevs, std::deque<joint>& vels, cv::Mat eros, cv::Mat timeSurf);
       void fusion(skeleton13 *pose, skeleton13 dpose, double dt);
 
+      // Funtiones using joints instead of skeleton13
+      joint estimateVelocity(std::deque<joint> evs, std::deque<double> evsTs, int nevs, std::deque<joint>& vels);
+      joint estimateVelocity(std::deque<joint> evs, std::deque<double> evsTs, int nevs, std::deque<joint>& vels, cv::Mat eros, cv::Mat timeSurf);
+      void fusion(joint *pose, joint dpose, double dt);
+
       // Functions no longer being used
       // method one for velocity estimation
       skeleton13 method1(std::deque<joint> evs, std::deque<double> evsTs, int jointName, int nevs, std::deque<joint>& vels);
