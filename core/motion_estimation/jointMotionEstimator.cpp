@@ -164,6 +164,84 @@ skeleton13 jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::de
     return vel;
 }
 
+// Velocity estimation using past events surfaces
+skeleton13 jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<double> evsTs, int jointName, int nevs, std::deque<joint>& vels, cv::Mat eros, cv::Mat timeSurf)
+{
+    double vx = 0, vy = 0;
+    int num = 0;
+
+    skeleton13 vel;
+    for (size_t i = 0; i < vel.size(); i++)
+    {
+        vel[i].u = 0;
+        vel[i].v = 0;
+    }
+    int th = 100;
+    double tFirst = evsTs[0]; 
+    double tLast = evsTs[nevs-1];
+
+    // std::cout << tFirst << ", " << tLast << std::endl;
+
+    // std::cout<< evs.size() << ", " << nevs << std::endl;
+
+    // Estimation using neighbor events from the past
+    for(int v = 0; v < nevs; v++) // new events
+    {
+        int x = evs[v].u;
+        int y = evs[v].v;
+        double ts = evsTs[v];
+        double rad = 2;
+        double vxE = 0, vyE = 0;
+        int numE = 0;
+
+        for(int i = x-rad; i <= x+rad; i++) // past events
+        {
+            for(int j = y-rad; j <= y+rad; j++)
+            {
+                // float tsp = timeSurf.at<float>(j, i);
+                // auto asd = int(eros.at<unsigned char>(j, i));
+                // std::cerr << x << ", " << y << " @ " << ts << " -> " << i << ", " << j << " @ " << tsp << " -> " << asd;
+                // std::cout << asd << "\t";
+                if(int(eros.at<unsigned char>(j, i)) > th && (x!=i || y!=j))
+                {
+                    // std::cerr << "  * ";
+                    double dt = ts - timeSurf.at<float>(j, i);
+                    // std::cout << dt << std::endl;
+                    vxE += (x-i)/dt;
+                    vyE += (y-j)/dt;
+                    numE++;
+                }
+                // std::cerr << std::endl;
+                
+            }
+            // std::cout << std::endl;
+        }
+        // std::cout << numE << std::endl;
+        
+        // event-by-event  velocity
+        if(numE > 1)
+        {
+            vxE /= numE;
+            vyE /= numE;
+            vx += vxE;
+            vy += vyE;
+            joint V {vxE, vyE};
+            vels.push_back(V);
+            num++;
+        }
+    }
+    if(num) // average velocity
+    {
+        vx /= num;
+        vy /= num;
+    }
+
+    vel[jointName].u = vx;
+    vel[jointName].v = vy;
+
+    return vel;
+}
+
 void jointMotionEstimator::fusion(skeleton13 *pose, skeleton13 dpose, double dt)
 {
     for (size_t i = 0; i < (*pose).size(); i++)
