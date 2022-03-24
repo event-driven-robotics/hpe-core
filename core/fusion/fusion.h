@@ -28,3 +28,49 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #pragma once
+
+#include <string>
+#include "utility.h"
+
+namespace hpecore {
+
+class fusedSkeleton 
+{
+private:
+   skeleton13 state;
+
+public:
+
+   skeleton13 query()
+   {
+      return state;
+   }
+
+   joint queryJoint(jointName name)
+   {
+      return state[name];
+   }
+
+   void updateFromVelocity(jointName name, joint velocity, double dt)
+   {
+      state[name] += (velocity * dt);
+   }
+
+   void updateFromPosition(jointName name, joint position, double dt)
+   {
+      state[name] = position;
+   }
+
+   void updateFromVelocity(skeleton13 velocity, double dt)
+   {
+
+   }
+
+   void updateFromPosition(skeleton13 position, double dt)
+   {
+      state = position;
+   }
+
+};
+
+}
