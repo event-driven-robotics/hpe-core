@@ -165,7 +165,7 @@ skeleton13 jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::de
 }
 
 // Velocity estimation using past events surfaces
-skeleton13 jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<double> evsTs, int jointName, int nevs, std::deque<joint>& vels, cv::Mat eros, cv::Mat timeSurf)
+skeleton13 jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<double> evsTs, int jointName, int nevs, std::deque<joint>& vels, cv::Mat eros, cv::Mat SAE)
 {
     double vx = 0, vy = 0;
     int num = 0;
@@ -198,14 +198,14 @@ skeleton13 jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::de
         {
             for(int j = y-rad; j <= y+rad; j++)
             {
-                // float tsp = timeSurf.at<float>(j, i);
+                // float tsp = SAE.at<float>(j, i);
                 // auto asd = int(eros.at<unsigned char>(j, i));
                 // std::cerr << x << ", " << y << " @ " << ts << " -> " << i << ", " << j << " @ " << tsp << " -> " << asd;
                 // std::cout << asd << "\t";
                 if(int(eros.at<unsigned char>(j, i)) > th && (x!=i || y!=j))
                 {
                     // std::cerr << "  * ";
-                    double dt = ts - timeSurf.at<float>(j, i);
+                    double dt = ts - SAE.at<float>(j, i);
                     // std::cout << dt << std::endl;
                     vxE += (x-i)/dt;
                     vyE += (y-j)/dt;
@@ -326,7 +326,7 @@ joint jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<d
 
 
 // Velocity estimation using past events surfaces
-joint jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<double> evsTs, int nevs, std::deque<joint>& vels, cv::Mat eros, cv::Mat timeSurf)
+joint jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<double> evsTs, int nevs, std::deque<joint>& vels, cv::Mat eros, cv::Mat SAE)
 {
     double vx = 0, vy = 0;
     int num = 0;
@@ -355,14 +355,14 @@ joint jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<d
         {
             for(int j = y-rad; j <= y+rad; j++)
             {
-                // float tsp = timeSurf.at<float>(j, i);
+                // float tsp = SAE.at<float>(j, i);
                 // auto asd = int(eros.at<unsigned char>(j, i));
                 // std::cerr << x << ", " << y << " @ " << ts << " -> " << i << ", " << j << " @ " << tsp << " -> " << asd;
                 // std::cout << asd << "\t";
                 if(int(eros.at<unsigned char>(j, i)) > th && (x!=i || y!=j))
                 {
                     // std::cerr << "  * ";
-                    double dt = ts - timeSurf.at<float>(j, i);
+                    double dt = ts - SAE.at<float>(j, i);
                     // std::cout << dt << std::endl;
                     vxE += (x-i)/dt;
                     vyE += (y-j)/dt;
@@ -376,7 +376,7 @@ joint jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<d
         // std::cout << numE << std::endl;
         
         // event-by-event  velocity
-        if(numE > 1)
+        if(numE > 0)
         {
             vxE /= numE;
             vyE /= numE;
@@ -393,8 +393,11 @@ joint jointMotionEstimator::estimateVelocity(std::deque<joint> evs, std::deque<d
         vy /= num;
     }
 
-    vel.u = vx;
-    vel.v = vy;
+    if(num > 2)
+    {
+        vel.u = vx;
+        vel.v = vy;
+    }
 
     return vel;
 }
