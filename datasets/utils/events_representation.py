@@ -102,7 +102,7 @@ class TOS:
 
         if roi_valid is None:
             return True
-        
+
         roi = [roi_valid.y_tl, roi_valid.y_tl + roi_valid.height, roi_valid.x_tl, roi_valid.x_tl + roi_valid.width]
         roi_img = self._image[roi[0]:roi[1], roi[2]:roi[3]]
         update_indices = roi_img < thick_thresh
