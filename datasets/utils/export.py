@@ -5,6 +5,19 @@ from pathlib import Path
 from typing import Optional
 
 
+def skeleton_to_dict(skeleton, image_name, image_width, image_height, head_size, torso_size):
+
+    sample_anno = dict()
+    sample_anno['image_name'] = image_name
+    sample_anno['image_height'] = image_height
+    sample_anno['image_width'] = image_width
+    sample_anno['keypoints'] = skeleton.to_list()
+    sample_anno['torso_size'] = torso_size
+    sample_anno['head_size'] = head_size
+
+    return sample_anno
+
+
 def skeleton_to_yarp_row(counter: int, timestamp: float, skeleton: numpy.array, head_size: float = -1.0, torso_size: float = -1.0) -> str:
 
     skeleton_str = numpy.array2string(skeleton.reshape(-1), max_line_width=1000, precision=0, separator=' ')
