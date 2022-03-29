@@ -133,7 +133,8 @@ bool surface::TOSupdate(const int vx, const int vy)
     for (auto x = 0; x < region.cols; x++) {
         for (auto y = 0; y < region.rows; y++) {
             unsigned char &p = region.at<unsigned char>(y, x);
-            p < threshold ? p = 0 : p--;
+            if (p < threshold) p = 0;
+            if (p > c) p--;
         }
     }
     c = 255;
@@ -170,7 +171,7 @@ bool surface::EROSupdate(const int vx, const int vy)
     for (auto x = 0; x < region.cols; x++) {
         for (auto y = 0; y < region.rows; y++) {
             unsigned char &p = region.at<unsigned char>(y, x);
-            p *= odecay;
+            if(p > c) p *= odecay;
         }
     }
     c = 255;
