@@ -68,6 +68,7 @@ struct joint {
         return *this;
     }
 };
+using jDot = joint;
 
 typedef std::array<joint, 13> skeleton13;
 typedef std::array<bool, 13>  skeleton13_b;
