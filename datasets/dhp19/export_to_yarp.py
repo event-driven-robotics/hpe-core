@@ -47,6 +47,14 @@ def export_to_yarp(data_dvs: dict, data_vicon: dict, projection_mat_folder: path
         # convert polarity to an array of booleans
         data['dvs']['pol'] = np.array(data['dvs']['pol'], dtype=bool)
 
+        # remove out of bounds events
+        correct_events_ind = (data['dvs']['x'] >= 0) | (data['dvs']['x'] < dhp19_const.DHP19_SENSOR_WIDTH) | \
+                             (data['dvs']['y'] >= 0) | (data['dvs']['y'] < dhp19_const.DHP19_SENSOR_HEIGHT)
+        data['dvs']['x'] = data['dvs']['x'][correct_events_ind]
+        data['dvs']['y'] = data['dvs']['y'][correct_events_ind]
+        data['dvs']['ts'] = data['dvs']['ts'][correct_events_ind]
+        data['dvs']['pol'] = data['dvs']['pol'][correct_events_ind]
+
         container['data'][f'ch{cn}'] = data
 
     exportIitYarp.exportIitYarp(container, exportFilePath=str(output_folder.resolve()), protectedWrite=True)
