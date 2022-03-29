@@ -1,7 +1,7 @@
+
 import numpy as np
 import os
 
-from collections import OrderedDict
 from time import time
 
 
@@ -166,17 +166,17 @@ class H36mIterator:
     def __init__(self, data, data_skl):
         # TODO: add return of skeleton
 
-        self.timestamps = data['ts']  # timestamps present in the dvs
+        self.events_ts = data['ts']  # timestamps present in the dvs
 
         self.events = zip(data['ts'], data['x'], data['y'], data['pol'])
         self.events_x = data['x']
         self.events_y = data['y']
 
-        self.target_ts = data_skl['ts']  # timestamps from vicon
+        self.skeletons_ts = data_skl['ts']  # timestamps from vicon
 
         self.prev_skl_ts = 0.0
-        self.ind = 1 if self.target_ts[0] == self.prev_skl_ts else 0
-        self.current_skl_ts = self.target_ts[self.ind]
+        self.ind = 1 if self.skeletons_ts[0] == self.prev_skl_ts else 0
+        self.current_skl_ts = self.skeletons_ts[self.ind]
         self.prev_event_ts = 0
 
         self.stop_flag = False
@@ -187,7 +187,7 @@ class H36mIterator:
         return self
 
     def __len__(self):
-        return int(np.ceil(len(self.timestamps) / self.target_ts))
+        return int(np.ceil(len(self.events_ts) / self.skeletons_ts))
 
     def __next__(self):
 
@@ -197,7 +197,7 @@ class H36mIterator:
             raise StopIteration
 
         self.prev_skl_ts = self.current_skl_ts
-        self.current_skl_ts = self.target_ts[self.ind]
+        self.current_skl_ts = self.skeletons_ts[self.ind]
 
         # Extracting all relevant events in the time frame
         events_iter = np.array([])
@@ -206,7 +206,7 @@ class H36mIterator:
         # print(f'self.prev_event_ts: {self.prev_event_ts}')
         event_found = False
 
-        for i, t in enumerate(self.timestamps[self.prev_event_ts:]):
+        for i, t in enumerate(self.events_ts[self.prev_event_ts:]):
             if self.prev_skl_ts < t <= self.current_skl_ts:
 
                 if not event_found:
@@ -241,7 +241,7 @@ class H36mIterator:
 
     def __update_current_index(self, end_ind):
 
-        if end_ind >= self.target_ts.shape[0]:
+        if end_ind >= self.skeletons_ts.shape[0]:
             self.stop_flag = True
 
 # class Dhp19EventsIterator:
