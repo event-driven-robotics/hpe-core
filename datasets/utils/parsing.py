@@ -85,7 +85,7 @@ class YarpHPEIterator:
 
         # extract ground truth pose
         skl = np.zeros((len(HPECoreSkeleton.KEYPOINTS_MAP), 2), dtype=int)
-        for i, k in enumerate(self.skeleton_keys):
+        for i, k in enumerate(HPECoreSkeleton.KEYPOINTS_MAP):
             skl[i] = self.skeletons[k][self.ind]
 
         self.__update_current_index()
