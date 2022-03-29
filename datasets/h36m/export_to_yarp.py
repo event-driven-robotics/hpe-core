@@ -94,8 +94,8 @@ def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl, w
         counter += 1
 
     # info.log
-    frame_linesInfo = ['Type: Image;', '[0.0] /file/ch0frames:o [connected]']
-    pose_linesInfo = ['Type: Bottle;', '[0.0] /file/ch0GT50Hzskeleton:o [connected]']
+    frame_linesInfo = ['Type: Image;', f'[0.0] /file/ch{cam}frames:o [connected]']
+    pose_linesInfo = ['Type: Bottle;', f'[0.0] /file/ch{cam}GT50Hzskeleton:o [connected]']
 
     vid.release()
 
