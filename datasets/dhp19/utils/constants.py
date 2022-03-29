@@ -30,18 +30,18 @@ DHP19_BODY_PARTS_INDICES = {
     'footL': 12
 }
 
-DHP19_TO_HPECORE_SKELETON_MAP = {
-    'head': 0,
-    'shoulderL': 1,
-    'shoulderR': 2,
-    'elbowL': 3,
-    'elbowR': 4,
-    'handL': 5,
-    'handR': 6,
-    'hipL': 7,
-    'hipR': 8,
-    'kneeL': 9,
-    'kneeR': 10,
-    'footL': 11,
-    'footR': 12
-}
+DHP19_TO_HPECORE_SKELETON_IND = [
+    DHP19_BODY_PARTS_INDICES['head'],
+    DHP19_BODY_PARTS_INDICES['shoulderL'],
+    DHP19_BODY_PARTS_INDICES['shoulderR'],
+    DHP19_BODY_PARTS_INDICES['elbowL'],
+    DHP19_BODY_PARTS_INDICES['elbowR'],
+    DHP19_BODY_PARTS_INDICES['handL'],
+    DHP19_BODY_PARTS_INDICES['handR'],
+    DHP19_BODY_PARTS_INDICES['hipL'],
+    DHP19_BODY_PARTS_INDICES['hipR'],
+    DHP19_BODY_PARTS_INDICES['kneeL'],
+    DHP19_BODY_PARTS_INDICES['kneeR'],
+    DHP19_BODY_PARTS_INDICES['footL'],
+    DHP19_BODY_PARTS_INDICES['footR']
+]
