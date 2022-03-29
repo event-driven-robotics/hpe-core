@@ -46,7 +46,7 @@ private:
     roiq qROI[N];
     int roiWidth = 32;
     int roiHeight = roiWidth;
-    jointNames jointName;
+    jointName jointNum;
     string jointNameStr;
     int dimY, dimX;
     int nevs[N] = {0};
@@ -131,7 +131,7 @@ public:
             yInfo() << "vel_out writer opened";
         
         jointNameStr = rf.check("joint", Value("handL")).asString();
-        jointName = str2enum(jointNameStr);
+        jointNum = str2enum(jointNameStr);
         displayF = rf.check("F", Value(25)).asFloat32();
         method = rf.check("M", Value(2)).asInt();
 
@@ -183,7 +183,7 @@ public:
             roiHeight = 100;
             dimX = 640;
             dimY = 480;
-            jointName = str2enum("head");
+            jointNum = str2enum("head");
         }
 
         yarp.connect(getName("/img:o"), "/yarpview/img:i", "fast_tcp");
@@ -591,8 +591,8 @@ void drawRoi(cv::Mat img, cv::Scalar color, int th)
             
             skltTs = skltStamp.getTime();
 
-            ptJoint.x = int(poseGT[jointName].u);
-            ptJoint.y = int(poseGT[jointName].v);
+            ptJoint.x = int(poseGT[jointNum].u);
+            ptJoint.y = int(poseGT[jointNum].v);
                 
             if(bot_sklt && 1/(t1 - t4) <= detF) // there is a detection
             {
@@ -701,9 +701,9 @@ void drawRoi(cv::Mat img, cv::Scalar color, int th)
                             if(pastSurf) qROI[i].setSize(nevs[i]);
                             else qROI[i].setSize(halfRoi);
                             // yInfo() << nevs;
-                            // tracker.estimateFire(evs, evsTs, evsPol, jointName, nevs, pose, dpose, Te, SAE);
-                            // double err = tracker.getError(evs, evsTs, evsPol, jointName, nevs, pose, dpose, Te, SAE);
-                            // dpose = tracker.setVel(jointName, dpose, pose[jointName].u, pose[jointName].v, err);
+                            // tracker.estimateFire(evs, evsTs, evsPol, jointNum, nevs, pose, dpose, Te, SAE);
+                            // double err = tracker.getError(evs, evsTs, evsPol, jointNum, nevs, pose, dpose, Te, SAE);
+                            // dpose = tracker.setVel(jointNum, dpose, pose[jointNum].u, pose[jointNum].v, err);
                             if(pastSurf) dpose[i] = tracker.estimateVelocity(evs, evsTs, nevs[i], vels, S.getSurface(), SAE);
                             else dpose[i] = tracker.estimateVelocity(evs, evsTs, nevs[i], vels);
                             double dt = t1 - t3[i];
@@ -726,7 +726,7 @@ void drawRoi(cv::Mat img, cv::Scalar color, int th)
                         // // output velocities estimations to file
                         // if(avgV) // true = write averaged vel - false = write event by event vel
                         // {
-                        //     vel_out << t1 << " " << dpose[jointName].u << " " << dpose[jointName].v << std::endl;
+                        //     vel_out << t1 << " " << dpose[jointNum].u << " " << dpose[jointNum].v << std::endl;
                         // }
                         // else
                         // {

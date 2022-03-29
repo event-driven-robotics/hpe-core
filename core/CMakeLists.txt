@@ -60,8 +60,10 @@ set( folder_source
 set( folder_header
   utility/utility.h
   detection_wrappers/detection.h
+  motion_estimation/motion_estimation.h
   motion_estimation/jointMotionEstimator.h
   event_representations/representations.h
+  fusion/fusion.h
 )
 
 find_package(OpenPose QUIET)
