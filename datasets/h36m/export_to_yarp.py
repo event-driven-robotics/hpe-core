@@ -8,20 +8,24 @@ LICENSE GOES HERE
 """
 # Reading the GT and videos form h36 and generating Yarp compatible formats
 
-# %% Preliminaries
-import numpy as np
-import os
 import cdflib
 import cv2
+import numpy as np
+import os
+
+from datasets.utils.constants import HPECoreSkeleton
+from datasets.utils.export import skeleton_to_yarp_row
 from utils import parsing
 from os.path import join, isfile
 from tqdm import tqdm
+
 
 dataset_path = '/home/ggoyal/data/h36m/extracted'
 data_output_path = '/home/ggoyal/data/h36m/yarp/'
 output_width = 346
 output_height = 260
-subs = ['S1', 'S5', 'S6', 'S7', 'S8', 'S9', 'S11']
+# subs = ['S1', 'S5', 'S6', 'S7', 'S8', 'S9', 'S11']
+subs = ['S1']
 all_cameras = {1: '54138969', 2: '55011271', 3: '58860488', 4: '60457274'}
 cam = 2  # And maybe later camera 4.
 errorlog = '/home/ggoyal/data/h36m/errorlog.txt'
@@ -63,7 +67,7 @@ def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl, w
             break
 
         try:
-            pose = data[counter, :]
+            skeleton = data[counter, :]
         except IndexError:
             break
 
@@ -73,17 +77,20 @@ def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl, w
             frame_resized = cv2.resize(src=frame, dsize=dim, interpolation=cv2.INTER_AREA)
             cv2.imwrite(filename_full, frame_resized)  # create the images
 
-        pose = pose.reshape(-1, 2)
-        pose_small = parsing.h36m_to_hpecore_skeleton(pose)
+        # convert h3.6m joints order to hpecore one
+        skeleton = skeleton.reshape(-1, 2)
+        skeleton = parsing.h36m_to_hpecore_skeleton(skeleton)
 
-        pose_small[:, 0] = pose_small[:, 0] * output_width / 1000
-        pose_small[:, 1] = pose_small[:, 1] * output_height / 1000
-        pose_small = np.rint(pose_small).astype(int)
-        pose_small_str = np.array2string(pose_small.reshape(-1), max_line_width=1000, precision=0, separator=' ')
+        # rescale skeleton
+        skeleton[:, 0] = skeleton[:, 0] * output_width / 1000
+        skeleton[:, 1] = skeleton[:, 1] * output_height / 1000
+        skeleton = np.rint(skeleton).astype(int)
 
-        # # data.log
+        torso_size = HPECoreSkeleton.compute_torso_sizes(skeleton)
+
+        # append strings that will be written to yarp's data.log
         frame_lines.append(" %d %.6f %s [rgb]" % (counter, timestamp, filename))
-        pose_lines.append("%d %.6f SKLT (%s)" % (counter, timestamp, pose_small_str[1:-1]))
+        pose_lines.append(skeleton_to_yarp_row(counter, timestamp, skeleton, torso_size=torso_size))
         counter += 1
 
     # info.log
@@ -114,8 +121,8 @@ for i in tqdm(range(len(all_files))):
     video_file = (join(dataset_path, sub, 'Videos', file))
     pose_file = (join(dataset_path, sub, "Poses_D2_Positions", file.replace('mp4', 'cdf')))
     output_folder = ("%s_%s" % (sub, file.split('.')[0].replace(' ', '_')))
-    dir_frames = join(data_output_path, output_folder, 'ch0frames')
-    dir_pose = join(data_output_path, output_folder, 'ch0GT50Hzskeleton')
+    dir_frames = join(data_output_path, output_folder, f'ch{cam}frames')
+    dir_pose = join(data_output_path, output_folder, f'ch{cam}GT50Hzskeleton')
     # if isfile(join(dir_pose,'data.log')):
     #     continue
     # print((isfile(video_file),isfile(pose_file),dir_frames,dir_pose))
