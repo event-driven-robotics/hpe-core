@@ -54,6 +54,9 @@ class YarpHPEIterator:
         self.skeletons = data_skl
         self.skeleton_keys = [str(i) for i in range(len(HPECoreSkeleton.KEYPOINTS_MAP))]
 
+        self.head_sizes = data_skl['head_sizes']
+        self.torso_sizes = data_skl['torso_sizes']
+
         self.prev_skl_ts = 0.0
         self.ind = 1 if self.skeletons_ts[0] == self.prev_skl_ts else 0
         self.current_skl_ts = self.skeletons_ts[self.ind]
@@ -90,7 +93,7 @@ class YarpHPEIterator:
 
         self.__update_current_index()
 
-        return window_events, skl, self.current_skl_ts
+        return window_events, skl, self.current_skl_ts, self.head_sizes[self.ind], self.torso_sizes[self.ind]
 
     def __update_current_index(self):
 
