@@ -41,7 +41,7 @@ private:
     roiq qROI;
     int roiWidth = 32;
     int roiHeight = roiWidth;
-    jointNames jointName;
+    jointName jointNum;
     string jointNameStr;
     int dimY, dimX;
     int nevs = 0;
@@ -123,7 +123,7 @@ public:
             yInfo() << "vel_out writer opened";
         
         jointNameStr = rf.check("joint", Value("handL")).asString();
-        jointName = str2enum(jointNameStr);
+        jointNum = str2enum(jointNameStr);
         displayF = rf.check("F", Value(25)).asFloat32();
         method = rf.check("M", Value(2)).asInt();
 
@@ -172,7 +172,7 @@ public:
             roiHeight = 100;
             dimX = 640;
             dimY = 480;
-            jointName = str2enum("head");
+            jointNum = str2enum("head");
         }
 
         yarp.connect(getName("/img:o"), "/yarpview/img:i", "fast_tcp");
@@ -263,8 +263,8 @@ public:
         // plot tracked joint
         while (!pose2img.empty())
         {
-            int x = pose2img.front()[jointName].u;
-            int y = pose2img.front()[jointName].v;
+            int x = pose2img.front()[jointNum].u;
+            int y = pose2img.front()[jointNum].v;
             cv::Point pt(x, y);
             cv::drawMarker(fullImg, pt, cv::Scalar(0.8, 0, 0), 0, 6);
             pose2img.pop_front();
@@ -436,8 +436,8 @@ public:
             
             skltTs = skltStamp.getTime();
 
-            ptJoint.x = int(poseGT[jointName].u);
-            ptJoint.y = int(poseGT[jointName].v);
+            ptJoint.x = int(poseGT[jointNum].u);
+            ptJoint.y = int(poseGT[jointNum].v);
                 
             if(bot_sklt && 1/(t1 - t4) <= detF) // there is a detection
             {
@@ -448,8 +448,8 @@ public:
                 pose = tracker.resetPose(builtPose);   // reset pose
                 poseGT = pose;
                 // set roi for just one joint
-                int x = builtPose[jointName].u;
-                int y = builtPose[jointName].v;
+                int x = builtPose[jointNum].u;
+                int y = builtPose[jointNum].v;
                 qROI.setROI(x - roiWidth / 2, x + roiWidth / 2, y - roiHeight / 2, y + roiHeight / 2);
                 // output detections to file
                 aux_out << t1 << " ";
@@ -532,7 +532,7 @@ public:
                     {
                         if(nevs > 20)
                         {
-                            dpose = tracker.method1(evs, evsTs, jointName, nevs, vels);  // get veocities from delta ts
+                            dpose = tracker.method1(evs, evsTs, jointNum, nevs, vels);  // get veocities from delta ts
                             double dt = (qROI.q.front().stamp - qROI.q.back().stamp) * vtsHelper::tsscaler;
                             tracker.fusion(&pose, dpose, dt);
                         }
@@ -546,10 +546,10 @@ public:
                     else if(method == 2) // Velocity estimation method 2: neighbor events
                     {
                         // yInfo() << nevs;
-                        // tracker.estimateFire(evs, evsTs, evsPol, jointName, nevs, pose, dpose, Te, matTe);
-                        // double err = tracker.getError(evs, evsTs, evsPol, jointName, nevs, pose, dpose, Te, matTe);
-                        // dpose = tracker.setVel(jointName, dpose, pose[jointName].u, pose[jointName].v, err);
-                        dpose = tracker.estimateVelocity(evs, evsTs, jointName, nevs, vels);
+                        // tracker.estimateFire(evs, evsTs, evsPol, jointNum, nevs, pose, dpose, Te, matTe);
+                        // double err = tracker.getError(evs, evsTs, evsPol, jointNum, nevs, pose, dpose, Te, matTe);
+                        // dpose = tracker.setVel(jointNum, dpose, pose[jointNum].u, pose[jointNum].v, err);
+                        dpose = tracker.estimateVelocity(evs, evsTs, jointNum, nevs, vels);
                         double dt = t1 - t3;
                         tracker.fusion(&pose, dpose, dt);
                         t3 = t1;
@@ -562,15 +562,15 @@ public:
                     output_writer << std::endl;
 
                     // update roi
-                    int x = pose[jointName].u;
-                    int y = pose[jointName].v;
+                    int x = pose[jointNum].u;
+                    int y = pose[jointNum].v;
                     qROI.setROI(x - roiWidth / 2, x + roiWidth / 2, y - roiHeight / 2, y + roiHeight / 2);
                     pose2img.push_back(pose);
 
                     // output velocities estimations to file
                     if(avgV) // true = write averaged vel - false = write event by event vel
                     {
-                        vel_out << t1 << " " << dpose[jointName].u << " " << dpose[jointName].v << std::endl;
+                        vel_out << t1 << " " << dpose[jointNum].u << " " << dpose[jointNum].v << std::endl;
                     }
                     else
                     {
