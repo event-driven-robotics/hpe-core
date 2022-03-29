@@ -66,6 +66,9 @@ class EROS:
         roi_raw.y_tl = vy - half_kernel
         roi_valid = roi_raw & roi_full
 
+        if roi_valid is None:
+            return True
+
         update_mask = np.ones((self.frame_height, self.frame_width), dtype=np.float)
         roi = [roi_valid.y_tl, roi_valid.y_tl + roi_valid.height, roi_valid.x_tl, roi_valid.x_tl + roi_valid.width]
         update_mask[roi[0]:roi[1], roi[2]:roi[3]] *= odecay
@@ -97,6 +100,9 @@ class TOS:
         roi_raw.y = vy - half_kernel
         roi_valid = roi_raw & roi_full
 
+        if roi_valid is None:
+            return True
+        
         roi = [roi_valid.y_tl, roi_valid.y_tl + roi_valid.height, roi_valid.x_tl, roi_valid.x_tl + roi_valid.width]
         roi_img = self._image[roi[0]:roi[1], roi[2]:roi[3]]
         update_indices = roi_img < thick_thresh
