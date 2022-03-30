@@ -29,7 +29,7 @@ def skeleton_to_yarp_row(counter: int, timestamp: float, skeleton: numpy.array, 
 
 
 def export_skeletons_to_yarp(skeletons: numpy.array, timestamps: numpy.array, output_dir: Path,
-                             cam: int, head_sizes: Optional[numpy.array] = None, torso_sizes: Optional[numpy.array] = None):
+                             channel: int, head_sizes: Optional[numpy.array] = None, torso_sizes: Optional[numpy.array] = None):
 
     assert len(skeletons.shape) == 3 and (skeletons.shape[2] == 2 or skeletons.shape[2] == 3), \
         'skeleton shape must be (n, joints_num, 2) or (n, joints_num, 3)'
@@ -48,4 +48,4 @@ def export_skeletons_to_yarp(skeletons: numpy.array, timestamps: numpy.array, ou
     info_file = output_dir / 'info.log'
     with open(str(info_file.resolve()), 'w') as f:
         f.write('Type: Bottle;\n')
-        f.write(f'[0.0] /file/ch{cam}GTskeleton:o [connected]\n')
+        f.write(f'[0.0] /file/ch{channel}GTskeleton:o [connected]\n')
