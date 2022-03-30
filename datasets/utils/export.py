@@ -28,6 +28,21 @@ def skeleton_to_yarp_row(counter: int, timestamp: float, skeleton: numpy.array, 
     return row
 
 
+def export_list_to_yarp(elems: list, info: str, output_dir: Path):
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # write skeleton coordinates, head size and torso for every line
+    data_file = output_dir / 'data.log'
+    with open(str(data_file.resolve()), 'w') as f:
+        for elem in range(len(elems)):
+            f.write(f'{str(elem)}\n')
+
+    info_file = output_dir / 'info.log'
+    with open(str(info_file.resolve()), 'w') as f:
+        f.write(info)
+
+
 def export_skeletons_to_yarp(skeletons: numpy.array, timestamps: numpy.array, output_dir: Path,
                              channel: int, head_sizes: Optional[numpy.array] = None, torso_sizes: Optional[numpy.array] = None):
 

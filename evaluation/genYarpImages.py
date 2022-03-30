@@ -13,6 +13,7 @@ from os.path import join
 import sys
 from pathlib import Path
 
+import datasets.utils.events_representation
 from datasets.utils import mat_files
 from datasets.h36m.utils import parsing
 
@@ -71,9 +72,9 @@ if input_type == 'images':
              lines[i] = str(i+1) + ' ' + str(t_op[i]) + ' ' + str(filenames[i]) + '  [mono]'
 
         # info.log
-        linesInfo = ['Type: Image;', '[0.0] /file/ch'+ str(ch) +'frames:o [connected]']
+        info = 'Type: Image;\n[0.0] /file/ch'+ str(ch) +'frames:o [connected]'
 
-        parsing.writer(directory, lines, linesInfo)
+        datasets.utils.export.export_list_to_yarp(lines, info, Path(directory))
 
 if input_type == 'videos':
     import cv2
@@ -112,8 +113,8 @@ if input_type == 'videos':
     vid.release()
 
     # info.log
-    linesInfo = ['Type: Image;', '[0.0] /file/ch0frames:o [connected]']
+    info = 'Type: Image;\n[0.0] /file/ch0frames:o [connected]'
 
-    parsing.writer(directory, lines, linesInfo)
+    datasets.utils.export.export_list_to_yarp(lines, info, Path(directory))
     print(lines)
-    print(linesInfo)
+    print(info)
