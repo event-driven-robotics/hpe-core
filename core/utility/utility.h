@@ -32,11 +32,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include <array>
 #include <iostream>
+#include <iomanip>
 #include <map>
 #include <string>
 #include <tuple>
 #include <vector>
 #include <deque>
+#include <thread>
+#include <chrono>
+#include <mutex>
+#include <string>
 #include <opencv2/opencv.hpp>
 
 namespace hpecore {
@@ -73,6 +78,12 @@ using jDot = joint;
 typedef std::array<joint, 13> skeleton13;
 typedef std::array<bool, 13>  skeleton13_b;
 typedef std::array<cv::Point, 13> skeleton13_v;
+
+struct stampedPose {
+    double timestamp;
+    double delay;
+    skeleton13 pose;
+};
 
 enum jointName {head, shoulderR, shoulderL, elbowR, elbowL,
              hipL, hipR, handR, handL, kneeR, kneeL, footR, footL};
@@ -218,17 +229,90 @@ inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 
 }
 
 template <typename T>
-inline hpecore::skeleton13 extractSkeletonFromYARP(const T &gt_container)
+inline skeleton13 extractSkeletonFromYARP(const T &gt_container)
 {
-    hpecore::skeleton13 result;
+    skeleton13 result;
     T *gt = gt_container.get(1).asList();
     if(!gt || gt->size() != result.size()*2) return result;
     for (auto i = 0; i < result.size(); i++) {
-        hpecore::joint &j = result[i];
+        joint &j = result[i];
         j.u = gt->get(i*2).asDouble();
         j.v = gt->get(i*2+1).asDouble();
     }
     return result;
 }
+
+class writer {
+private:
+
+    std::ofstream fileio;
+    std::thread th;
+    bool stop{false};
+
+    std::mutex m;
+    std::deque<stampedPose> buffers[2];
+    int b_sel{0};
+    static constexpr void switch_buffer(int &buf_i) {buf_i = (buf_i + 1) % 2;};
+
+    void run()
+    {
+        while(!stop || buffers[0].size() || buffers[1].size()) {
+
+            std::deque<stampedPose> &c_buf = buffers[b_sel];
+            m.lock();
+            int n_data = buffers[b_sel].size();
+            switch_buffer(b_sel);
+            m.unlock();
+
+            if(n_data) {
+            
+                // write the full_buffer and clear it
+                for(auto &i : c_buf) 
+                {
+                    fileio << std::setprecision(5);
+                    fileio << i.timestamp << " " << i.delay;
+                    for(auto &j : i.pose)
+                        fileio << std::setprecision(2) << " " << j.u << " " << j.v;
+                    fileio << std::endl;
+                }
+                c_buf.clear();
+
+            } else {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+
+        }
+    }
+
+public:
+
+    bool open(std::string pathname)
+    {
+        //open the file output
+        fileio.open(pathname);
+        if(!fileio.is_open()) 
+            return false;
+        fileio << std::fixed;
+
+        //start the thread
+        th = std::thread( [this]{this->run();} );
+        return true;
+    }
+
+    void write(stampedPose data_point)
+    {
+        m.lock();
+        buffers[b_sel].push_back(data_point);
+        m.unlock();
+    }
+
+    void close()
+    {
+        stop = true;
+        std::cout << "hpecore::writer: please wait..." << std::endl;
+        th.join();
+        fileio.close();
+    }
+};
 
 }

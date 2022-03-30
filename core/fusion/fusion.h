@@ -37,7 +37,7 @@ namespace hpecore {
 class fusedSkeleton 
 {
 private:
-   skeleton13 state;
+   skeleton13 state{0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 public:
 

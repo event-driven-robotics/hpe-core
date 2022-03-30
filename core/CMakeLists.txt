@@ -89,7 +89,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE utility
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC ${OpenPose_LIBS} ${OpenCV_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PUBLIC ${OpenPose_LIBS} ${OpenCV_LIBRARIES} pthread)
 
 install(TARGETS ${PROJECT_NAME}
         EXPORT hpecore
