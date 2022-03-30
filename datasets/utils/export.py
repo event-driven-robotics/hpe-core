@@ -49,3 +49,29 @@ def export_skeletons_to_yarp(skeletons: numpy.array, timestamps: numpy.array, ou
     with open(str(info_file.resolve()), 'w') as f:
         f.write('Type: Bottle;\n')
         f.write(f'[0.0] /file/ch{cam}GTskeleton:o [connected]\n')
+
+
+def format_crop_file(crop_lines):
+    # Convert the file containing cropping data into a dictionary
+    crop_dict = {}
+    for line in crop_lines:
+        file, crop_str = line.split(' ')
+        l, r, t, b = crop_str.split(',')
+        crop_dict[file] = {'left': int(l), 'right': int(r), 'top': int(t), 'bottom': int(b)}
+    return crop_dict
+
+
+def crop_frame(frame, crop):
+    # crop a frame based on values from dictonary element crop.
+    if crop is not None:
+        frame = frame[crop['top'] + 1:-crop['bottom'], crop['left'] + 1:-crop['right'], :]
+    return frame
+
+
+def crop_pose(sklt, crop):
+    # adjust GT skeleton value due to cropping based on dictonary element crop.
+    if crop is not None:
+        for i in range(len(sklt)):
+            sklt[i, 0] -= crop['left']
+            sklt[i, 1] -= crop['top']
+    return sklt
