@@ -12,7 +12,6 @@ import os
 from os.path import join
 import sys
 from pathlib import Path
-
 from datasets.utils import mat_files
 from datasets.h36m.utils import parsing
 
