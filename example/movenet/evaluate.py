@@ -4,7 +4,9 @@ https://github.com/fire717
 """
 import os, argparse
 import random
+import sys
 
+sys.path.append('.')
 from lib import init, Data, MoveNet, Task
 
 from config import cfg
@@ -23,9 +25,10 @@ def main(cfg):
 
     run_task = Task(cfg, model)
 
-    run_task.modelLoad("output/mpii_pre-trained.pth")
+    run_task.modelLoad("models/mpii_pre-trained.pth")
 
     run_task.evaluate(data_loader)
+    # run_task.infer_video(data_loader,'/home/ggoyal/data/h36m/tester/out.avi')
 
 
 if __name__ == '__main__':

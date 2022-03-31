@@ -28,7 +28,7 @@ DHP19_BODY_PARTS = {
 # selected recording
 subj, sess, mov = 1, 1, 1
 # select joint
-j = DHP19_BODY_PARTS['handL']
+j = DHP19_BODY_PARTS['elbowL']
 p = dict(zip(DHP19_BODY_PARTS.values(),DHP19_BODY_PARTS.keys()))
 
 # Load trakcing output
@@ -99,9 +99,9 @@ fig.tight_layout(pad=5)
 ax.plot(t,xTR, marker = ".", label =r'$x_{tracked}\,,\,e_x=$'+ex,linestyle = 'None')
 ax.plot(t,yTR, marker = ".", label =r'$y_{tracked}\,,\,e_y=$'+ey,linestyle = 'None')
 # ax2.set_xlim([0.8, 4.2])
-# ax2.set_ylim([0, 270])
-ax.set_xlim([1, t[-1]/2])
-ax.set_ylim([min(min(xTR),min(yTR))*0.6, max(max(xTR),max(yTR))*1.4])
+ax.set_ylim([45, 320])
+ax.set_xlim([0, 12])
+# ax.set_ylim([min(min(xTR),min(yTR))*0.6, max(max(xTR),max(yTR))*1.4])
 plt.xlabel('time [sec]', fontsize=22, labelpad=5)
 plt.ylabel('x/y coordinate [px]', fontsize=22, labelpad=5)
 fig.suptitle('Joint tracker output - '+recording+' - '+p[j], fontsize=28, y=0.97)

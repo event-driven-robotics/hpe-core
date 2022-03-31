@@ -1,3 +1,7 @@
+#BSD 3-Clause License
+#Copyright (c) 2021, Event Driven Perception for Robotics
+#All rights reserved.
+
 import matplotlib.pyplot as plt
 import numpy as np
 

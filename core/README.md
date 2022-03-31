@@ -2,21 +2,28 @@
 
 C++ src for compiling a library of functions useful for HPE:
 
-* human pose estimation from event images
-* human pose esimtation with asynchronous spikes
+* human pose estimation from events
 * joint tracking
 * skeleton tracking
 * fusion
 * on-line visualisation
 
-### Dependencies
+# Build the library
 
-* this could be event-driven independent
-* this could also be YARP independent
-* C++ torch?
+* Clone the repository: e.g. `git clone https://github.com/event-driven-robotics/hpe-core.git`
+* `cd hpe-core/core`
+* `mkdir build && cd build`
+* `cmake ..`
+* `make`
 
-⚠️ all dependencies should by non-GPL license
+CMake will search for installed dependencies, which are needed for the pose detection wrappers. To install specific dependencies, check the Dockerfile in example modules for tips. If you want all dependencies we provide a (large) Dockerfile [here](todo).
 
-### How to compile and link to your project
+# Link the library to your repository
 
-Instructions here
+Using cmake, add the following to your `CMakeLists.txt`
+
+*  `find_package(hpe-core)`
+*  `target_link_libraries(${PROJECT_NAME} PRIVATE hpe-core::hpe-core)`
+
+
+
