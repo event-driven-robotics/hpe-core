@@ -38,10 +38,6 @@ OPENPOSE_BODY_25_TO_DHP19_INDICES = np.array([
 ])
 
 
-def dhp19_to_hpecore_skeletons(skeletons):
-    return skeletons[:, dhp19_const.DHP19_TO_HPECORE_SKELETON_IND, :]
-
-
 def extract_3d_poses(data_dvs, data_vicon, window_size):
     """
     Extracts a 3d pose for each window of events.
@@ -127,8 +123,7 @@ def project_poses_to_2d(poses_3d, projection_mat):
         poses_3d (numpy array): array with shape (num_of_poses, num_of_dhp19_joints, 3) containing the input poses
         projection_mat (numpy array): array with shape (4, 3) containing the projection matrix
     Returns:
-        the projected poses (numpy array) with shape (num_of_poses, num_of_dhp19_joints, 2)
-        a mask indicating if each projected joint is inside (1) or outside (0) the frame
+        a numpy array with shape (num_of_poses, num_of_dhp19_joints, 2) containing the projected poses
     """
 
     # use homogeneous coordinates representation to project 3d XYZ coordinates to 2d UV pixel coordinates
@@ -154,11 +149,11 @@ def project_poses_to_2d(poses_3d, projection_mat):
     return np.stack((v, u), axis=-1), mask
 
 
-class Dhp19IteratorAvgPoses:
+class Dhp19Iterator:
 
     def __init__(self, data_dvs, cam_id, window_size=dhp19_const.DHP19_CAM_FRAME_EVENTS_NUM, data_vicon=None, proj_mat_folder=None, stride=None):
 
-        self.start_time = data_dvs['out']['extra']['startTime']
+        # self.start_time = data_dvs['out']['extra']['startTime']
 
         self.timestamps = data_dvs['out']['extra']['ts']  # array containing timestamps of events from all cameras
         # self.timestamps = (self.timestamps - self.start_time) * 1e-6
@@ -216,10 +211,10 @@ class Dhp19IteratorAvgPoses:
             return window_events
 
         # get indices of the 3d poses inside the window
-        poses_start_ind = int(np.floor((window_timestamps[0] - self.start_time) * 1e-4))
-        poses_end_ind = int(np.floor((window_timestamps[-1] - self.start_time) * 1e-4))
-        # poses_start_ind = window_timestamps[0]
-        # poses_end_ind = window_timestamps[-1]
+        # poses_start_ind = int(np.floor((window_timestamps[0] - self.start_time) * 1e-4))
+        # poses_end_ind = int(np.floor((window_timestamps[-1] - self.start_time) * 1e-4))
+        poses_start_ind = window_timestamps[0]
+        poses_end_ind = window_timestamps[-1]
 
         # compute the average 3d pose
         avg_pose_3d = np.zeros(shape=(len(DHP19_BODY_PARTS), 3))
@@ -246,80 +241,3 @@ class Dhp19IteratorAvgPoses:
                     self.curr_ind = -1
             else:
                 self.curr_ind = end_ind
-
-
-class Dhp19Iterator:
-
-    def __init__(self, data_dvs, cam_id, data_vicon=None, proj_mat_folder=None):
-
-        self.start_time = data_dvs['out']['extra']['startTime']
-
-        self.timestamps = data_dvs['out']['extra']['ts']  # array containing timestamps of events from all cameras
-        # self.timestamps = (self.timestamps - self.start_time) * 1e-6
-
-        self.events = data_dvs['out']['data'][f'cam{cam_id}']['dvs']  # events specific to selected camera
-        # self.events['ts'] = (self.events['ts'] - self.startTime) * 1e-6
-
-        # events location indices follow matlab indexing convention, i.e. they start from 1 instead of 0
-        self.events['x'] = self.events['x'] - 1
-        self.events['y'] = self.events['y'] - 1
-
-        # events x indices are shifted by sensor_width * camera id
-        self.events['x'] = self.events['x'] - dhp19_const.DHP19_SENSOR_WIDTH * cam_id
-
-        self.poses = data_vicon['XYZPOS']
-
-        self.curr_pose_ind = 0
-
-        if proj_mat_folder:
-            self.proj_mat = get_projection_matrix(cam_id, proj_mat_folder)
-
-    def __iter__(self):
-        return self
-
-    def __len__(self):
-        return self.poses['head'].shape[0]
-
-    def __next__(self):
-        if self.curr_pose_ind == -1:
-            raise StopIteration
-
-        # get past and current pose index
-        self.prev_pose_ind = self.curr_pose_ind
-        self.curr_pose_ind += 1
-
-        # convert pose indices to event timestamps
-        prev_pose_ts = self.prev_pose_ind * 10000 + self.start_time
-        curr_pose_ts = self.curr_pose_ind * 10000 + self.start_time
-
-        # select events between the previous and current poses' timestamps
-        event_indices = prev_pose_ts < self.events['ts']
-        event_indices = event_indices & (self.events['ts'] <= curr_pose_ts)
-        window_events = np.concatenate((np.reshape(self.events['ts'][event_indices], (-1, 1)),
-                                        np.reshape(self.events['x'][event_indices], (-1, 1)),
-                                        np.reshape(self.events['y'][event_indices], (-1, 1)),
-                                        np.reshape(self.events['pol'][event_indices], (-1, 1))),
-                                       axis=1, dtype=np.float64)
-
-        self.__update_current_index()
-
-        # get the 3d pose
-        pose_3d = np.zeros(shape=(len(DHP19_BODY_PARTS), 3))
-        for body_part in DHP19_BODY_PARTS:
-            coords = self.poses[body_part][self.curr_pose_ind, :]
-            pose_3d[DHP19_BODY_PARTS[body_part], :] = coords
-
-        if self.proj_mat is None:
-            return window_events, pose_3d
-
-        # project the 3d pose to the camera plane
-        pose_2d, joints_mask = project_poses_to_2d(pose_3d[np.newaxis, :, :], np.transpose(self.proj_mat))
-
-        return window_events, pose_2d[0]
-
-    def __update_current_index(self):
-
-        if self.curr_pose_ind >= self.poses['head'].shape[0]:
-            self.curr_pose_ind = -1
-        else:
-            self.curr_pose_ind += 1
