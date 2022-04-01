@@ -68,10 +68,13 @@ struct joint {
     joint operator * (float k) {
         return {u*k, v*k};
     }
-    joint& operator += (joint k) {
+    joint& operator += (const joint k) {
         u+=k.u; v+= k.v;
         return *this;
     }
+    joint operator + (const joint k) {
+        return {u+k.u, v+k.v};
+    } 
 };
 using jDot = joint;
 

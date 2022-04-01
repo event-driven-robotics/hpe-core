@@ -31,44 +31,121 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include <string>
 #include "utility.h"
+#include <opencv2/core.hpp>
 
 namespace hpecore {
 
-class fusedSkeleton 
+class stateEstimator 
 {
-private:
+protected:
+   
+   bool pose_initialised{false};
    skeleton13 state{0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 public:
+
+   virtual bool initialise(std::vector<double> parameters = {})
+   {
+      return true;
+   }
+   virtual void updateFromVelocity(jointName name, jDot velocity, double dt)
+   {
+      state[name] += (velocity * dt);
+   }
+
+   virtual void updateFromPosition(jointName name, joint position, double dt)
+   {
+      state[name] = position;
+   }
+
+   virtual void updateFromVelocity(skeleton13 velocity, double dt)
+   {
+
+   }
+
+   virtual void updateFromPosition(skeleton13 position, double dt)
+   {
+      state = position;
+   }
+
+   virtual void set(skeleton13 pose)
+   {
+      state = pose;
+      pose_initialised = true;
+   }
+
+   bool poseIsInitialised()
+   {
+      return pose_initialised;
+   }
 
    skeleton13 query()
    {
       return state;
    }
 
-   joint queryJoint(jointName name)
+   joint query(jointName name)
    {
       return state[name];
    }
 
-   void updateFromVelocity(jointName name, joint velocity, double dt)
+};
+
+class kfEstimator : public stateEstimator
+{
+private:
+   cv::KalmanFilter kf;
+   double procU{0.0}, measU{0.0};
+
+   void setTimePeriod(double dt)
    {
-      state[name] += (velocity * dt);
+      kf.processNoiseCov.at<float>(0, 0) = procU*dt;
+      kf.processNoiseCov.at<float>(1, 1) = procU*dt;
    }
 
-   void updateFromPosition(jointName name, joint position, double dt)
+public:
+
+   bool initialise(std::vector<double> parameters) override
    {
-      state[name] = position;
+      if(parameters.size() != 2)
+         return false;
+      procU = parameters[0];
+      measU = parameters[1];
+
+      //init(state size, measurement size)
+      kf.init(2, 2);
+      kf.transitionMatrix = (cv::Mat_<float>(2, 2) << 1, 0, 
+                                                      0, 1);
+
+      kf.measurementMatrix = (cv::Mat_<float>(2, 2) << 1, 0, 
+                                                       0, 1);
+
+      kf.processNoiseCov = (cv::Mat_<float>(2, 2) << procU, 0, 
+                                                     0,     procU);
+      kf.measurementNoiseCov = (cv::Mat_<float>(2, 2) << measU, 0, 
+                                                         0,     measU);
+
+      return true;
+
    }
 
-   void updateFromVelocity(skeleton13 velocity, double dt)
+   void updateFromVelocity(jointName name, jDot velocity, double dt) override
    {
-
+      kf.statePost = (cv::Mat_<float>(2, 1) << state[name].u, state[name].v);
+      joint j_new = query(name) + velocity*dt;
+      setTimePeriod(dt);
+      kf.predict();
+      kf.correct((cv::Mat_<float>(1, 2) << j_new.u, j_new.v));
+      query(name) = {kf.statePost.at<float>(0), kf.statePost.at<float>(1)};
    }
 
-   void updateFromPosition(skeleton13 position, double dt)
+   void updateFromPosition(jointName name, joint position, double dt) override
    {
-      state = position;
+      kf.statePost = (cv::Mat_<float>(2, 1) << state[name].u, state[name].v);
+      setTimePeriod(dt);
+      kf.predict();
+      kf.correct((cv::Mat_<float>(1, 2) << position.u, position.v));
+      query(name) = {kf.statePost.at<float>(0), kf.statePost.at<float>(1)};
    }
 
 };

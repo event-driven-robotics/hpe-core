@@ -43,86 +43,74 @@ private:
     int q_limit{1000};
 
 public:
-
-    void setParameters(int roi_width, int minor_width, int max_neighbours, int q_limit)
-    {
+    void setParameters(int roi_width, int minor_width, int max_neighbours, int q_limit) {
         this->roi_width = roi_width;
         this->minor_width = minor_width;
         this->max_neighbours = max_neighbours;
         this->q_limit = q_limit;
     }
 
-    template<typename T>
-    joint update(const T &q_new, joint j) 
-    {
+    template <typename T>
+    jDot update(const T &q_new, joint j) {
         pixel_event npe;
         int n_added = 0;
         int n_used = 0;
-        joint velocity{0.0, 0.0};
+        jDot velocity{0.0, 0.0};
 
         // see if the new event is in the roi of the joint, add it to the queue,
         // and then calculate a new velocity for the joint
-        for(auto &v_new : q_new) 
-        {
-            //check if it's in the roi
+        for (auto &v_new : q_new) {
+            // check if it's in the roi
             if (fabs(v_new.x - j.u) < roi_width && fabs(v_new.y - j.v) < roi_width) {
-                npe.stamp = v_new.stamp; npe.x = v_new.x; npe.y = v_new.y;
+                npe.stamp = v_new.stamp;
+                npe.x = v_new.x;
+                npe.y = v_new.y;
                 q.push_front(npe);
                 n_added++;
             } else {
                 continue;
             }
 
-            //if it was in the roi also compute the velocity
+            // if it was in the roi also compute the velocity
             int n_neighbours = 0;
             double xdot = 0.0, ydot = 0.0;
-            for(int i = n_added; i < q.size(); i++)
-            {
+            for (int i = n_added; i < q.size(); i++) {
                 auto &v_old = q[i];
 
-                //calculate distance and time
+                // calculate distance and time
                 int dx = v_new.x - v_old.x;
                 int dy = v_new.y - v_old.y;
-                if(abs(dx)+abs(dy) <= minor_width)
-                {
+                if (abs(dx) + abs(dy) <= minor_width) {
                     double inv_dt = 1.0 / (v_new.stamp - v_old.stamp);
                     xdot += dx * inv_dt;
                     ydot += dy * inv_dt;
                     n_neighbours++;
-                } 
-                if(n_neighbours > max_neighbours) break;
+                }
+                if (n_neighbours > max_neighbours) break;
             }
 
             // calculate the average for this event
-            if(n_neighbours)
-            {
-                double inv_neighbours = 1.0/ n_neighbours;
+            if (n_neighbours) {
+                double inv_neighbours = 1.0 / n_neighbours;
                 velocity.u += (xdot * inv_neighbours);
                 velocity.v += (ydot * inv_neighbours);
                 n_used++;
             }
-
         }
 
-        //calculate the average velocity over all new events
-        if(n_used) {
+        // calculate the average velocity over all new events
+        if (n_used) {
             double inv_used = 1.0 / n_used;
             velocity.u *= inv_used;
             velocity.v *= inv_used;
         }
 
-        //remove events from the old q
-        while(q.size() > q_limit)
+        // remove events from the old q
+        while (q.size() > q_limit)
             q.pop_back();
-
-        yInfo() << q.size() << n_used;
 
         return velocity;
     }
-
-
-
-
 };
 
 }
