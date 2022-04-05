@@ -45,8 +45,8 @@ class PCK:
         """
         Computes metric using the accumulated data.
         Return:
-            pck_joints (numpy.array): PCK values for each single joint
-            pck_avg (float): Average PCK values computed over all joints
+            numpy.array: PCK values for each single joint
+            float: average of PCK values computed over all joints
         """
 
         if self.reference_sizes is None:
@@ -72,6 +72,46 @@ class PCK:
         pck_avg = np.mean(pck_joints)
 
         return pck_joints, pck_avg
+
+
+class RMSE:
+
+    def __init__(self):
+        self.predicted_joints = None
+        self.gt_joints = None
+
+    def update_samples(self, predicted_joints: np.array, gt_joints: np.array) -> None:
+        """
+        Accumulates data that will be used for computing RSME (with function get_value()).
+        It expects predicted_joints and gt_joints with shape [batch_size, joints_num, 2 or 3] and
+        not annotated joints as [-1, -1] or [-1, -1, -1]
+        Parameters:
+            predicted_joints (numpy.array): predicted joints as a numpy array with shape [batch_size, joints_num, 2 or 3]
+            gt_joints (numpy.array): ground truth joints as a numpy array with shape [batch_size, joints_num, 2 or 3]
+        """
+        if self.predicted_joints is None:
+            self.predicted_joints = predicted_joints
+            self.gt_joints = gt_joints
+
+        else:
+            self.predicted_joints = np.append(self.predicted_joints, predicted_joints, axis=0)
+            self.gt_joints = np.append(self.gt_joints, gt_joints, axis=0)
+
+    def get_value(self):
+        """
+        Computes metric using the accumulated data.
+        Return:
+            numpy.array: normalized RMSE values computed on x and y coordinates of each single joint
+            numpy.array: average of normalized RMSE values computed on x and y coordinates of all joints
+            numpy.array: maximum RMSE values between the x and y coordinates of all joints
+        """
+
+        rmse = np.sqrt(np.sum(np.square(self.predicted_joints - self.gt_joints), axis=0) / len(self.gt_joints))
+        normalized_rmse = (rmse / np.mean(self.predicted_joints, axis=0)) * 100
+        normalized_rmse_avg = np.mean(normalized_rmse, axis=0)
+        max_normalized_rmse = np.max(normalized_rmse, axis=1)
+
+        return normalized_rmse, normalized_rmse_avg, max_normalized_rmse
 
 
 def compute_mpjpe(predicted_joints, gt_joints):
