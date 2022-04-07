@@ -15,7 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from lib.task.task_tools import getSchedu, getOptimizer, movenetDecode, clipGradient, restore_sizes
 from lib.loss.movenet_loss import MovenetLoss
-from lib.utils.utils import printDash, ensure_loc
+from lib.utils.utils import printDash, ensure_loc, image_show
 # from lib.visualization.visualization import superimpose_pose
 from lib.utils.metrics import myAcc, pck
 
@@ -68,16 +68,17 @@ class Task():
                 img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
                 h, w = img.shape[:2]
 
-                cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_img.jpg"), img)
+                # cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_img.jpg"), img)
 
                 for i in range(len(pre[0]) // 2):
                     x = int(pre[0][i * 2] * w)
                     y = int(pre[0][i * 2 + 1] * h)
                     cv2.circle(img, (x, y), 3, (255, 0, 0), 2)
 
+                # image_show(img)
                 cv2.imwrite(os.path.join(save_dir, basename), img)
 
-                ## debug
+                # debug
                 heatmaps = output[0].cpu().numpy()[0]
                 centers = output[1].cpu().numpy()[0]
                 regs = output[2].cpu().numpy()[0]
@@ -96,14 +97,18 @@ class Task():
         size = self.cfg["img_size"]
         with torch.no_grad():
 
-            img_size_original = img_in.shape()
+            img_size_original = img_in.shape
             if len(img_size_original)==2:
-                img = cv2.cvtColor(img_in, cv2.COLOR_GRAY2RGB)
+                print(img_size_original)
+                img  = cv2.merge([img_in,img_in,img_in])
+                # img = cv2.cvtColor(img_in, cv2.COLOR_GRAY2RGB)
             else:
                 img = np.copy(img_in)
+            img = img.astype(np.float32)
+            img = np.transpose(img, axes=[2, 0, 1])
 
-            img = img.to(self.device)
-
+            # img = img.to(self.device)
+            img = torch.tensor(img)
             output = self.model(img)
 
             pre = movenetDecode(output, None, mode='output', num_joints=self.cfg["num_classes"])
@@ -122,7 +127,7 @@ class Task():
             # k = cv2.waitKey(10)
             _, pose_gt = restore_sizes(img, pre, (int(img_size_original[0]), int(img_size_original[1])))
 
-            return pre
+            return pose_gt
             # ## debug
             # heatmaps = output[0].cpu().numpy()[0]
             # centers = output[1].cpu().numpy()[0]

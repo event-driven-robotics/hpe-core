@@ -7,6 +7,7 @@ import sys
 import yarp
 import numpy as np
 import cv2
+import torch
 import os
 
 # Copied from Predict.py
@@ -67,7 +68,7 @@ class MovenetModule(yarp.RFModule):
             exit(-1)
 
         # set the module name used to name ports
-        self.setName((rf.check("name", yarp.Value("/MovenetModule")).asString()))
+        self.setName((rf.check("name", yarp.Value("/movenet")).asString()))
 
         # set the output file name
         self.fname = rf.check("write_sk", yarp.Value("pred_2D.npy")).asString()
@@ -125,37 +126,32 @@ class MovenetModule(yarp.RFModule):
         # print(self.stamp.getTime())
 
         # End of input file
-        if self.last_timestamp == stamp:
-            return False
+        # if self.last_timestamp == stamp:
+        #     return False
 
         self.counter += 1  # can be used to interrupt the program
         self.yarp_image.copy(read_image)
-        input_image = np.copy(np_input[:self.image_h_model, :self.image_w_model]) / 255.0
 
-        # if len(input_image.shape) == 2:
-        #     input_image = np.expand_dims(input_image, -1)
-        #     input_image = np.expand_dims(input_image, 0)
+        input_image = np.copy(np_input) / 255.0
+
+        # input_image = np.copy(np_input[:self.image_h_model, :self.image_w_model]) / 255.0
+        input_image_resized = np.zeros([1, 3, self.image_h_model,self.image_w_model])
+
+        input_image = cv2.resize(input_image,(self.image_h_model,self.image_w_model))
+        input_image_resized[0, 0,:,:] = [input_image]
+        input_image_resized[0, 1,:,:] = [input_image]
+        input_image_resized[0, 2,:,:] = [input_image]
+
+        # cv2.imshow("output", input_image_resized)
+        # # print(img.shape)
+        # k = cv2.waitKey(1)
 
         # Predict the pose
-        # torch_image = torch.from_numpy(input_image)
-        pre = self.run_task.predict_online(input_image, cfg['predict_output_path'])
-
+        torch_image = torch.from_numpy(input_image_resized)
+        pre = self.run_task.predict_online(torch_image)
 
         # Visualize the result
         k = image_show(input_image,pre)
-
-        # cv2.imshow("output", img)
-        # print(img.shape)
-        # k = cv2.waitKey(10)
-        # cv2.imwrite(os.path.join(self.resultsPath, 'input_'+str(self.counter), '.png'), input_image)
-        # cv2.imwrite(os.path.join(self.resultsPath, 'output_2D_'+str(self.counter),'.png'), img)
-
-        # write the Results into numpy arrays
-        # utilities.save_2D_prediction(pred_joints, fname=os.path.join(self.resultsPath, self.fname), overwrite=False)
-        # utilities.save_timestamp(stamp, fname=os.path.join(self.resultsPath, self.fname_ts), overwrite=False)
-
-        #        np_output[:, :] = img
-        # self.output_port.write(self.yarp_image_out)
 
         self.last_timestamp = stamp
         if k == 32:
