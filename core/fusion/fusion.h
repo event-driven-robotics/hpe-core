@@ -29,125 +29,134 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #pragma once
 
-#include <string>
-#include "utility.h"
 #include <opencv2/core.hpp>
+#include <string>
+
+#include "utility.h"
 
 namespace hpecore {
 
-class stateEstimator 
-{
-protected:
-   
-   bool pose_initialised{false};
-   skeleton13 state{0,0,0,0,0,0,0,0,0,0,0,0,0};
+class stateEstimator {
+   protected:
+    bool pose_initialised{false};
+    skeleton13 state{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-public:
+   public:
+    virtual bool initialise(std::vector<double> parameters = {}) {
+        return true;
+    }
+    virtual void updateFromVelocity(jointName name, jDot velocity, double dt) {
+        state[name] += (velocity * dt);
+    }
 
-   virtual bool initialise(std::vector<double> parameters = {})
-   {
-      return true;
-   }
-   virtual void updateFromVelocity(jointName name, jDot velocity, double dt)
-   {
-      state[name] += (velocity * dt);
-   }
+    virtual void updateFromPosition(jointName name, joint position, double dt) {
+        state[name] = position;
+    }
 
-   virtual void updateFromPosition(jointName name, joint position, double dt)
-   {
-      state[name] = position;
-   }
+    virtual void updateFromVelocity(skeleton13 velocity, double dt) {
+    }
 
-   virtual void updateFromVelocity(skeleton13 velocity, double dt)
-   {
+    virtual void updateFromPosition(skeleton13 position, double dt) {
+        state = position;
+    }
 
-   }
+    virtual void set(skeleton13 pose) {
+        state = pose;
+        pose_initialised = true;
+    }
 
-   virtual void updateFromPosition(skeleton13 position, double dt)
-   {
-      state = position;
-   }
+    bool poseIsInitialised() {
+        return pose_initialised;
+    }
 
-   virtual void set(skeleton13 pose)
-   {
-      state = pose;
-      pose_initialised = true;
-   }
+    skeleton13 query() {
+        return state;
+    }
 
-   bool poseIsInitialised()
-   {
-      return pose_initialised;
-   }
-
-   skeleton13 query()
-   {
-      return state;
-   }
-
-   joint query(jointName name)
-   {
-      return state[name];
-   }
-
+    joint query(jointName name) {
+        return state[name];
+    }
 };
 
-class kfEstimator : public stateEstimator
-{
-private:
-   cv::KalmanFilter kf;
-   double procU{0.0}, measU{0.0};
+class kfEstimator : public stateEstimator {
+   private:
+    std::array<cv::KalmanFilter, 13> kf_array;
+    double procU{0.0}, measU{0.0};
 
-   void setTimePeriod(double dt)
-   {
-      kf.processNoiseCov.at<float>(0, 0) = procU*dt;
-      kf.processNoiseCov.at<float>(1, 1) = procU*dt;
-   }
+    void setTimePeriod(double dt) {
+        for (auto &kf : kf_array) {
+            kf.processNoiseCov.at<float>(0, 0) = procU * dt;
+            kf.processNoiseCov.at<float>(1, 1) = procU * dt;
+        }
+    }
 
-public:
+   public:
+    bool initialise(std::vector<double> parameters) override {
+        if (parameters.size() != 2)
+            return false;
+        procU = parameters[0];
+        measU = parameters[1];
 
-   bool initialise(std::vector<double> parameters) override
-   {
-      if(parameters.size() != 2)
-         return false;
-      procU = parameters[0];
-      measU = parameters[1];
+        // init(state size, measurement size)
+        for (auto &kf : kf_array) {
+            kf.init(2, 2);
+            kf.transitionMatrix = (cv::Mat_<float>(2, 2) << 1, 0,
+                                   0, 1);
 
-      //init(state size, measurement size)
-      kf.init(2, 2);
-      kf.transitionMatrix = (cv::Mat_<float>(2, 2) << 1, 0, 
-                                                      0, 1);
+            kf.measurementMatrix = (cv::Mat_<float>(2, 2) << 1, 0,
+                                    0, 1);
 
-      kf.measurementMatrix = (cv::Mat_<float>(2, 2) << 1, 0, 
-                                                       0, 1);
+            kf.processNoiseCov = (cv::Mat_<float>(2, 2) << procU, 0,
+                                  0, procU);
+            kf.measurementNoiseCov = (cv::Mat_<float>(2, 2) << measU, 0,
+                                      0, measU);
+        }
+        return true;
+    }
 
-      kf.processNoiseCov = (cv::Mat_<float>(2, 2) << procU, 0, 
-                                                     0,     procU);
-      kf.measurementNoiseCov = (cv::Mat_<float>(2, 2) << measU, 0, 
-                                                         0,     measU);
+    void updateFromVelocity(jointName name, jDot velocity, double dt) override {
+        auto &kf = kf_array[name];
+        joint j_new = state[name] + velocity * dt;
+        setTimePeriod(dt);
+        kf.predict();
+        kf.correct((cv::Mat_<float>(2, 1) << j_new.u, j_new.v));
+        state[name] = {kf.statePost.at<float>(0), kf.statePost.at<float>(1)};
+    }
 
-      return true;
+    void updateFromPosition(jointName name, joint position, double dt) override {
+        auto &kf = kf_array[name];
+        setTimePeriod(dt);
+        kf.predict();
+        kf.correct((cv::Mat_<float>(2, 1) << position.u, position.v));
+        state[name] = {kf.statePost.at<float>(0), kf.statePost.at<float>(1)};
+    }
 
-   }
+    void updateFromPosition(skeleton13 position, double dt) override {
+       for(auto &name : jointNames)
+          updateFromPosition(name, position[name], dt);
+    }
 
-   void updateFromVelocity(jointName name, jDot velocity, double dt) override
-   {
-      kf.statePost = (cv::Mat_<float>(2, 1) << state[name].u, state[name].v);
-      joint j_new = query(name) + velocity*dt;
-      setTimePeriod(dt);
-      kf.predict();
-      kf.correct((cv::Mat_<float>(1, 2) << j_new.u, j_new.v));
-      query(name) = {kf.statePost.at<float>(0), kf.statePost.at<float>(1)};
-   }
+    void set(skeleton13 pose) override {
+        state = pose;
+        for (jointName name : jointNames) {
+            auto &kf = kf_array[name];
+            kf.statePost.at<float>(0) = state[name].u;
+            kf.statePost.at<float>(1) = state[name].v;
+        }
+        pose_initialised = true;
+    }
 
-   void updateFromPosition(jointName name, joint position, double dt) override
-   {
-      kf.statePost = (cv::Mat_<float>(2, 1) << state[name].u, state[name].v);
-      setTimePeriod(dt);
-      kf.predict();
-      kf.correct((cv::Mat_<float>(1, 2) << position.u, position.v));
-      query(name) = {kf.statePost.at<float>(0), kf.statePost.at<float>(1)};
-   }
+    bool poseIsInitialised() {
+        return pose_initialised;
+    }
 
+    skeleton13 query() {
+        return state;
+    }
+
+    joint query(jointName name) {
+        return state[name];
+    }
 };
 
-}
+}  // namespace hpecore

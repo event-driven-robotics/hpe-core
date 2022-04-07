@@ -90,6 +90,8 @@ struct stampedPose {
 
 enum jointName {head, shoulderR, shoulderL, elbowR, elbowL,
              hipL, hipR, handR, handL, kneeR, kneeL, footR, footL};
+static const std::vector<jointName> jointNames = {head, shoulderR, shoulderL, elbowR, elbowL,
+                        hipL, hipR, handR, handL, kneeR, kneeL, footR, footL};
 
 typedef std::array<joint, 18> skeleton18;
 typedef std::array<joint, 25> skeleton25;
