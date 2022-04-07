@@ -13,7 +13,7 @@ import time
 # import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
-from lib.task.task_tools import getSchedu, getOptimizer, movenetDecode, clipGradient
+from lib.task.task_tools import getSchedu, getOptimizer, movenetDecode, clipGradient, restore_sizes
 from lib.loss.movenet_loss import MovenetLoss
 from lib.utils.utils import printDash, ensure_loc
 # from lib.visualization.visualization import superimpose_pose
@@ -89,6 +89,52 @@ class Task():
                             cv2.resize(centers[0] * 255, (size, size)))
                 cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_regs0.jpg"),
                             cv2.resize(regs[0] * 255, (size, size)))
+    def predict_online(self, img_in):
+
+        self.model.eval()
+        correct = 0
+        size = self.cfg["img_size"]
+        with torch.no_grad():
+
+            img_size_original = img_in.shape()
+            if len(img_size_original)==2:
+                img = cv2.cvtColor(img_in, cv2.COLOR_GRAY2RGB)
+            else:
+                img = np.copy(img_in)
+
+            img = img.to(self.device)
+
+            output = self.model(img)
+
+            pre = movenetDecode(output, None, mode='output', num_joints=self.cfg["num_classes"])
+
+            # img = np.transpose(img[0].cpu().numpy(), axes=[1, 2, 0])
+            # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            # h, w = img.shape[:2]
+            #
+            # for i in range(len(pre[0]) // 2):
+            #     x = int(pre[0][i * 2] * w)
+            #     y = int(pre[0][i * 2 + 1] * h)
+            #     cv2.circle(img, (x, y), 3, (255, 0, 0), 2)
+            #
+            # cv2.imshow("output", img)
+            # print(img.shape)
+            # k = cv2.waitKey(10)
+            _, pose_gt = restore_sizes(img, pre, (int(img_size_original[0]), int(img_size_original[1])))
+
+            return pre
+            # ## debug
+            # heatmaps = output[0].cpu().numpy()[0]
+            # centers = output[1].cpu().numpy()[0]
+            # regs = output[2].cpu().numpy()[0]
+            # offsets = output[3].cpu().numpy()[0]
+
+            # hm = cv2.resize(np.sum(heatmaps, axis=0), (size, size)) * 255
+            # cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_heatmaps.jpg"), hm)
+            # cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_center.jpg"),
+            #             cv2.resize(centers[0] * 255, (size, size)))
+            # cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_regs0.jpg"),
+            #             cv2.resize(regs[0] * 255, (size, size)))
 
     def evaluate(self, data_loader):
         self.model.eval()
