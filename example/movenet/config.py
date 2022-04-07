@@ -3,24 +3,19 @@
 https://github.com/fire717
 """
 
-# dataset = "coco"
-# dataset = "mpii2"
-dataset = 'h36m'
-# dataset = 'DHP19'
-home = "/media/ggoyal/Data/data/" + dataset + "/"
-# home = "/work/ggoyal/Data/"+dataset+"/"
-
+dataset = 'dhp19'
+home = '/data'
 cfg = {
     ##### Global Setting
     'GPU_ID': '',
     "num_workers": 4,
     "random_seed": 42,
     "cfg_verbose": True,
-    "save_dir": home + "output/",
+    "save_dir": home ,
     "num_classes": 13,
     "width_mult": 1.0,
     "img_size": 192,
-    'label': 'dev',
+    'label': '',
 
     ##### Train Setting
     'pre-separated_data': True,
@@ -31,7 +26,7 @@ cfg = {
     'save_best_only': False,
 
     'pin_memory': True,
-    'newest_ckpt': home + 'output/newest.json',
+    'newest_ckpt': home + '/output/newest.json',
     'th': 50,  # percentage of headsize
     'from_scratch': True,
 
@@ -51,38 +46,15 @@ cfg = {
     'w_reg': 3,
     'w_offset': 1,
 
-    ##### Test
+    ##### File paths
     'predict_output_path': home + "/predict/",
     'results_path': home + "/results/",
+    "img_path": home + "/dhp19_eros/",
+    "test_img_path": home + '/dhp19_eros/',
+    "eval_img_path": home + '/dhp19_eros/',
+    "eval_outputs": home + '/dhp-outputs/',
+    "eval_label_path": home + "/dhp19_eros/poses.json",
+    'train_label_path': '',
+    'val_label_path': ''
 }
 
-# test_img_path is for prediction script
-
-
-if dataset == "mpii2":
-    cfg["img_path"] = home + "eros_synthetic_export_cropped/"
-    cfg["train_label_path"] = home + '/eros_synthetic_export_cropped/train.json'
-    cfg["val_label_path"] = home + '/eros_synthetic_export_cropped/val.json'
-
-    # cfg["test_img_path"] = home + '/tos_synthetic_export/'
-    cfg["eval_img_path"] = home + '/eros_synthetic_export_cropped/'
-    cfg["eval_label_path"] = home + '/eros_synthetic_export_cropped/val.json'
-
-if dataset == 'h36m':
-    cfg["img_path"] = home + "training/h36m_EROS/"
-    cfg["train_label_path"] = home + '/training/train_subject.json'
-    cfg["val_label_path"] = home + '/training/val_subject.json'
-
-    cfg["test_img_path"] = home + '/samples_for_pred/'
-    cfg["eval_img_path"] = home + '/training/h36m_EROS/'
-    cfg["eval_label_path"] = home + '/training/val_subject.json'
-
-# samples_for_pred
-if dataset == 'DHP19':
-    cfg["img_path"] = home + "/samples_for_pred/"
-    cfg["train_label_path"] = home + '/poses.json'
-    cfg["val_label_path"] = home + '/poses.json'
-
-    cfg["test_img_path"] = home + '/samples_for_pred/'
-    cfg["eval_img_path"] = home + '/samples_for_pred/'
-    cfg["eval_label_path"] = home + "/poses.json"

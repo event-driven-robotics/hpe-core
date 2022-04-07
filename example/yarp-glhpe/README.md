@@ -22,7 +22,7 @@ The software was tested on Ubuntu 20.04.2 LTS without GPU support.
 :warning: Ensure your ssh key is built without a passphrase.
 
 ## Usage
-- Download the pre-trained model and store it into folder `/path/to/pre/trained/model/folder`
+- Download the pre-trained model from [here](https://drive.google.com/drive/folders/1AgsQl6sTJBygPvgbdR1e9IfVAYxupMGI) and store it into folder `/path/to/pre/trained/model/folder`
 - Run the Docker container
     ```shell
     $ xhost +
