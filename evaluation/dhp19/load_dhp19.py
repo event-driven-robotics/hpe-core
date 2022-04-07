@@ -17,13 +17,13 @@ from os.path import join
 
 import datasets.utils.mat_files as mat_utils
 
-# # Load env variables set on .bashrc
-# bimvee_path = os.environ.get('BIMVEE_PATH')
-# mustard_path = os.environ.get('MUSTARD_PATH')
-#
-# # Add local paths
-# sys.path.insert(0, bimvee_path)
-# sys.path.insert(0, mustard_path)
+# Load env variables set on .bashrc
+bimvee_path = os.environ.get('BIMVEE_PATH')
+mustard_path = os.environ.get('MUSTARD_PATH')
+
+# Add local paths
+sys.path.insert(0, bimvee_path)
+sys.path.insert(0, mustard_path)
 
 # Directory with DVS (after Matlab processing) and Vicon Data 
 datadir = '/data/dhp19'

@@ -13,21 +13,24 @@ import argparse
 import numpy as np
 import pathlib
 
-import datasets.dhp19.utils.constants as dhp19_const
-import datasets.utils.mat_files as mat_utils
-import datasets.dhp19.utils.parsing as dhp19_parse
-
 from bimvee import exportIitYarp
 
+import datasets.dhp19.utils.constants as dhp19_const
+import datasets.dhp19.utils.parsing as dhp19_parse
+import datasets.utils.export as hpecore_export
+import datasets.utils.mat_files as mat_utils
 
-def export_to_yarp(data_dvs, data_vicon, projection_mat_folder, window_size, output_folder):
+from datasets.utils.constants import HPECoreSkeleton
+
+
+def export_to_yarp(data_dvs: dict, data_vicon: dict, projection_mat_folder: pathlib.Path, output_folder: pathlib.Path):
+
+    ###############
+    # export events
+    ###############
 
     # create yarp container
     container = {'info': {}, 'data': {}}
-
-    #############################
-    # store events into container
-    #############################
 
     start_time = data_dvs['out']['extra']['startTime']
     for cn in range(dhp19_const.DHP19_CAM_NUM):
@@ -44,11 +47,21 @@ def export_to_yarp(data_dvs, data_vicon, projection_mat_folder, window_size, out
         # convert polarity to an array of booleans
         data['dvs']['pol'] = np.array(data['dvs']['pol'], dtype=bool)
 
+        # remove out of bounds events
+        correct_events_ind = (data['dvs']['x'] >= 0) | (data['dvs']['x'] < dhp19_const.DHP19_SENSOR_WIDTH) | \
+                             (data['dvs']['y'] >= 0) | (data['dvs']['y'] < dhp19_const.DHP19_SENSOR_HEIGHT)
+        data['dvs']['x'] = data['dvs']['x'][correct_events_ind]
+        data['dvs']['y'] = data['dvs']['y'][correct_events_ind]
+        data['dvs']['ts'] = data['dvs']['ts'][correct_events_ind]
+        data['dvs']['pol'] = data['dvs']['pol'][correct_events_ind]
+
         container['data'][f'ch{cn}'] = data
 
-    ################################
-    # store poses into the container
-    ################################
+    exportIitYarp.exportIitYarp(container, exportFilePath=str(output_folder.resolve()), protectedWrite=True)
+
+    ##################
+    # export skeletons
+    ##################
 
     # create array of timestamps for the poses
     dt = 10000
@@ -59,24 +72,24 @@ def export_to_yarp(data_dvs, data_vicon, projection_mat_folder, window_size, out
         poses_ts = poses_ts[:-diff]
 
     poses_3d = extract_3d_poses(data_vicon)
+    poses_3d = dhp19_parse.dhp19_to_hpecore_skeletons(poses_3d)
 
     for cn in range(dhp19_const.DHP19_CAM_NUM):
         if projection_mat_folder:
-
             projection_mat = dhp19_parse.get_projection_matrix(cn, projection_mat_folder)
             poses_2d, joints_mask = dhp19_parse.project_poses_to_2d(poses_3d, np.transpose(projection_mat))
 
-            # convert poses_2d to dictionary
-            container['data'][f'ch{cn}']['skeleton'] = dict()
-            for joint_type in dhp19_parse.DHP19_BODY_PARTS.keys():
-                container['data'][f'ch{cn}']['skeleton'][joint_type] = poses_2d[:, dhp19_parse.DHP19_BODY_PARTS[joint_type], :]
-        else:
-            # convert poses_3d to dictionary
-            for joint_type in dhp19_parse.DHP19_BODY_PARTS.keys():
-                container['data'][f'ch{cn}']['skeleton'][joint_type] = poses_3d[:, dhp19_parse.DHP19_BODY_PARTS[joint_type], :]
-        container['data'][f'ch{cn}']['skeleton']['ts'] = poses_ts
+            torsos_size = HPECoreSkeleton.compute_torso_sizes(poses_2d)
 
-    exportIitYarp.exportIitYarp(container, exportFilePath=str(output_folder.resolve()), protectedWrite=True)
+            # export skeletons for current camera
+            output_folder_cam = output_folder / f'ch{cn}skeleton'
+            hpecore_export.export_skeletons_to_yarp(poses_2d, poses_ts, output_folder_cam, cn, torso_sizes=torsos_size)
+        else:
+            torsos_size = HPECoreSkeleton.compute_torso_sizes(poses_3d)
+
+            # export skeletons for current camera
+            output_folder_cam = output_folder / f'ch{cn}skeleton'
+            hpecore_export.export_skeletons_to_yarp(poses_3d, poses_ts, output_folder_cam, cn, torso_sizes=torsos_size)
 
 
 def extract_3d_poses(data_vicon):
@@ -118,7 +131,7 @@ def main(args):
     export_folder = pathlib.Path(args.o)
     export_folder = pathlib.Path(export_folder.resolve())
 
-    export_to_yarp(data_dvs, data_vicon, proj_matrices_folder, args.window_size, export_folder)
+    export_to_yarp(data_dvs, data_vicon, proj_matrices_folder, export_folder)
 
 
 if __name__ == '__main__':
@@ -126,9 +139,6 @@ if __name__ == '__main__':
     parser.add_argument('-e', help='path to .mat DVS file')
     parser.add_argument('-v', help='path to .mat Vicon file')
     parser.add_argument('-p', help='path to projection matrices folder')
-    parser.add_argument('-w', '--window_size',
-                        help=f'approximate number of events used to compute an event frame (default value for DHP19 is {dhp19_const.DHP19_CAM_FRAME_EVENTS_NUM})',
-                        default=dhp19_const.DHP19_CAM_FRAME_EVENTS_NUM)
     parser.add_argument('-o', help='path to output folder')
     args = parser.parse_args()
 
