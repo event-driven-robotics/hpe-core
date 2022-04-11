@@ -104,10 +104,9 @@ void OpenPoseDetector::stop()
     detector.stop();
 }
 
-skeleton OpenPoseDetector::detect(cv::Mat &input)
+skeleton13 OpenPoseDetector::detect(cv::Mat &input)
 {
-    skeleton pose;
-    pose.clear();
+    skeleton13 pose = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
     try
     {
@@ -116,10 +115,6 @@ skeleton OpenPoseDetector::detect(cv::Mat &input)
         if (datumProcessed == nullptr)
         {
             std::cout << "Image could not be processed" << std::endl;
-
-            // return empty skeleton
-            for (auto ji = 0; ji < poseJointsNum; ji++)
-                pose.push_back(std::make_tuple(0., 0.));
             return pose;
         }
         input = OP_OP2CVCONSTMAT(datumProcessed->at(0)->cvOutputData);
@@ -138,8 +133,7 @@ skeleton OpenPoseDetector::detect(cv::Mat &input)
         for (auto bodyPart = 0; bodyPart < poseKeypoints.getSize(1); bodyPart++)
         {
             // get (x, y) coords
-            std::tuple<double, double> joint = std::make_tuple(poseKeypoints[{0, bodyPart, 0}], poseKeypoints[{0, bodyPart, 1}]);
-            pose.push_back(joint);
+            skeleton13[bodyPart] = {poseKeypoints[{0, bodyPart, 0}], poseKeypoints[{0, bodyPart, 1}]};
         }
 
         // }
@@ -147,11 +141,6 @@ skeleton OpenPoseDetector::detect(cv::Mat &input)
     catch (const std::exception& e)
     {
         op::error(e.what(), __LINE__, __FUNCTION__, __FILE__);
-        // TODO: print error on stdout
-
-        // return empty skeleton
-        for (auto ji = 0; ji < poseJointsNum; ji++)
-            pose.push_back(std::make_tuple(0., 0.));
     }
 
     return pose;

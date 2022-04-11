@@ -42,7 +42,7 @@ class OpenPoseDetector {
 
   public:
     bool init(std::string poseModel, std::string poseMode);
-    skeleton detect(cv::Mat &input);
+    skeleton13 detect(cv::Mat &input);
     void stop();
 };
 
