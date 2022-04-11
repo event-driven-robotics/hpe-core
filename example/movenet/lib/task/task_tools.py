@@ -152,10 +152,6 @@ def movenetDecode(data, kps_mask=None, mode='output', num_joints=17,
 
 def restore_sizes(img,pose,size_out):
     size_in = img.shape
-    # print(pose)
-    # resize image
-    # img = np.transpose(img_tensor.cpu().numpy(), axes=[1, 2, 0])
-    # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     img_out = cv2.resize(img,(size_out[1],size_out[0]))
     pose_out = np.copy(pose.reshape((-1,2)))
     for i in range(len(pose_out)):
@@ -174,7 +170,7 @@ def image_show(img,pre=None):
 
     if pre is not None:
         pre[pre[:]<0]=0
-        print(pre)
+
         if len(pre.squeeze().shape) == 1:
             for i in range(len(pre[0]) // 2):
                 x = int(pre[0][i * 2] * w)
@@ -186,6 +182,6 @@ def image_show(img,pre=None):
 
     img = cv2.resize(img,(img.shape[0]*4,img.shape[1]*4))
     cv2.imshow("output", img)
-    print(img.shape)
+
 
     return 0

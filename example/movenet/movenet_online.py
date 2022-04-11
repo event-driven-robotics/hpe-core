@@ -135,7 +135,7 @@ class MovenetModule(yarp.RFModule):
         input_image = np.copy(np_input)
 
         input_image_resized = np.zeros([1, 3, self.image_h_model,self.image_w_model])
-        print(input_image_resized.shape)
+        # print(input_image_resized.shape)
 
         input_image = cv2.resize(input_image,(self.image_h_model,self.image_w_model))
         input_image_resized[0, 0,:,:] = input_image[:,:]
