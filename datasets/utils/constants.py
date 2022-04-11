@@ -1,6 +1,7 @@
 
 import numpy
 
+
 class Movenet:
 
     KEYPOINTS_COCO = ['nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear',
@@ -13,21 +14,27 @@ class Movenet:
 
 class HPECoreSkeleton:
 
-    KEYPOINTS_MAP = {'head': 0, 'left_shoulder': 1, 'right_shoulder': 2, 'left_elbow': 3, 'right_elbow': 4,
-                     'left_wrist': 5, 'right_wrist': 6, 'left_hip': 7, 'right_hip': 8, 'left_knee': 9, 'right_knee': 10,
-                     'left_ankle': 11, 'right_ankle': 12}
+    # the order of the joints is the same as the DHP19 one
+    # differences:
+    # - more descriptive labels
+    # - we use the more common 'wrist' and 'ankle' labels instead of DHP19's 'hand' and 'foot' ones
+    # - all joints are listed as first 'right' and then 'left' except for the 'hip' ones: it is not an error,
+    #   it is DHP19's order
+    KEYPOINTS_MAP = {'head': 0, 'shoulder_right': 1, 'shoulder_left': 2, 'elbow_right': 3, 'elbow_left': 4,
+                     'hip_left': 5, 'hip_right': 6, 'wrist_right': 7, 'wrist_left': 8, 'knee_right': 9, 'knee_left': 10,
+                     'ankle_right': 11, 'ankle_left': 12}
 
     @staticmethod
     def compute_torso_sizes(skeletons: numpy.array) -> float:
 
         if len(skeletons.shape) == 2:
-            l_hip = skeletons[HPECoreSkeleton.KEYPOINTS_MAP['left_hip'], :]
-            r_shoulder = skeletons[HPECoreSkeleton.KEYPOINTS_MAP['right_shoulder'], :]
+            l_hip = skeletons[HPECoreSkeleton.KEYPOINTS_MAP['hip_left'], :]
+            r_shoulder = skeletons[HPECoreSkeleton.KEYPOINTS_MAP['shoulder_right'], :]
             torso_sizes = numpy.linalg.norm(l_hip - r_shoulder)
 
         elif len(skeletons.shape) == 3:
-            l_hips = skeletons[:, HPECoreSkeleton.KEYPOINTS_MAP['left_hip'], :]
-            r_shoulders = skeletons[:, HPECoreSkeleton.KEYPOINTS_MAP['right_shoulder'], :]
+            l_hips = skeletons[:, HPECoreSkeleton.KEYPOINTS_MAP['hip_left'], :]
+            r_shoulders = skeletons[:, HPECoreSkeleton.KEYPOINTS_MAP['shoulder_right'], :]
             torso_sizes = numpy.linalg.norm(l_hips - r_shoulders, axis=1)
 
         return torso_sizes

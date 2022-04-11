@@ -99,18 +99,18 @@ DHP19_TO_MOVENET_INDICES = np.array([
 
 H36M_TO_HPECORE_SKELETON_MAP = [
     14,  # head
-    17,  # shoulderL
     25,  # shoulderR
-    18,  # elbowL
+    17,  # shoulderL
     26,  # elbowR
-    19,  # handL
-    27,  # handR
+    18,  # elbowL
     6,  # hipL
     1,  # hipR
-    7,  # kneeL
+    27,  # handR
+    19,  # handL
     2,  # kneeR
-    8,  # footL
-    3  # footR
+    7,  # kneeL
+    3,  # footR
+    8  # footL
 ]
 
 
