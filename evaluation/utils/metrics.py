@@ -111,7 +111,7 @@ class RMSE:
         normalized_rmse_avg = np.mean(normalized_rmse, axis=0)
         max_normalized_rmse = np.max(normalized_rmse, axis=1)
 
-        return normalized_rmse, normalized_rmse_avg, max_normalized_rmse
+        return normalized_rmse.flatten(), normalized_rmse_avg.flatten(), max_normalized_rmse
 
 
 def compute_mpjpe(predicted_joints, gt_joints):

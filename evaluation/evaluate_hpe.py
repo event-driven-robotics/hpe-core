@@ -1,12 +1,12 @@
 
 import argparse
-import math
 import matplotlib.pyplot as plt
 import numpy as np
 
 from pathlib import Path
 from scipy import interpolate
 from tabulate import tabulate
+from typing import Optional
 
 from datasets.utils import constants as ds_constants, parsing as ds_parsing
 from evaluation.utils import metrics as metrics_utils, plots as plots_utils
@@ -82,6 +82,64 @@ from evaluation.utils import metrics as metrics_utils, plots as plots_utils
 #                 ax.legend(fontsize=16, loc='upper right')
 
 
+def plot_pck_over_thresholds(pck_thresholds_results, output_folder_path, ds_name=None):
+
+    # sort thresholds
+    thresholds = list(pck_thresholds_results.keys())
+    thresholds.sort()
+
+    # group results by algorithm
+    algos = dict()
+    for th in thresholds:
+
+        algo_metrics = pck_thresholds_results[th]
+        for (algo_name, metric) in algo_metrics.items():
+
+            if algo_name not in algos.keys():
+                algos[algo_name] = list()
+
+            values = metric.get_value()
+            # joints_values = values[0]
+            avg_value = values[1]
+
+            algos[algo_name].append(avg_value * 100)
+
+    # setup the figure
+    my_dpi = 96
+    if ds_name:
+        figure_name = f'Dataset {ds_name}, Average PCK'
+    else:
+        figure_name = f'Global Average PCK'
+    fig = plt.figure(num=figure_name,
+                     figsize=(2048 / my_dpi, 900 / my_dpi),
+                     dpi=96)
+    ax = fig.add_subplot(111)
+    fig.tight_layout(pad=5)
+
+    # plot pcks
+    for algo_name, pcks in algos.items():
+        ax.plot(thresholds, pcks, color=np.random.rand(3, ), marker="o", label=f'{algo_name}',
+                linestyle='-', alpha=1.0)
+
+    # set axis limits
+    ax.set_xlim([0, 1])
+    ax.set_ylim([0, 100])
+
+    # labels and title
+    plt.xlabel('PCK thresholds', fontsize=22, labelpad=5)
+    plt.ylabel(f'Average PCK %', fontsize=22, labelpad=5)
+    fig.suptitle(figure_name, fontsize=28, y=0.97)
+    plt.tick_params(axis='both', which='major', labelsize=18)
+    ax.legend(fontsize=16, loc='upper right')
+
+    # save plot
+    if ds_name:
+        fig_path = output_folder_path / f'{ds_name}_pck.png'
+    else:
+        fig_path = output_folder_path / f'global_pck.png'
+    plt.savefig(str(fig_path.resolve()))
+
+
 def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_names, joints_predicted):
 
     assert 1 <= joints_gt.shape[2] <= 3, 'coordinates must be either 2D or 3D'
@@ -135,6 +193,54 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
             # save plot
             fig_path = output_folder_path / f'{ds_name}_{joint_key}_predictions_{lbl_coord}.png'
             plt.savefig(str(fig_path.resolve()))
+
+
+def tabulate_metric_over_algorithms(algo_metrics: dict, header: list, descr: Optional[str], to_latex: bool = False, file_path: Optional[Path] = None) -> None:
+
+    # create results table
+    table = list()
+    for (algo_name, metric) in algo_metrics.items():
+        values = metric.get_value()
+        joints_values = values[0]
+        avg_value = values[1]
+        table_row = joints_values.tolist()
+        table_row.append(avg_value)
+        table_row.insert(0, algo_name)
+        table.append(table_row)
+
+    # set table format
+    fmt = 'simple'
+    if to_latex:
+        fmt = 'latex'
+
+    if file_path:
+        with open(str(file_path.resolve()), 'w') as f:
+
+            # create latex string
+            if to_latex:
+                file_content = r'\documentclass[preview]{standalone}'\
+                               r'\usepackage[utf8]{inputenc}'\
+                               r'\usepackage{diagbox}'\
+                               r'\begin{document}'\
+                               r'\begin{table}'\
+                               r'\centering'
+                file_content += tabulate(table, headers=header, tablefmt=fmt)
+                if descr:
+                    file_content += r'\caption{' \
+                                    f'{descr}' \
+                                    r'}'
+                file_content += r'\end{table}' \
+                                r'\end{document}'
+
+            else:
+                file_content = tabulate(table, headers=header, tablefmt=fmt)
+
+            f.write(file_content)
+
+    else:
+        if descr:
+            print(descr)
+        print(tabulate(table, headers=header, tablefmt=fmt))
 
 
 def main(args):
@@ -208,7 +314,7 @@ def main(args):
             skeletons_predictions.append(skeletons_pred)
 
             # compute PCK
-            if not len(args.pck) == 0:
+            if len(args.pck) != 0:
                 results['datasets'][dataset_name]['pck'] = dict()
                 for thi, th in enumerate(args.pck):
 
@@ -255,58 +361,51 @@ def main(args):
 
     # iterate over datasets metrics and print results
     for (ds_name, metrics) in results['datasets'].items():
+
+        output_ds_folder_path = output_folder_path / ds_name
+        output_ds_folder_path.mkdir(parents=True, exist_ok=True)
+
         for (metric_name, metric_results) in metrics.items():
             if metric_name == 'pck':
+
+                plot_pck_over_thresholds(metric_results, output_ds_folder_path, ds_name)
+
                 # create table
                 header = [key for key in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.keys()]
                 header.append('avg PCK')
-                # header.insert(0, 'ds_name')
 
                 for (th, algos) in metric_results.items():
-                    table = list()
-                    for (algo_name, metrics) in algos.items():
-                        joints_values, avg_value = metrics.get_value()
-                        table_row = joints_values.tolist()
-                        table_row.append(avg_value)
-                        table_row.insert(0, algo_name)
-                        table.append(table_row)
-                    print(f'PCK results for dataset {ds_name}, threshold {th}')
-                    print(tabulate(table, headers=header))
+                    tabulate_metric_over_algorithms(algos, header,
+                                                    descr=f'PCK results for dataset {ds_name}, threshold {th}',
+                                                    to_latex=True,
+                                                    file_path=output_ds_folder_path / f'pck_{th}_{ds_name}.tex')
 
             elif metric_name == 'rmse':
                 header = [header_str for key in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.keys() for header_str in [f'{key} x', f'{key} y']]
                 header.append('avg RMSE x')
                 header.append('avg RMSE y')
 
-                table = list()
-
-                for (algo_name, metrics) in metric_results.items():
-                    joints_values, avg_values, max_values = metrics.get_value()
-                    table_row = joints_values.flatten().tolist()
-                    table_row.extend(avg_values.flatten().tolist())
-                    table_row.insert(0, algo_name)
-                    table.append(table_row)
-                print(f'RMSE results for dataset {ds_name}')
-                print(tabulate(table, headers=header))
+                tabulate_metric_over_algorithms(metric_results, header,
+                                                descr=f'RMSE results for dataset {ds_name}',
+                                                to_latex=True,
+                                                file_path=output_ds_folder_path / f'rmse_{ds_name}.tex')
 
     # iterate over global metrics and print results
     for (metric_name, metric_results) in results['global'].items():
 
         if metric_name == 'pck':
+
+            plot_pck_over_thresholds(metric_results, output_folder_path)
+
             # create table
             header = [key for key in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.keys()]
             header.append('avg PCK')
 
             for (th, algos) in metric_results.items():
-                table = list()
-                for (algo_name, metrics) in algos.items():
-                    joints_values, avg_value = metrics.get_value()
-                    table_row = joints_values.tolist()
-                    table_row.append(avg_value)
-                    table_row.insert(0, algo_name)
-                    table.append(table_row)
-                print(f'Global PCK results for threshold {th}')
-                print(tabulate(table, headers=header))
+                tabulate_metric_over_algorithms(algos, header,
+                                                descr=f'Global PCK results for threshold {th}',
+                                                to_latex=True,
+                                                file_path=output_folder_path / f'pck_{th}.tex')
 
         elif metric_name == 'rmse':
             # create table
@@ -314,16 +413,10 @@ def main(args):
             header.append('avg RMSE x')
             header.append('avg RMSE y')
 
-            table = list()
-
-            for (algo_name, metrics) in metric_results.items():
-                joints_values, avg_values, max_values = metrics.get_value()
-                table_row = joints_values.flatten().tolist()
-                table_row.extend(avg_values.flatten().tolist())
-                table_row.insert(0, algo_name)
-                table.append(table_row)
-            print(f'Global RMSE results')
-            print(tabulate(table, headers=header))
+            tabulate_metric_over_algorithms(metric_results, header,
+                                            descr=f'Global RMSE results',
+                                            to_latex=True,
+                                            file_path=output_folder_path / f'rmse.tex')
 
 
 if __name__ == '__main__':
