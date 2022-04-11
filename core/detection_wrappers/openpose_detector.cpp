@@ -133,7 +133,7 @@ skeleton13 OpenPoseDetector::detect(cv::Mat &input)
         for (auto bodyPart = 0; bodyPart < poseKeypoints.getSize(1); bodyPart++)
         {
             // get (x, y) coords
-            skeleton13[bodyPart] = {poseKeypoints[{0, bodyPart, 0}], poseKeypoints[{0, bodyPart, 1}]};
+            pose[bodyPart] = {poseKeypoints[{0, bodyPart, 0}], poseKeypoints[{0, bodyPart, 1}]};
         }
 
         // }
