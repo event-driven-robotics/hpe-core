@@ -1,36 +1,24 @@
-from lib import init, Data, MoveNet, Task
+from lib import init, MoveNet, Task
 
 from config import cfg
-from lib.utils.utils import arg_parser, image_show
+from lib.utils.utils import arg_parser
+from lib.task.task_tools import image_show
+
 
 import sys
 import yarp
 import numpy as np
 import cv2
 import torch
-import os
-
-# Copied from Predict.py
 
 
-def main(cfg):
-    init(cfg)
+dev = True
 
-    model = MoveNet(num_classes=cfg["num_classes"],
-                    width_mult=cfg["width_mult"],
-                    mode='train')
-
-    data = Data(cfg)
-    test_loader = data.getTestDataloader()
-
-    run_task = Task(cfg, model)
-    run_task.modelLoad("models/h36m_finetuned.pth")
-
-    run_task.predict(test_loader, cfg['predict_output_path'])
+if dev:
+    import glob
+    import os
 
 
-
-# Copied from GL-HPE
 class MovenetModule(yarp.RFModule):
 
     def __init__(self, cfg):
@@ -38,13 +26,13 @@ class MovenetModule(yarp.RFModule):
         self.input_port = yarp.BufferedPortImageMono()
         self.output_port = yarp.BufferedPortImageMono()
         self.stamp = yarp.Stamp()
-        self.counter = 0
+        # self.counter = 0
         self.image_w = 640 # Size of image expected from the framer.
         self.image_h = 480 #
         # self.np_input = None
         self.yarp_image = yarp.ImageMono()
         self.yarp_image_out = yarp.ImageRgb()
-
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.checkpoint_path = "models/h36m_finetuned.pth"
 
         self.resultsPath =  '/outputs'
@@ -56,8 +44,9 @@ class MovenetModule(yarp.RFModule):
         self.fname_ts = None
         self.last_timestamp = 0.0
         self.cfg = cfg
-        # self.model = None
-        # self.read_image = None
+        if dev:
+            self.tester_path = '/media/Data/data/eros_samples_live_220408/' #path to a folder with images.
+
 
     def configure(self, rf):
 
@@ -90,6 +79,10 @@ class MovenetModule(yarp.RFModule):
         self.run_task = Task(cfg, self.model)
         self.run_task.modelLoad("models/h36m_finetuned.pth")
 
+        if dev:
+            self.files = glob.glob(self.tester_path+"/*.jpg")
+            self.file_counter = 0
+
         return True
 
     def getPeriod(self):
@@ -110,54 +103,64 @@ class MovenetModule(yarp.RFModule):
         # synchronous update called every get period seconds.
         print("Press space at the image window to end the program.")
 
-        # Preparing input and output image buffers
-        np_input = np.ones((self.image_h, self.image_w), dtype=np.uint8)
-        self.yarp_image.resize(self.image_w, self.image_h)
-        self.yarp_image.setExternal(np_input.data, np_input.shape[1], np_input.shape[0])
 
-        # np_output = np.ones((self.output_h, self.output_w, 3), dtype=np.uint8)
-        # self.yarp_image_out.resize(self.output_w, self.output_h)
-        # self.yarp_image_out.setExternal(np_output.data, np_output.shape[1], np_output.shape[0])
+        if dev:
+            np_input = cv2.imread(self.files[self.file_counter])
+            print(np_input.shape)
+            np_input = cv2.cvtColor(np_input, cv2.COLOR_BGR2GRAY)
+            print(np_input.shape)
+        else:
 
-        # Read the image
-        read_image = self.input_port.read()
-        self.input_port.getEnvelope(self.stamp)
-        stamp = self.stamp.getTime()
-        # print(self.stamp.getTime())
+            # Preparing input and output image buffers
+            np_input = np.ones((self.image_h, self.image_w), dtype=np.uint8)
+            self.yarp_image.resize(self.image_w, self.image_h)
+            self.yarp_image.setExternal(np_input.data, np_input.shape[1], np_input.shape[0])
 
-        # End of input file
-        # if self.last_timestamp == stamp:
-        #     return False
+            # np_output = np.ones((self.output_h, self.output_w, 3), dtype=np.uint8)
+            # self.yarp_image_out.resize(self.output_w, self.output_h)
+            # self.yarp_image_out.setExternal(np_output.data, np_output.shape[1], np_output.shape[0])
 
-        self.counter += 1  # can be used to interrupt the program
-        self.yarp_image.copy(read_image)
+            # Read the image
+            read_image = self.input_port.read()
+            self.input_port.getEnvelope(self.stamp)
+            stamp = self.stamp.getTime()
 
-        input_image = np.copy(np_input) / 255.0
+            # End of input file
+            # if self.last_timestamp == stamp:
+            #     return False
 
-        # input_image = np.copy(np_input[:self.image_h_model, :self.image_w_model]) / 255.0
+            # self.counter += 1  # can be used to interrupt the program
+            self.yarp_image.copy(read_image)
+
+        input_image = np.copy(np_input)
+
         input_image_resized = np.zeros([1, 3, self.image_h_model,self.image_w_model])
+        print(input_image_resized.shape)
 
         input_image = cv2.resize(input_image,(self.image_h_model,self.image_w_model))
-        input_image_resized[0, 0,:,:] = [input_image]
-        input_image_resized[0, 1,:,:] = [input_image]
-        input_image_resized[0, 2,:,:] = [input_image]
+        input_image_resized[0, 0,:,:] = input_image[:,:]
+        input_image_resized[0, 1,:,:] = input_image[:,:]
+        input_image_resized[0, 2,:,:] = input_image[:,:]
 
-        # cv2.imshow("output", input_image_resized)
-        # # print(img.shape)
-        # k = cv2.waitKey(1)
+        input_image_resized = input_image_resized.astype(np.float32)
 
         # Predict the pose
-        torch_image = torch.from_numpy(input_image_resized)
-        pre = self.run_task.predict_online(torch_image)
+
+        pre = self.run_task.predict_online(input_image_resized)
 
         # Visualize the result
-        k = image_show(input_image,pre)
-
-        self.last_timestamp = stamp
+        image_show(input_image,pre)
+        k = cv2.waitKey(1)
+        if dev:
+            self.file_counter += 1
+            if self.file_counter >= 19:
+                return False
+        else:
+            self.last_timestamp = stamp
         if k == 32:
             return False
-        return True
 
+        return True
 
 if __name__ == '__main__':
     # prepare and configure the resource finder

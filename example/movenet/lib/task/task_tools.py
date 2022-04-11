@@ -5,6 +5,7 @@ https://github.com/fire717
 
 import torch.optim as optim
 import numpy as np
+import cv2
 
 from lib.utils.utils import maxPoint, extract_keypoints
 
@@ -149,16 +150,42 @@ def movenetDecode(data, kps_mask=None, mode='output', num_joints=17,
 
     return res
 
-def restore_sizes(img_tensor,pose,size_out):
-    size_in = img_tensor.shape
-
+def restore_sizes(img,pose,size_out):
+    size_in = img.shape
+    # print(pose)
     # resize image
-    img = np.transpose(img_tensor.cpu().numpy(), axes=[1, 2, 0])
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    # img = np.transpose(img_tensor.cpu().numpy(), axes=[1, 2, 0])
+    # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     img_out = cv2.resize(img,(size_out[1],size_out[0]))
     pose_out = np.copy(pose.reshape((-1,2)))
     for i in range(len(pose_out)):
         pose_out[i,0] = pose_out[i,0] * size_out[1]
         pose_out[i,1] = pose_out[i,1] * size_out[0]
+    return img_out, np.round(pose_out)
 
-    return img_out, pose_out
+
+def image_show(img,pre=None):
+
+    # img = np.transpose(img[0].cpu().numpy(), axes=[1, 2, 0])
+    # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    h, w = img.shape[:2]
+    if np.amax(img) >1:
+        img = img/255
+
+    if pre is not None:
+        pre[pre[:]<0]=0
+        print(pre)
+        if len(pre.squeeze().shape) == 1:
+            for i in range(len(pre[0]) // 2):
+                x = int(pre[0][i * 2] * w)
+                y = int(pre[0][i * 2 + 1] * h)
+                cv2.circle(img, (x, y), 3, (255, 0, 0), 2)
+        else:
+            for i in range(len(pre)):
+                cv2.circle(img, (int(pre[i,0]), int(pre[i,1])), 3, (255, 0, 0), 2)
+
+    img = cv2.resize(img,(img.shape[0]*4,img.shape[1]*4))
+    cv2.imshow("output", img)
+    print(img.shape)
+
+    return 0

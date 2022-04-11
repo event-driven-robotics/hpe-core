@@ -264,20 +264,3 @@ def ensure_loc(path):
         return True
     else:
         os.makedirs(path)
-
-def image_show(img,pre=None):
-
-    img = np.transpose(img[0].cpu().numpy(), axes=[1, 2, 0])
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    h, w = img.shape[:2]
-
-    if pre is not None:
-        for i in range(len(pre[0]) // 2):
-            x = int(pre[0][i * 2] * w)
-            y = int(pre[0][i * 2 + 1] * h)
-            cv2.circle(img, (x, y), 3, (255, 0, 0), 2)
-
-    cv2.imshow("output", img)
-    print(img.shape)
-    k = cv2.waitKey(10)
-    return k
