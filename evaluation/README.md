@@ -80,7 +80,7 @@ $   -rmse
          └─── algo_n.txt
     ...
     ```
-- `-pck <list of floats in (0.0, 1.0]>` specify a list of thresholds over which the PCK will be computed; if not specified, 
+- `-pck <list of floats in (0.0, 1.0]>` specifies a list of thresholds over which the PCK will be computed; if not specified, 
   PCK will not be computed
 - `-rmse` flag specifying that RMSE must be computed
 - `-o path/to/output/folder` is the path to the output folder that will be created and will contain all plots and tables for
