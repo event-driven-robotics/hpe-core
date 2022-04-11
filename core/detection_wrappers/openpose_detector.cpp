@@ -106,7 +106,8 @@ void OpenPoseDetector::stop()
 
 skeleton13 OpenPoseDetector::detect(cv::Mat &input)
 {
-    skeleton13 pose = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    skeleton18 pose = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    skeleton13 pose13 = {0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0 ,0 };
 
     try
     {
@@ -115,7 +116,7 @@ skeleton13 OpenPoseDetector::detect(cv::Mat &input)
         if (datumProcessed == nullptr)
         {
             std::cout << "Image could not be processed" << std::endl;
-            return pose;
+            return pose13;
         }
         input = OP_OP2CVCONSTMAT(datumProcessed->at(0)->cvOutputData);
         //cv::imshow("inlib", temp);
@@ -133,6 +134,7 @@ skeleton13 OpenPoseDetector::detect(cv::Mat &input)
         for (auto bodyPart = 0; bodyPart < poseKeypoints.getSize(1); bodyPart++)
         {
             // get (x, y) coords
+
             pose[bodyPart] = {poseKeypoints[{0, bodyPart, 0}], poseKeypoints[{0, bodyPart, 1}]};
         }
 
@@ -143,5 +145,6 @@ skeleton13 OpenPoseDetector::detect(cv::Mat &input)
         op::error(e.what(), __LINE__, __FUNCTION__, __FILE__);
     }
 
-    return pose;
+    pose13 = hpecore::coco18_to_dhp19(pose);
+    return pose13;
 }
