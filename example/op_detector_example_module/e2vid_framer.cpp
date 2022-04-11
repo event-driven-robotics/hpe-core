@@ -77,7 +77,7 @@ public:
 
         m.lock();
         deque<AE> fakeq = window_queue;
-	m.unlock();
+	    m.unlock();
         if(send_update && fakeq.size())
             	output_port.write(fakeq, yarpstamp);
         send_update = false;

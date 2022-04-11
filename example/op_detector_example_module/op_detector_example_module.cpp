@@ -114,7 +114,7 @@ public:
         cv::cvtColor(img_cv, rgbimage, cv::COLOR_GRAY2BGR);
 
         //call the openpose detector
-        hpecore::skeleton pose = detector.detect(rgbimage);
+        hpecore::skeleton13 pose = detector.detect(rgbimage);
 
         //calculate the running frequency
         t_accum += Time::now() - tic;
