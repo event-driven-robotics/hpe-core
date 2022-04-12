@@ -2,6 +2,7 @@
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
+import re
 
 from pathlib import Path
 from scipy import interpolate
@@ -13,13 +14,11 @@ from evaluation.utils import metrics as metrics_utils, plots as plots_utils
 
 
 # TODO:
-#   - plot pck auc
 #   - compute oks
 #     - for a set of thresholds
 #     - for each joint
 #     - global
 #   - randomly sample good and bad predictions and plot joints
-#   - add flag for generating latex tables
 
 # class PredictionsPlot:
 #
@@ -283,18 +282,25 @@ def main(args):
         else:
             pck_sizes_gt_interp = interpolate.interp1d(ts_pred, np.concatenate(([data['head_sizes'][0]], data['head_sizes'])))
 
+        # ground truth in yarp format is supposed to be stored in folders name <dataset_name>/ch<channel_id>[frequency_info]skeleton
+        # find the channel id
+        numbers = re.findall('[0-9]+', yarp_path.parent.name)
+        channel_id = numbers[0]
+        parent_folder_prefix = yarp_path.parent.name.split(channel_id)[0]
+        channel_folder = f'{parent_folder_prefix}{channel_id}'
         dataset_name = yarp_path.parent.parent.name
+        results_key = f'{dataset_name}_{channel_folder}'
 
-        output_ds_folder_path = output_folder_path / dataset_name
+        output_ds_folder_path = output_folder_path / results_key
         output_ds_folder_path.mkdir(parents=True, exist_ok=True)
 
-        results['datasets'][dataset_name] = dict()
+        results['datasets'][results_key] = dict()
 
         algorithm_names = []
         skeletons_predictions = []
 
         # parse predictions
-        predictions_path = Path(args.predictions_path) / dataset_name
+        predictions_path = Path(args.predictions_path) / dataset_name / channel_folder
         predictions_file_path = list(predictions_path.glob('**/*.txt'))
         for pred_path in predictions_file_path:
 
@@ -315,15 +321,15 @@ def main(args):
 
             # compute PCK
             if len(args.pck) != 0:
-                results['datasets'][dataset_name]['pck'] = dict()
+                results['datasets'][results_key]['pck'] = dict()
                 for thi, th in enumerate(args.pck):
 
                     # update dataset metric
                     pck = metrics_utils.PCK(threshold=th)
                     pck.update_samples(skeletons_pred, skeletons_gt, pck_sizes_gt_interp(ts_pred))
 
-                    results['datasets'][dataset_name]['pck'][th] = dict()
-                    results['datasets'][dataset_name]['pck'][th][algo_name] = pck
+                    results['datasets'][results_key]['pck'][th] = dict()
+                    results['datasets'][results_key]['pck'][th][algo_name] = pck
 
                     # update global metric
                     if 'pck' not in results['global'].keys():
@@ -340,12 +346,12 @@ def main(args):
 
             # compute RMSE
             if args.rmse:
-                results['datasets'][dataset_name]['rmse'] = dict()
+                results['datasets'][results_key]['rmse'] = dict()
                 rmse = metrics_utils.RMSE()
                 rmse.update_samples(skeletons_pred, skeletons_gt)
 
                 algo_name = pred_path.stem
-                results['datasets'][dataset_name]['rmse'][algo_name] = rmse
+                results['datasets'][results_key]['rmse'][algo_name] = rmse
 
                 # update algo metric
                 if 'rmse' not in results['global'].keys():
@@ -357,7 +363,7 @@ def main(args):
                 rmse = results['global']['rmse'][algo_name]
                 rmse.update_samples(skeletons_pred, skeletons_gt)
 
-        plot_predictions(output_ds_folder_path, dataset_name, ts_pred, skeletons_gt, algorithm_names, skeletons_predictions)
+        plot_predictions(output_ds_folder_path, results_key, ts_pred, skeletons_gt, algorithm_names, skeletons_predictions)
 
     # iterate over datasets metrics and print results
     for (ds_name, metrics) in results['datasets'].items():
