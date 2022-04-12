@@ -143,6 +143,8 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
 
     assert 1 <= joints_gt.shape[2] <= 3, 'coordinates must be either 2D or 3D'
 
+    algo_colors = [np.random.rand(3,) for _ in algo_names]
+
     # iterate on each joint
     for joint_key, joint_ind in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
 
@@ -173,7 +175,7 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
 
                 # plot predictions
                 coord_pred = predictions_algo[:, joint_ind, coord_ind]
-                ax.plot(timestamps, coord_pred, color=np.random.rand(3,), marker=".", label=f'{algo_names[pi]}', linestyle='None', alpha=1.0)
+                ax.plot(timestamps, coord_pred, color=algo_colors[pi], marker=".", label=f'{algo_names[pi]}', linestyle='None', alpha=1.0)
 
                 y_lim_min = min(y_lim_min, min(coord_pred))
                 y_lim_max = max(y_lim_max, max(coord_pred))
