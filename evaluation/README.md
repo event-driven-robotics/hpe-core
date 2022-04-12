@@ -94,4 +94,7 @@ $   -rmse
   PCK will not be computed
 - `-rmse` flag specifying that RMSE must be computed
 - `-o path/to/output/folder` is the path to the output folder that will be created and will contain all plots and tables for
-  the specified metrics.
+  the specified metrics
+- `-latex` flag specifying that tables must be saved to latex format.
+
+The output folder will contain files with metric tables and prediction plots.
