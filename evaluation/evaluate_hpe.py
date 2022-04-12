@@ -2,6 +2,7 @@
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
+import re
 
 from pathlib import Path
 from scipy import interpolate
@@ -193,7 +194,7 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
             plt.savefig(str(fig_path.resolve()))
 
 
-def tabulate_metric_over_algorithms(algo_metrics: dict, header: list, descr: Optional[str], to_latex: bool = False, file_path: Optional[Path] = None) -> None:
+def tabulate_metric_over_algorithms(algo_metrics: dict, header: list, descr: Optional[str], to_latex: bool = False, file_path: Optional[Path] = None, file_stem: str = None) -> None:
 
     # create results table
     table = list()
@@ -208,11 +209,15 @@ def tabulate_metric_over_algorithms(algo_metrics: dict, header: list, descr: Opt
 
     # set table format
     fmt = 'simple'
+    ext = '.txt'
     if to_latex:
         fmt = 'latex'
+        ext = '.tex'
 
-    if file_path:
-        with open(str(file_path.resolve()), 'w') as f:
+    if file_path and file_stem:
+
+        full_path = file_path / (file_stem + ext)
+        with open(str(full_path.resolve()), 'w') as f:
 
             # create latex string
             if to_latex:
@@ -246,6 +251,8 @@ def main(args):
     output_folder_path = Path(args.output_folder)
     output_folder_path = output_folder_path.resolve()
     output_folder_path.mkdir(parents=True, exist_ok=True)
+
+    to_latex = args.latex
 
     results = dict()
     results['datasets'] = dict()
@@ -281,18 +288,25 @@ def main(args):
         else:
             pck_sizes_gt_interp = interpolate.interp1d(ts_pred, np.concatenate(([data['head_sizes'][0]], data['head_sizes'])))
 
+        # ground truth in yarp format is supposed to be stored in folders name <dataset_name>/ch<channel_id>[frequency_info]skeleton
+        # find the channel id
+        numbers = re.findall('[0-9]+', yarp_path.parent.name)
+        channel_id = numbers[0]
+        parent_folder_prefix = yarp_path.parent.name.split(channel_id)[0]
+        channel_folder = f'{parent_folder_prefix}{channel_id}'
         dataset_name = yarp_path.parent.parent.name
+        results_key = f'{dataset_name}_{channel_folder}'
 
-        output_ds_folder_path = output_folder_path / dataset_name
+        output_ds_folder_path = output_folder_path / results_key
         output_ds_folder_path.mkdir(parents=True, exist_ok=True)
 
-        results['datasets'][dataset_name] = dict()
+        results['datasets'][results_key] = dict()
 
         algorithm_names = []
         skeletons_predictions = []
 
         # parse predictions
-        predictions_path = Path(args.predictions_path) / dataset_name
+        predictions_path = Path(args.predictions_path) / dataset_name / channel_folder
         predictions_file_path = list(predictions_path.glob('**/*.txt'))
         for pred_path in predictions_file_path:
 
@@ -313,15 +327,15 @@ def main(args):
 
             # compute PCK
             if len(args.pck) != 0:
-                results['datasets'][dataset_name]['pck'] = dict()
+                results['datasets'][results_key]['pck'] = dict()
                 for thi, th in enumerate(args.pck):
 
                     # update dataset metric
                     pck = metrics_utils.PCK(threshold=th)
                     pck.update_samples(skeletons_pred, skeletons_gt, pck_sizes_gt_interp(ts_pred))
 
-                    results['datasets'][dataset_name]['pck'][th] = dict()
-                    results['datasets'][dataset_name]['pck'][th][algo_name] = pck
+                    results['datasets'][results_key]['pck'][th] = dict()
+                    results['datasets'][results_key]['pck'][th][algo_name] = pck
 
                     # update global metric
                     if 'pck' not in results['global'].keys():
@@ -338,12 +352,12 @@ def main(args):
 
             # compute RMSE
             if args.rmse:
-                results['datasets'][dataset_name]['rmse'] = dict()
+                results['datasets'][results_key]['rmse'] = dict()
                 rmse = metrics_utils.RMSE()
                 rmse.update_samples(skeletons_pred, skeletons_gt)
 
                 algo_name = pred_path.stem
-                results['datasets'][dataset_name]['rmse'][algo_name] = rmse
+                results['datasets'][results_key]['rmse'][algo_name] = rmse
 
                 # update algo metric
                 if 'rmse' not in results['global'].keys():
@@ -355,7 +369,7 @@ def main(args):
                 rmse = results['global']['rmse'][algo_name]
                 rmse.update_samples(skeletons_pred, skeletons_gt)
 
-        plot_predictions(output_ds_folder_path, dataset_name, ts_pred, skeletons_gt, algorithm_names, skeletons_predictions)
+        plot_predictions(output_ds_folder_path, results_key, ts_pred, skeletons_gt, algorithm_names, skeletons_predictions)
 
     # iterate over datasets metrics and print results
     for (ds_name, metrics) in results['datasets'].items():
@@ -375,8 +389,9 @@ def main(args):
                 for (th, algos) in metric_results.items():
                     tabulate_metric_over_algorithms(algos, header,
                                                     descr=f'PCK results for dataset {ds_name}, threshold {th}',
-                                                    to_latex=True,
-                                                    file_path=output_ds_folder_path / f'pck_{th}_{ds_name}.tex')
+                                                    to_latex=to_latex,
+                                                    file_path=output_ds_folder_path,
+                                                    file_stem=f'pck_{th}_{ds_name}')
 
             elif metric_name == 'rmse':
                 header = [header_str for key in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.keys() for header_str in [f'{key} x', f'{key} y']]
@@ -385,8 +400,9 @@ def main(args):
 
                 tabulate_metric_over_algorithms(metric_results, header,
                                                 descr=f'RMSE results for dataset {ds_name}',
-                                                to_latex=True,
-                                                file_path=output_ds_folder_path / f'rmse_{ds_name}.tex')
+                                                to_latex=to_latex,
+                                                file_path=output_ds_folder_path,
+                                                file_stem=f'rmse_{ds_name}')
 
     # iterate over global metrics and print results
     for (metric_name, metric_results) in results['global'].items():
@@ -402,8 +418,9 @@ def main(args):
             for (th, algos) in metric_results.items():
                 tabulate_metric_over_algorithms(algos, header,
                                                 descr=f'Global PCK results for threshold {th}',
-                                                to_latex=True,
-                                                file_path=output_folder_path / f'pck_{th}.tex')
+                                                to_latex=to_latex,
+                                                file_path=output_folder_path,
+                                                file_stem=f'pck_{th}')
 
         elif metric_name == 'rmse':
             # create table
@@ -413,8 +430,9 @@ def main(args):
 
             tabulate_metric_over_algorithms(metric_results, header,
                                             descr=f'Global RMSE results',
-                                            to_latex=True,
-                                            file_path=output_folder_path / f'rmse.tex')
+                                            to_latex=to_latex,
+                                            file_path=output_folder_path,
+                                            file_stem='rmse')
 
 
 if __name__ == '__main__':
@@ -423,9 +441,11 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--predictions_path', help='Path to the predictions folder', required=True)
     parser.add_argument('-i', '--images_folder', help='Path to the folder containing the image frames')
     parser.add_argument('-pck', help='List of thresholds for computing metric PCK; specifies that PCK must be computed', type=float, nargs='+', default=[])
-    parser.add_argument('-rmse', help='flag specifying the metric RMSE must be computed', dest='rmse', action='store_true')
+    parser.add_argument('-rmse', help='flag specifying that the metric RMSE must be computed', dest='rmse', action='store_true')
     parser.set_defaults(rmse=False)
     parser.add_argument('-o', '--output_folder', help='Path to the folder where evaluation results will be saved', required=True)
+    parser.add_argument('-latex', help='flag specifying that table results should saved to latex files', dest='latex', action='store_true')
+    parser.set_defaults(latex=False)
 
     args = parser.parse_args()
 
