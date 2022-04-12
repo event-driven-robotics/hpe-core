@@ -71,13 +71,23 @@ $   -rmse
     ```
     path/to/predictions/folder
     └───ds_a
-         └─── algo_1.txt
-         ...
-         └─── algo_n.txt
+         └─── ch0skeleton
+               └─── algo_a.txt
+               └─── algo_b.txt
+               ...
+         └─── ch<n>skeleton
+               └─── algo_a.txt
+               └─── algo_b.txt
+               ...
     └───ds_b
-         └─── algo_1.txt
-         ...
-         └─── algo_n.txt
+         └─── ch0skeleton
+               └─── algo_a.txt
+               └─── algo_b.txt
+               ...
+         └─── ch<m>skeleton
+               └─── algo_a.txt
+               └─── algo_b.txt
+               ...
     ...
     ```
 - `-pck <list of floats in (0.0, 1.0]>` specifies a list of thresholds over which the PCK will be computed; if not specified, 
