@@ -143,10 +143,22 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
 
     assert 1 <= joints_gt.shape[2] <= 3, 'coordinates must be either 2D or 3D'
 
-    algo_colors = [np.random.rand(3,) for _ in algo_names]
+    # define a color for each algorithm and each coordinate
+    algo_colors = [[np.random.rand(3,) for _ in range(joints_gt.shape[2])] for _ in algo_names]
 
     # iterate on each joint
     for joint_key, joint_ind in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
+
+        # create plot
+        my_dpi = 96
+        fig = plt.figure(num=f'Dataset {ds_name}, Joint \'{joint_key}\'',
+                         figsize=(2048 / my_dpi, 900 / my_dpi),
+                         dpi=96)
+        ax = fig.add_subplot(111)
+        fig.tight_layout(pad=5)
+
+        y_lim_min = np.inf
+        y_lim_max = 0
 
         for coord_ind in range(joints_gt.shape[2]):
 
@@ -157,25 +169,18 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
             if coord_ind == 2:
                 lbl_coord = 'z'
 
-            # create plot
-            my_dpi = 96
-            fig = plt.figure(num=f'Dataset {ds_name}, Joint \'{joint_key}\', {lbl_coord} coordinate',
-                             figsize=(2048 / my_dpi, 900 / my_dpi),
-                             dpi=96)
-            ax = fig.add_subplot(111)
-            fig.tight_layout(pad=5)
-
             # plot ground-truth
             coord_gt = joints_gt[:, joint_ind, coord_ind]
-            ax.plot(timestamps, coord_gt, color='tab:green', alpha=0.3, label='GT')
+            ax.plot(timestamps, coord_gt, color='tab:green', alpha=0.3, label=f'GT {lbl_coord}')
 
-            y_lim_min = min(coord_gt)
-            y_lim_max = max(coord_gt)
+            y_lim_min = min(y_lim_min, min(coord_gt))
+            y_lim_max = max(y_lim_max, max(coord_gt))
+
             for pi, predictions_algo in enumerate(joints_predicted):
 
                 # plot predictions
                 coord_pred = predictions_algo[:, joint_ind, coord_ind]
-                ax.plot(timestamps, coord_pred, color=algo_colors[pi], marker=".", label=f'{algo_names[pi]}', linestyle='None', alpha=1.0)
+                ax.plot(timestamps, coord_pred, color=algo_colors[pi][coord_ind], marker=".", label=f'{algo_names[pi]} {lbl_coord}', linestyle='None', alpha=1.0)
 
                 y_lim_min = min(y_lim_min, min(coord_pred))
                 y_lim_max = max(y_lim_max, max(coord_pred))
@@ -186,13 +191,13 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
 
             # labels and title
             plt.xlabel('time [sec]', fontsize=22, labelpad=5)
-            plt.ylabel(f'{lbl_coord} coordinate [px]', fontsize=22, labelpad=5)
-            fig.suptitle(f'dataset {ds_name}, joint \'{joint_key}\', {lbl_coord} coordinate', fontsize=28, y=0.97)
+            plt.ylabel('coordinates [px]', fontsize=22, labelpad=5)
+            fig.suptitle(f'dataset {ds_name}, joint \'{joint_key}\' coordinates', fontsize=28, y=0.97)
             plt.tick_params(axis='both', which='major', labelsize=18)
             ax.legend(fontsize=16, loc='upper right')
 
             # save plot
-            fig_path = output_folder_path / f'{ds_name}_{joint_key}_predictions_{lbl_coord}.png'
+            fig_path = output_folder_path / f'{ds_name}_{joint_key}_predictions.png'
             plt.savefig(str(fig_path.resolve()))
 
 
