@@ -139,6 +139,43 @@ def plot_pck_over_thresholds(pck_thresholds_results, output_folder_path, ds_name
     plt.savefig(str(fig_path.resolve()))
 
 
+def plot_barplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> None:
+
+    # get avg and std values
+    avg_metric_values = list()
+    std_metric_values = list()
+    tick_labels = list()
+    for (algo_name, metric) in algo_metrics.items():
+        values = metric.get_value()
+        joints_values = values[0]
+        avg_value = values[1]
+
+        if isinstance(metric, metrics_utils.PCK):
+            avg_metric_values.append(avg_value)
+            std_metric_values.append(np.std(joints_values))
+            tick_labels.append(algo_name)
+        elif isinstance(metric, metrics_utils.RMSE):
+            avg_metric_values.extend(avg_value.tolist())
+            std_metric_values.append(np.std(joints_values[::2]))  # compute std for x values
+            std_metric_values.append(np.std(joints_values[1::2]))  # compute std for y values
+            tick_labels.extend([f'{algo_name}_x', f'{algo_name}_y'])
+
+    # create figure
+    fig, ax = plt.subplots()
+    y_ticks = np.arange(len(tick_labels))
+    ax.barh(y=y_ticks, width=avg_metric_values, xerr=std_metric_values, align='center', alpha=0.5, ecolor='black', capsize=10)
+    ax.set_xlabel('Average RMSE')
+    ax.set_yticks(y_ticks)
+    ax.set_yticklabels(tick_labels)
+    ax.set_title(descr)
+    ax.xaxis.grid(True)
+
+    # Save the figure and show
+    plt.tight_layout()
+    plt.savefig(str(file_path.resolve()))
+    plt.show()
+
+
 def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_names, joints_predicted):
 
     assert 1 <= joints_gt.shape[2] <= 3, 'coordinates must be either 2D or 3D'
@@ -422,6 +459,10 @@ def main(args):
                                                 file_path=output_ds_folder_path,
                                                 file_stem=f'rmse_{ds_name}')
 
+                plot_barplot(metric_results,
+                             descr=f'RMSE results for dataset {ds_name}',
+                             file_path=output_ds_folder_path / f'rmse_{ds_name}.png')
+
     # iterate over global metrics and print results
     for (metric_name, metric_results) in results['global'].items():
 
@@ -451,6 +492,10 @@ def main(args):
                                             to_latex=to_latex,
                                             file_path=output_folder_path,
                                             file_stem='rmse')
+
+            plot_barplot(metric_results,
+                         descr=f'Global RMSE results',
+                         file_path=output_folder_path / f'rmse.png')
 
 
 if __name__ == '__main__':
