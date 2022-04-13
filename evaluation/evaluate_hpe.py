@@ -143,8 +143,22 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
 
     assert 1 <= joints_gt.shape[2] <= 3, 'coordinates must be either 2D or 3D'
 
+    # define a color for each algorithm and each coordinate
+    algo_colors = [[np.random.rand(3,) for _ in range(joints_gt.shape[2])] for _ in algo_names]
+
     # iterate on each joint
     for joint_key, joint_ind in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
+
+        # create plot
+        my_dpi = 96
+        fig = plt.figure(num=f'Dataset {ds_name}, Joint \'{joint_key}\'',
+                         figsize=(2048 / my_dpi, 900 / my_dpi),
+                         dpi=96)
+        ax = fig.add_subplot(111)
+        fig.tight_layout(pad=5)
+
+        y_lim_min = np.inf
+        y_lim_max = 0
 
         for coord_ind in range(joints_gt.shape[2]):
 
@@ -155,25 +169,18 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
             if coord_ind == 2:
                 lbl_coord = 'z'
 
-            # create plot
-            my_dpi = 96
-            fig = plt.figure(num=f'Dataset {ds_name}, Joint \'{joint_key}\', {lbl_coord} coordinate',
-                             figsize=(2048 / my_dpi, 900 / my_dpi),
-                             dpi=96)
-            ax = fig.add_subplot(111)
-            fig.tight_layout(pad=5)
-
             # plot ground-truth
             coord_gt = joints_gt[:, joint_ind, coord_ind]
-            ax.plot(timestamps, coord_gt, color='tab:green', alpha=0.3, label='GT')
+            ax.plot(timestamps, coord_gt, color='tab:green', alpha=0.3, label=f'GT {lbl_coord}')
 
-            y_lim_min = min(coord_gt)
-            y_lim_max = max(coord_gt)
+            y_lim_min = min(y_lim_min, min(coord_gt))
+            y_lim_max = max(y_lim_max, max(coord_gt))
+
             for pi, predictions_algo in enumerate(joints_predicted):
 
                 # plot predictions
                 coord_pred = predictions_algo[:, joint_ind, coord_ind]
-                ax.plot(timestamps, coord_pred, color=np.random.rand(3,), marker=".", label=f'{algo_names[pi]}', linestyle='None', alpha=1.0)
+                ax.plot(timestamps, coord_pred, color=algo_colors[pi][coord_ind], marker=".", label=f'{algo_names[pi]} {lbl_coord}', linestyle='None', alpha=1.0)
 
                 y_lim_min = min(y_lim_min, min(coord_pred))
                 y_lim_max = max(y_lim_max, max(coord_pred))
@@ -184,13 +191,13 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
 
             # labels and title
             plt.xlabel('time [sec]', fontsize=22, labelpad=5)
-            plt.ylabel(f'{lbl_coord} coordinate [px]', fontsize=22, labelpad=5)
-            fig.suptitle(f'dataset {ds_name}, joint \'{joint_key}\', {lbl_coord} coordinate', fontsize=28, y=0.97)
+            plt.ylabel('coordinates [px]', fontsize=22, labelpad=5)
+            fig.suptitle(f'dataset {ds_name}, joint \'{joint_key}\' coordinates', fontsize=28, y=0.97)
             plt.tick_params(axis='both', which='major', labelsize=18)
             ax.legend(fontsize=16, loc='upper right')
 
             # save plot
-            fig_path = output_folder_path / f'{ds_name}_{joint_key}_predictions_{lbl_coord}.png'
+            fig_path = output_folder_path / f'{ds_name}_{joint_key}_predictions.png'
             plt.savefig(str(fig_path.resolve()))
 
 
@@ -203,7 +210,10 @@ def tabulate_metric_over_algorithms(algo_metrics: dict, header: list, descr: Opt
         joints_values = values[0]
         avg_value = values[1]
         table_row = joints_values.tolist()
-        table_row.append(avg_value)
+        if isinstance(avg_value, np.ndarray):
+            table_row.extend(avg_value.tolist())
+        else:
+            table_row.append(avg_value)
         table_row.insert(0, algo_name)
         table.append(table_row)
 
@@ -268,25 +278,25 @@ def main(args):
 
         data = ds_parsing.import_yarp_skeleton_data(yarp_path)
 
-        ts_pred = np.concatenate(([.0], data['ts']))
+        ts_gt = np.concatenate(([.0], data['ts'], [data['ts'][-1] + 1]))
 
         # TODO: use numpy.interp
         # TODO: make it general for 2d/3d coordinates
 
         # interpolate ground truth joints so that they can be compared with the high frequency predictions
         for k_map in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
-            x_interpolation = interpolate.interp1d(ts_pred, np.concatenate(([data[k_map[0]][0, 0]], data[k_map[0]][:, 0])))
-            y_interpolation = interpolate.interp1d(ts_pred, np.concatenate(([data[k_map[0]][0, 1]], data[k_map[0]][:, 1])))
+            x_interpolation = interpolate.interp1d(ts_gt, np.concatenate(([data[k_map[0]][0, 0]], data[k_map[0]][:, 0], [data[k_map[0]][-1, 0]])))
+            y_interpolation = interpolate.interp1d(ts_gt, np.concatenate(([data[k_map[0]][0, 1]], data[k_map[0]][:, 1], [data[k_map[0]][-1, 1]])))
             data[k_map[0]] = dict()
             data[k_map[0]]['x'] = x_interpolation
             data[k_map[0]]['y'] = y_interpolation
 
         # GT contains the size of the torso
         if data['head_sizes'][0] == -1:
-            pck_sizes_gt_interp = interpolate.interp1d(ts_pred, np.concatenate(([data['torso_sizes'][0]], data['torso_sizes'])))
+            pck_sizes_gt_interp = interpolate.interp1d(ts_gt, np.concatenate(([data['torso_sizes'][0]], data['torso_sizes'], [data['torso_sizes'][-1]])))
         # GT contains the size of the head
         else:
-            pck_sizes_gt_interp = interpolate.interp1d(ts_pred, np.concatenate(([data['head_sizes'][0]], data['head_sizes'])))
+            pck_sizes_gt_interp = interpolate.interp1d(ts_gt, np.concatenate(([data['head_sizes'][0]], data['head_sizes'], [data['head_sizes'][-1]])))
 
         # ground truth in yarp format is supposed to be stored in folders name <dataset_name>/ch<channel_id>[frequency_info]skeleton
         # find the channel id
@@ -327,14 +337,19 @@ def main(args):
 
             # compute PCK
             if len(args.pck) != 0:
-                results['datasets'][results_key]['pck'] = dict()
+
+                if 'pck' not in results['datasets'][results_key].keys():
+                    results['datasets'][results_key]['pck'] = dict()
+
                 for thi, th in enumerate(args.pck):
 
                     # update dataset metric
                     pck = metrics_utils.PCK(threshold=th)
                     pck.update_samples(skeletons_pred, skeletons_gt, pck_sizes_gt_interp(ts_pred))
 
-                    results['datasets'][results_key]['pck'][th] = dict()
+                    if th not in results['datasets'][results_key]['pck'].keys():
+                        results['datasets'][results_key]['pck'][th] = dict()
+
                     results['datasets'][results_key]['pck'][th][algo_name] = pck
 
                     # update global metric
@@ -352,7 +367,10 @@ def main(args):
 
             # compute RMSE
             if args.rmse:
-                results['datasets'][results_key]['rmse'] = dict()
+
+                if 'rmse' not in results['datasets'][results_key].keys():
+                    results['datasets'][results_key]['rmse'] = dict()
+
                 rmse = metrics_utils.RMSE()
                 rmse.update_samples(skeletons_pred, skeletons_gt)
 
