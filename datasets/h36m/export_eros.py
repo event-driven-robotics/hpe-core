@@ -18,8 +18,8 @@ from datasets.utils.events_representation import EROS
 from bimvee.importIitYarp import importIitYarp as import_dvs
 
 eros_kernel = 6
-frame_width = 346
-frame_height = 260
+frame_width = 640
+frame_height = 480
 gauss_kernel = 7
 
 
@@ -106,7 +106,7 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path_images):
         sample_anno['ts'] = ts
         sample_anno['keypoints'] = get_keypoints(pose, frame_height, frame_width)
         sample_anno['center'] = get_center(pose, frame_height, frame_width)
-        sample_anno['torso_size'] = get_torso_length(pose, frame_height, frame_width)
+        # sample_anno['torso_size'] = get_torso_length(pose, frame_height, frame_width)
         sample_anno['keypoints_prev'] = kps_old
         sample_anno['original_sample'] = action_name
 
