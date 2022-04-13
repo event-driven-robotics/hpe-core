@@ -103,15 +103,12 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path_images):
 
         sample_anno = {}
         sample_anno['img_name'] = action_name + '_' + str(fi) + '.jpg'
+        sample_anno['ts'] = ts
         sample_anno['keypoints'] = get_keypoints(pose, frame_height, frame_width)
         sample_anno['center'] = get_center(pose, frame_height, frame_width)
         sample_anno['torso_size'] = get_torso_length(pose, frame_height, frame_width)
         sample_anno['keypoints_prev'] = kps_old
-        sample_anno['other_centers'] = []
-        sample_anno['other_keypoints'] = []
-        sample_anno['head_size'] = []
-        sample_anno['head_size_scaled'] = []
-        sample_anno['originall_sample'] = action_name
+        sample_anno['original_sample'] = action_name
 
         # print(sample_anno)
         # frame = cv2.GaussianBlur(frame, (gauss_kernel, gauss_kernel), 0)
