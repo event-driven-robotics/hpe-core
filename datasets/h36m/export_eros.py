@@ -22,6 +22,9 @@ frame_width = 640
 frame_height = 480
 gauss_kernel = 7
 
+def ensure_location(path):
+    if not os.path.isdir(path):
+        os.makedirs(path)
 
 def importSkeletonData(filename):
     with open(filename) as f:
@@ -126,23 +129,26 @@ if __name__ == '__main__':
     # dvs_dir = "/home/ggoyal/data/h36m/yarp/S11_Phoning_3/ch0dvs/"
     # data_vicon_file = "/home/ggoyal/data/h36m/yarp/S11_Phoning_3/ch0GT50Hzskeleton/data.log"
 
-    output_path_images = "/home/ggoyal/data/h36m/tester/h36m_EROS/"
-    output_path_anno = "/home/ggoyal/data/h36m/tester/h36m_anno/"
+    output_path_images = "/home/icub/data/h36m/training/h36m_EROS/"
+    output_path_anno = "/home/icub/data/h36m/training/h36m_anno/"
     output_path_images = os.path.abspath(output_path_images)
     output_path_anno = os.path.abspath(output_path_anno)
     output_json = output_path_anno + '/poses.json'
+    ensure_location(output_path_images)
+    ensure_location(output_path_anno)
 
-    input_data_dir = "/home/ggoyal/data/h36m/yarp"
+    input_data_dir = "/home/icub/data/h36m/yarp"
     input_data_dir = os.path.abspath(input_data_dir)
 
     dir_list = os.listdir(input_data_dir)
-    print(dir_list)
+#    print(dir_list)
 
     # for sample in dir_list:
     for i in tqdm(range(len(dir_list))):
         sample = dir_list[i]
+        cam = sample[3]
         dvs_dir = os.path.join(input_data_dir, sample, 'ch0dvs')
-        data_vicon_file = os.path.join(input_data_dir, sample, 'ch0GT50Hzskeleton/data.log')
+        data_vicon_file = os.path.join(input_data_dir, sample, f'ch{cam}GT50Hzskeleton/data.log')
         print(str(i) + sample)
         if os.path.exists(dvs_dir) and os.path.exists(data_vicon_file):
             poses_sample = export_to_eros(dvs_dir, data_vicon_file, output_path_images)
@@ -151,7 +157,7 @@ if __name__ == '__main__':
                 with open(str(output_json), 'w') as f:
                     json.dump(poses_sample, f, ensure_ascii=False)
                     from_scratch = False
-                    exit() ######################################################################
+#                    exit() ######################################################################
             else:
                 with open(str(output_json), 'r+') as f:
                     poses = json.load(f)
@@ -159,6 +165,9 @@ if __name__ == '__main__':
                     f.seek(0)
                     poses = json.dump(poses, f, ensure_ascii=False)
             # poses.extend(poses_sample)
+        else:
+            print(f"File {sample} not found.")
+            print(os.path.exists(data_vicon_file))
 
 
 

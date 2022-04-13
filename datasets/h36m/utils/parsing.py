@@ -235,7 +235,7 @@ class H36mIterator:
         self.__update_current_index(self.ind)
         # print(events_iter.shape)
 
-        print(f'elapsed time for {self.__class__.__name__}.__next__: {time() - t1}')
+        # print(f'elapsed time for {self.__class__.__name__}.__next__: {time() - t1}')
 
         return events_iter, skl, self.current_skl_ts
 
