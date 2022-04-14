@@ -141,6 +141,9 @@ def plot_pck_over_thresholds(pck_thresholds_results, output_folder_path, ds_name
 
 def plot_barplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> None:
 
+    # create figure
+    fig, ax = plt.subplots()
+
     # get avg and std values
     avg_metric_values = list()
     std_metric_values = list()
@@ -154,17 +157,20 @@ def plot_barplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
             avg_metric_values.append(avg_value)
             std_metric_values.append(np.std(joints_values))
             tick_labels.append(algo_name)
+
+            ax.set_xlabel('Average PCK')
+
         elif isinstance(metric, metrics_utils.RMSE):
             avg_metric_values.extend(avg_value.tolist())
             std_metric_values.append(np.std(joints_values[::2]))  # compute std for x values
             std_metric_values.append(np.std(joints_values[1::2]))  # compute std for y values
             tick_labels.extend([f'{algo_name}_x', f'{algo_name}_y'])
 
-    # create figure
-    fig, ax = plt.subplots()
+            ax.set_xlabel('Average RMSE')
+
+    # plot values
     y_ticks = np.arange(len(tick_labels))
     ax.barh(y=y_ticks, width=avg_metric_values, xerr=std_metric_values, align='center', alpha=0.5, ecolor='black', capsize=10)
-    ax.set_xlabel('Average RMSE')
     ax.set_yticks(y_ticks)
     ax.set_yticklabels(tick_labels)
     ax.set_title(descr)
@@ -173,7 +179,6 @@ def plot_barplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
     # Save the figure and show
     plt.tight_layout()
     plt.savefig(str(file_path.resolve()))
-    plt.show()
 
 
 def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_names, joints_predicted):
