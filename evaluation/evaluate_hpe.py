@@ -508,10 +508,10 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--datasets_path', help='Path to the folders containing data saved in Yarp format', required=True)
     parser.add_argument('-p', '--predictions_path', help='Path to the predictions folder', required=True)
     parser.add_argument('-i', '--images_folder', help='Path to the folder containing the image frames')
+    parser.add_argument('-o', '--output_folder', help='Path to the folder where evaluation results will be saved', required=True)
     parser.add_argument('-pck', help='List of thresholds for computing metric PCK; specifies that PCK must be computed', type=float, nargs='+', default=[])
     parser.add_argument('-rmse', help='flag specifying that the metric RMSE must be computed', dest='rmse', action='store_true')
     parser.set_defaults(rmse=False)
-    parser.add_argument('-o', '--output_folder', help='Path to the folder where evaluation results will be saved', required=True)
     parser.add_argument('-latex', help='flag specifying that table results should saved to latex files', dest='latex', action='store_true')
     parser.set_defaults(latex=False)
 

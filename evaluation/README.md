@@ -49,9 +49,10 @@ The evaluation script can be run with
 $ python3 evaluate_hpe.py
 $   -d path/to/datasets/folder
 $   -p path/to/predictions/folder
-$   -pck <list of floats in (0.0, 1.0]>
 $   -o path/to/output/folder
+$   -pck <list of floats in (0.0, 1.0]>
 $   -rmse
+$   -latex
 ```
 
 - `-d path/to/datasets/folder` must point to a folder containing all datasets in yarp format the algorithms must be evaluated
@@ -90,11 +91,11 @@ $   -rmse
                ...
     ...
     ```
+- `-o path/to/output/folder` is the path to the output folder that will be created and will contain all plots and tables for
+  the specified metrics
 - `-pck <list of floats in (0.0, 1.0]>` specifies a list of thresholds over which the PCK will be computed; if not specified, 
   PCK will not be computed
 - `-rmse` flag specifying that RMSE must be computed
-- `-o path/to/output/folder` is the path to the output folder that will be created and will contain all plots and tables for
-  the specified metrics
 - `-latex` flag specifying that tables must be saved to latex format.
 
 The output folder will contain files with metric tables and prediction plots.
