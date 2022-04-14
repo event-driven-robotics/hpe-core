@@ -150,20 +150,20 @@ def plot_barplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
     tick_labels = list()
     for (algo_name, metric) in algo_metrics.items():
         values = metric.get_value()
-        joints_values = values[0]
-        avg_value = values[1]
+        joints_metric_values = values[0]
+        avg_metric_value = values[1]
 
         if isinstance(metric, metrics_utils.PCK):
-            avg_metric_values.append(avg_value)
-            std_metric_values.append(np.std(joints_values))
+            avg_metric_values.append(avg_metric_value)
+            std_metric_values.append(np.std(joints_metric_values))
             tick_labels.append(algo_name)
 
             ax.set_xlabel('Average PCK')
 
         elif isinstance(metric, metrics_utils.RMSE):
-            avg_metric_values.extend(avg_value.tolist())
-            std_metric_values.append(np.std(joints_values[::2]))  # compute std for x values
-            std_metric_values.append(np.std(joints_values[1::2]))  # compute std for y values
+            avg_metric_values.extend(avg_metric_value.tolist())
+            std_metric_values.append(np.std(joints_metric_values[::2]))  # compute std for x values
+            std_metric_values.append(np.std(joints_metric_values[1::2]))  # compute std for y values
             tick_labels.extend([f'{algo_name}_x', f'{algo_name}_y'])
 
             ax.set_xlabel('Average RMSE')
