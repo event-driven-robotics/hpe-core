@@ -97,7 +97,7 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path_images, skip=None
     if skip == None:
         skip = 1
     else:
-        skip += 1
+        skip = int(skip)+1
     action_name = data_dvs_file.split(os.sep)[-2]
 
     data_vicon = importSkeletonData(data_vicon_file)
