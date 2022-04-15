@@ -151,10 +151,8 @@ def main(args):
     ensure_location(output_path_images)
     ensure_location(output_path_anno)
 
-    if args.dev:
-        input_data_dir = args.data_home + '/subset'
-    else:
-        input_data_dir = args.data_home + "/yarp"
+
+    input_data_dir = args.data_home + "/yarp"
     input_data_dir = os.path.abspath(input_data_dir)
 
     dir_list = os.listdir(input_data_dir)
