@@ -149,8 +149,8 @@ class MovenetModule(yarp.RFModule):
         pre = self.run_task.predict_online(input_image_resized)
 
         # Visualize the result
-        image_show(input_image,pre)
-        k = cv2.waitKey(1)
+        image_show(input_image,pre=pre['joints'],center=pre['center'])
+        k = cv2.waitKey(100)
         if dev:
             self.file_counter += 1
             if self.file_counter >= 19:

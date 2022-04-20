@@ -109,14 +109,21 @@ class Task():
             img = img
             img = img.to(self.device)
             output = self.model(img)
+            instant = {}
+
+            if self.cfg['show_center']:
+                centers = output[1].cpu().numpy()[0]
+                from lib.utils.utils import maxPoint
+                cx, cy = maxPoint(centers)
+                instant['center'] = np.array([cx[0][0],cy[0][0]])/centers.shape[1]
 
             pre = movenetDecode(output, None, mode='output', num_joints=self.cfg["num_classes"])
 
             img = np.transpose(img[0].cpu().numpy(), axes=[1, 2, 0])
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-            _, pose_gt = restore_sizes(img, pre, (int(img_size_original[2]), int(img_size_original[3])))
+            _, instant['joints'] = restore_sizes(img, pre, (int(img_size_original[2]), int(img_size_original[3])))
 
-            return pose_gt
+            return instant
 
 
     def evaluate(self, data_loader):

@@ -160,7 +160,7 @@ def restore_sizes(img,pose,size_out):
     return img_out, np.round(pose_out)
 
 
-def image_show(img,pre=None):
+def image_show(img,pre=None,center=None):
 
     # img = np.transpose(img[0].cpu().numpy(), axes=[1, 2, 0])
     # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
@@ -178,7 +178,9 @@ def image_show(img,pre=None):
                 cv2.circle(img, (x, y), 3, (255, 0, 0), 2)
         else:
             for i in range(len(pre)):
-                cv2.circle(img, (int(pre[i,0]), int(pre[i,1])), 3, (255, 0, 0), 2)
+                cv2.circle(img, (int(pre[i,0]), int(pre[i,1])), 2, (255, 0, 0), 1)
+    if center is not None:
+        cv2.circle(img, (int(center[0]*w), int(center[1]*h)), 3, (255, 0, 0), 2)
 
     img = cv2.resize(img,(img.shape[0]*4,img.shape[1]*4))
     cv2.imshow("output", img)
