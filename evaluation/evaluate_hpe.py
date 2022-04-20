@@ -139,42 +139,36 @@ def plot_pck_over_thresholds(pck_thresholds_results, output_folder_path, ds_name
     plt.savefig(str(fig_path.resolve()))
 
 
-def plot_barplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> None:
+def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> None:
 
     # create figure
     fig, ax = plt.subplots()
 
-    # get avg and std values
-    avg_metric_values = list()
-    std_metric_values = list()
-    tick_labels = list()
+    all_values = list()
+    tick_labels = [' ']
     for (algo_name, metric) in algo_metrics.items():
         values = metric.get_value()
         joints_metric_values = values[0]
-        avg_metric_value = values[1]
 
         if isinstance(metric, metrics_utils.PCK):
-            avg_metric_values.append(avg_metric_value)
-            std_metric_values.append(np.std(joints_metric_values))
-            tick_labels.append(algo_name)
+            all_values.append(joints_metric_values)
 
-            ax.set_xlabel('Average PCK')
+            tick_labels.append(algo_name)
+            ax.set_xlabel('Joints PCK')
 
         elif isinstance(metric, metrics_utils.RMSE):
-            avg_metric_values.extend(avg_metric_value.tolist())
-            std_metric_values.append(np.std(joints_metric_values[::2]))  # compute std for x values
-            std_metric_values.append(np.std(joints_metric_values[1::2]))  # compute std for y values
-            tick_labels.extend([f'{algo_name}_x', f'{algo_name}_y'])
+            all_values.append(joints_metric_values[::2])  # add metric values for x coordinates
+            all_values.append(joints_metric_values[1::2])  # add metric values for y coordinates
 
-            ax.set_xlabel('Average RMSE')
+            tick_labels.extend([f'{algo_name}_x', f'{algo_name}_y'])
+            ax.set_xlabel('Joints RMSE')
 
     # plot values
     y_ticks = np.arange(len(tick_labels))
-    ax.barh(y=y_ticks, width=avg_metric_values, xerr=std_metric_values, align='center', alpha=0.5, ecolor='black', capsize=10)
+    ax.boxplot(all_values, vert=False)
     ax.set_yticks(y_ticks)
     ax.set_yticklabels(tick_labels)
     ax.set_title(descr)
-    ax.xaxis.grid(True)
 
     # Save the figure and show
     plt.tight_layout()
@@ -464,7 +458,7 @@ def main(args):
                                                 file_path=output_ds_folder_path,
                                                 file_stem=f'rmse_{ds_name}')
 
-                plot_barplot(metric_results,
+                plot_boxplot(metric_results,
                              descr=f'RMSE results for dataset {ds_name}',
                              file_path=output_ds_folder_path / f'rmse_{ds_name}.png')
 
@@ -498,7 +492,7 @@ def main(args):
                                             file_path=output_folder_path,
                                             file_stem='rmse')
 
-            plot_barplot(metric_results,
+            plot_boxplot(metric_results,
                          descr=f'Global RMSE results',
                          file_path=output_folder_path / f'rmse.png')
 
