@@ -12,7 +12,7 @@ import cv2
 import torch
 
 
-dev = True
+dev = False
 
 if dev:
     import glob
