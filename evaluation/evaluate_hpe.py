@@ -139,6 +139,42 @@ def plot_pck_over_thresholds(pck_thresholds_results, output_folder_path, ds_name
     plt.savefig(str(fig_path.resolve()))
 
 
+def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> None:
+
+    # create figure
+    fig, ax = plt.subplots()
+
+    all_values = list()
+    tick_labels = [' ']
+    for (algo_name, metric) in algo_metrics.items():
+        values = metric.get_value()
+        joints_metric_values = values[0]
+
+        if isinstance(metric, metrics_utils.PCK):
+            all_values.append(joints_metric_values)
+
+            tick_labels.append(algo_name)
+            ax.set_xlabel('Joints PCK')
+
+        elif isinstance(metric, metrics_utils.RMSE):
+            all_values.append(joints_metric_values[::2])  # add metric values for x coordinates
+            all_values.append(joints_metric_values[1::2])  # add metric values for y coordinates
+
+            tick_labels.extend([f'{algo_name}_x', f'{algo_name}_y'])
+            ax.set_xlabel('Joints RMSE')
+
+    # plot values
+    y_ticks = np.arange(len(tick_labels))
+    ax.boxplot(all_values, vert=False)
+    ax.set_yticks(y_ticks)
+    ax.set_yticklabels(tick_labels)
+    ax.set_title(descr)
+
+    # Save the figure and show
+    plt.tight_layout()
+    plt.savefig(str(file_path.resolve()))
+
+
 def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_names, joints_predicted):
 
     assert 1 <= joints_gt.shape[2] <= 3, 'coordinates must be either 2D or 3D'
@@ -422,6 +458,10 @@ def main(args):
                                                 file_path=output_ds_folder_path,
                                                 file_stem=f'rmse_{ds_name}')
 
+                plot_boxplot(metric_results,
+                             descr=f'RMSE results for dataset {ds_name}',
+                             file_path=output_ds_folder_path / f'rmse_{ds_name}.png')
+
     # iterate over global metrics and print results
     for (metric_name, metric_results) in results['global'].items():
 
@@ -452,16 +492,20 @@ def main(args):
                                             file_path=output_folder_path,
                                             file_stem='rmse')
 
+            plot_boxplot(metric_results,
+                         descr=f'Global RMSE results',
+                         file_path=output_folder_path / f'rmse.png')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='...')
     parser.add_argument('-d', '--datasets_path', help='Path to the folders containing data saved in Yarp format', required=True)
     parser.add_argument('-p', '--predictions_path', help='Path to the predictions folder', required=True)
     parser.add_argument('-i', '--images_folder', help='Path to the folder containing the image frames')
+    parser.add_argument('-o', '--output_folder', help='Path to the folder where evaluation results will be saved', required=True)
     parser.add_argument('-pck', help='List of thresholds for computing metric PCK; specifies that PCK must be computed', type=float, nargs='+', default=[])
     parser.add_argument('-rmse', help='flag specifying that the metric RMSE must be computed', dest='rmse', action='store_true')
     parser.set_defaults(rmse=False)
-    parser.add_argument('-o', '--output_folder', help='Path to the folder where evaluation results will be saved', required=True)
     parser.add_argument('-latex', help='flag specifying that table results should saved to latex files', dest='latex', action='store_true')
     parser.set_defaults(latex=False)
 
