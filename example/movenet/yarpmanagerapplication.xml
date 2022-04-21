@@ -1,0 +1,43 @@
+<application>
+<name> movenet-yarp </name>
+
+<dependencies>
+</dependencies>
+
+<module>
+   <name> yarpserver </name>
+   <parameters> --write </parameters>
+   <node> localhost </node>
+</module>
+
+<module>
+   <name> atis-bridge-sdk </name>
+   <parameters> --s 60 --filter 0.01 </parameters>
+   <node> localhost </node>
+</module>
+
+<module>
+   <name> eros-framer </name>
+   <parameters> </parameters>
+   <node> localhost </node>
+</module>
+
+<module>
+   <name> python3 /usr/local/code/hpe-core/example/movenet/run-model.py </name>
+   <parameters> --name /movenet </parameters>
+   <node> localhost </node>
+</module>
+
+<connection>
+  <from> /atis3/AE:o </from>
+  <to>   /eroser/AE:i </to>
+  <protocol> fast_tcp </protocol>
+</connection>  
+
+<connection>
+  <from> /eroser/img:o </from>
+  <to>   /movenet/img:i </to>
+  <protocol> fast_tcp </protocol>
+</connection>  
+
+</application>
