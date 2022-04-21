@@ -54,6 +54,8 @@ class stateEstimator {
     }
 
     virtual void updateFromVelocity(skeleton13 velocity, double dt) {
+        for(int j=0; j<13; j++)
+            state[j] += (velocity[j] * dt);
     }
 
     virtual void updateFromPosition(skeleton13 position, double dt) {

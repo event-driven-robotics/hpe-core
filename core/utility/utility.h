@@ -81,6 +81,7 @@ using jDot = joint;
 typedef std::array<joint, 13> skeleton13;
 typedef std::array<bool, 13>  skeleton13_b;
 typedef std::array<cv::Point, 13> skeleton13_v;
+typedef std::array<jDot, 13> skeleton13_vel;
 
 struct stampedPose {
     double timestamp;

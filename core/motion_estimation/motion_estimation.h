@@ -30,13 +30,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #pragma once
 
 #include "utility.h"
+#include "event_representations/representations.h"
 #include <opencv2/opencv.hpp>
+
 namespace hpecore {
 
 class queuedVelocity
 {
 private:
     std::deque<pixel_event> q;
+    std::deque<pixel_event> qROI[13];
     int roi_width{40};
     int minor_width{3};
     int max_neighbours{3};
@@ -70,32 +73,35 @@ public:
             } else {
                 continue;
             }
+            if (n_added)
+            {
+                // if it was in the roi also compute the velocity
+                int n_neighbours = 0;
+                double xdot = 0.0, ydot = 0.0;
+                for (int i = n_added; i < q.size(); i++) {
+                    auto &v_old = q[i];
 
-            // if it was in the roi also compute the velocity
-            int n_neighbours = 0;
-            double xdot = 0.0, ydot = 0.0;
-            for (int i = n_added; i < q.size(); i++) {
-                auto &v_old = q[i];
-
-                // calculate distance and time
-                int dx = v_new.x - v_old.x;
-                int dy = v_new.y - v_old.y;
-                if (abs(dx) + abs(dy) <= minor_width) {
-                    double inv_dt = 1.0 / (v_new.stamp - v_old.stamp);
-                    xdot += dx * inv_dt;
-                    ydot += dy * inv_dt;
-                    n_neighbours++;
+                    // calculate distance and time
+                    int dx = v_new.x - v_old.x;
+                    int dy = v_new.y - v_old.y;
+                    if (abs(dx) + abs(dy) <= minor_width) {
+                        double inv_dt = 1.0 / (v_new.stamp - v_old.stamp);
+                        xdot += dx * inv_dt;
+                        ydot += dy * inv_dt;
+                        n_neighbours++;
+                    }
+                    if (n_neighbours > max_neighbours) break;
                 }
-                if (n_neighbours > max_neighbours) break;
+
+                // calculate the average for this event
+                if (n_neighbours) {
+                    double inv_neighbours = 1.0 / n_neighbours;
+                    velocity.u += (xdot * inv_neighbours);
+                    velocity.v += (ydot * inv_neighbours);
+                    n_used++;
+                }
             }
 
-            // calculate the average for this event
-            if (n_neighbours) {
-                double inv_neighbours = 1.0 / n_neighbours;
-                velocity.u += (xdot * inv_neighbours);
-                velocity.v += (ydot * inv_neighbours);
-                n_used++;
-            }
         }
 
         // calculate the average velocity over all new events
@@ -105,12 +111,172 @@ public:
             velocity.v *= inv_used;
         }
 
+        std::cout << "* " << velocity.u << ", " << velocity.v << std::endl;
+
         // remove events from the old q
         while (q.size() > q_limit)
             q.pop_back();
 
         return velocity;
     }
-};
 
+
+
+    // template <typename T>
+    // skeleton13_vel update(const T &q_new, skeleton13 state) {
+    //     pixel_event npe;
+    //     int n_added = 0;
+    //     int n_used = 0;
+    //     jDot velocity{0.0, 0.0};
+    //     skeleton13_vel vel = {0};
+    //     joint j = state[hpecore::str2enum("handL")];
+
+    //     // see if the new event is in the roi of the joint, add it to the queue,
+    //     // and then calculate a new velocity for the joint
+    //     for (auto &v_new : q_new) {
+    //         // check if it's in the roi
+    //         if (fabs(v_new.x - j.u) < roi_width && fabs(v_new.y - j.v) < roi_width) {
+    //             npe.stamp = v_new.stamp;
+    //             npe.x = v_new.x;
+    //             npe.y = v_new.y;
+    //             q.push_front(npe);
+    //             n_added++;
+    //         } else {
+    //             continue;
+    //         }
+
+    //         // if it was in the roi also compute the velocity
+    //         int n_neighbours = 0;
+    //         double xdot = 0.0, ydot = 0.0;
+    //         for (int i = n_added; i < q.size(); i++) {
+    //             auto &v_old = q[i];
+
+    //             // calculate distance and time
+    //             int dx = v_new.x - v_old.x;
+    //             int dy = v_new.y - v_old.y;
+    //             if (abs(dx) + abs(dy) <= minor_width) {
+    //                 double inv_dt = 1.0 / (v_new.stamp - v_old.stamp);
+    //                 xdot += dx * inv_dt;
+    //                 ydot += dy * inv_dt;
+    //                 n_neighbours++;
+    //             }
+    //             if (n_neighbours > max_neighbours) break;
+    //         }
+
+    //         // calculate the average for this event
+    //         if (n_neighbours) {
+    //             double inv_neighbours = 1.0 / n_neighbours;
+    //             velocity.u += (xdot * inv_neighbours);
+    //             velocity.v += (ydot * inv_neighbours);
+    //             n_used++;
+    //         }
+    //     }
+
+    //     // calculate the average velocity over all new events
+    //     if (n_used) {
+    //         double inv_used = 1.0 / n_used;
+    //         velocity.u *= inv_used;
+    //         velocity.v *= inv_used;
+    //     }
+
+    //     vel[hpecore::str2enum("handL")].u = velocity.u;
+    //     vel[hpecore::str2enum("handL")].v = velocity.v;
+
+    //     // remove events from the old q
+    //     while (q.size() > q_limit)
+    //         q.pop_back();
+
+    //     // return velocity;
+    //     return vel;
+    // }
+
+
+
+    template <typename T>
+    skeleton13_vel update(const T &q_new, skeleton13 state)
+    {
+        pixel_event npe;
+        int n_added[13] = {0};
+        int n_used[13] = {0};
+        skeleton13_vel velocity = {0};
+
+        // see if the new event is in the roi of each joint, add it to the corresponding queue,
+        // and then calculate a new velocity for the joint
+        for (auto &v_new : q_new)
+        {
+            for (int j = 0; j < 13; j++)
+            {
+                // check if it's in the j-th roi
+                if (fabs(v_new.x - state[j].u) < roi_width/2 && fabs(v_new.y - state[j].v) < roi_width/2)
+                {
+                    npe.stamp = v_new.stamp;
+                    npe.x = v_new.x;
+                    npe.y = v_new.y;
+                    qROI[j].push_front(npe);
+                    n_added[j]++;
+                }
+                if(n_added[j])
+                {
+                    // if it was in the roi also compute the velocity
+                    int n_neighbours = 0;
+                    double xdot = 0.0, ydot = 0.0;
+                    for (int i = n_added[j]; i < qROI[j].size(); i++)
+                    {
+                        auto &v_old = qROI[j][i];
+
+                        // calculate distance and time
+                        int dx = v_new.x - v_old.x;
+                        int dy = v_new.y - v_old.y;
+                        if (sqrt(dx*dx + dy*dy)<= minor_width)
+                        // if (abs(dx) + abs(dy) <= minor_width) // (F) change to sqrt(dx^2+dy^2)
+                        {
+                            double inv_dt = 1.0 / (v_new.stamp - v_old.stamp);
+                            xdot += dx * inv_dt;
+                            ydot += dy * inv_dt;
+                            n_neighbours++;
+                        }
+                        // if (n_neighbours > max_neighbours) break; // (F) what?
+                    }
+
+                    // calculate the average for this event
+                    if (n_neighbours)
+                    {
+                        double inv_neighbours = 1.0 / n_neighbours; // (F) why doing this?
+                        velocity[j].u += (xdot * inv_neighbours);
+                        velocity[j].v += (ydot * inv_neighbours);
+                        n_used[j]++;
+                    }
+                }
+            }            
+        }
+
+        for (int j = 0; j < 13; j++)
+        {
+            // calculate the average velocity over all new events
+            if (n_used[j])
+            {
+                double inv_used = 1.0 / n_used[j]; // (F) why doing this?
+                velocity[j].u *= inv_used;
+                velocity[j].v *= inv_used;
+            }
+
+            // remove events from the old q
+            while (qROI[j].size() > q_limit)
+                qROI[j].pop_back();
+        }
+    
+        return velocity;
+    }
+
+    template <typename T>
+    void updatePastSurfaces(const T &q_new, cv::Mat &SAE, hpecore::surface &TOS, cv::Mat &SAE_vis)
+    {
+        for (auto &qi : *q_new)
+        {
+            // TOS.TOSupdate(qi.x, qi.y);
+            // SAE.at<float>(qi.y, qi.x) = float(qi.stamp*vtsHelper::tsscaler);
+        }
+        cv::normalize(SAE,SAE_vis, 0, 1, cv::NORM_MINMAX);
+    }
+};
 }
