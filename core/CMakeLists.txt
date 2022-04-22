@@ -84,7 +84,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "${folder_header}
                                                           VERSION ${hpe-core_VERSION}
                                                           SOVERSION 2)                                               
 
-target_include_directories(${PROJECT_NAME} PRIVATE utility
+target_include_directories(${PROJECT_NAME} PRIVATE utility event_representations
                                            PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
                                                   "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>") # FIXME INSTALL PATH
 
