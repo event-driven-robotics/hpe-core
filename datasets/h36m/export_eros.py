@@ -164,12 +164,10 @@ def main(args):
     input_data_dir = os.path.abspath(input_data_dir)
 
     dir_list = os.listdir(input_data_dir)
-    #    print(dir_list)
 
-    # for sample in dir_list:
+    already_done = setup_testing_list(output_json)
+    # print(already_done)
     for i in tqdm(range(len(dir_list))):
-        already_done = setup_testing_list(output_json)
-        print(already_done)
         sample = dir_list[i]
         cam = sample[3]
         dvs_dir = os.path.join(input_data_dir, sample, 'ch0dvs')
