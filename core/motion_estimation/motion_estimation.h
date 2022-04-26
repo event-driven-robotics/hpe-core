@@ -250,10 +250,6 @@ public:
                 velocity[k].u *= inv_used;
                 velocity[k].v *= inv_used;
             }
-
-            // remove events from the old q
-            while (qROI[k].size() > q_limit)
-                qROI[k].pop_back();
         }
     
         return velocity;
