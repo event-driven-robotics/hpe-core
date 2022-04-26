@@ -197,6 +197,31 @@ public:
         return velocity;
     }
 
+};
+
+class surfacedVelocity
+{
+private:
+    std::deque<pixel_event> q;
+    std::deque<pixel_event> qROI[13];
+    int roi_width{40};
+    int minor_width{3};
+    int max_neighbours{3};
+    int q_limit{1000};
+    // cv::Mat SAE, SAE_vis;
+    // hpecore::surface TOS;
+
+public:
+    void setParameters(int roi_width, int minor_width, int max_neighbours, int q_limit, cv::Size image_size) {
+        this->roi_width = roi_width;
+        this->minor_width = minor_width;
+        this->max_neighbours = max_neighbours;
+        this->q_limit = q_limit;
+
+        // this->SAE = cv::Mat::zeros(image_size, CV_32F);
+        // this->SAE_vis = cv::Mat::zeros(image_size, CV_32F);
+        // this->TOS.init(image_size.width, image_size.height, 7, 2);
+    }
 
     template <typename T>
     skeleton13_vel update(const T &q_new, skeleton13 state, cv::Mat SAE,cv::Mat TOS)
@@ -251,7 +276,8 @@ public:
                 velocity[k].v *= inv_used;
             }
         }
-    
+
+      
         return velocity;
     }
 
