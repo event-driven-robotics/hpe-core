@@ -2,15 +2,13 @@ from lib import init, MoveNet, Task
 
 from config import cfg
 from lib.utils.utils import arg_parser
-from lib.task.task_tools import image_show
-
+from lib.task.task_tools import image_show, write_output, superimpose
 
 import sys
 import yarp
 import numpy as np
 import cv2
 import torch
-
 
 dev = False
 
@@ -27,17 +25,17 @@ class MovenetModule(yarp.RFModule):
         self.output_port = yarp.BufferedPortImageMono()
         self.stamp = yarp.Stamp()
         # self.counter = 0
-        self.image_w = 640 # Size of image expected from the framer.
-        self.image_h = 480 #
+        self.image_w = 640  # Size of image expected from the framer.
+        self.image_h = 480  #
         # self.np_input = None
         self.yarp_image = yarp.ImageMono()
         self.yarp_image_out = yarp.ImageRgb()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.checkpoint_path = "models/h36m_finetuned.pth"
 
-        self.resultsPath =  '/outputs'
-        self.image_w_model = 192 # Size of the image expected by the model
-        self.image_h_model = 192 #
+        self.resultsPath = '/outputs'
+        self.image_w_model = 192  # Size of the image expected by the model
+        self.image_h_model = 192  #
         self.output_w = 640  # Size of the image expected by yarp
         self.output_h = 480  #
         self.fname = None
@@ -45,8 +43,7 @@ class MovenetModule(yarp.RFModule):
         self.last_timestamp = 0.0
         self.cfg = cfg
         if dev:
-            self.tester_path = '/media/Data/data/eros_samples_live_220408/' #path to a folder with images.
-
+            self.tester_path = '/media/Data/data/eros_samples_live_220408/'  # path to a folder with images.
 
     def configure(self, rf):
 
@@ -74,13 +71,13 @@ class MovenetModule(yarp.RFModule):
         # read flags and parameters
 
         self.model = MoveNet(num_classes=self.cfg["num_classes"],
-                        width_mult=self.cfg["width_mult"],
-                        mode='train')
+                             width_mult=self.cfg["width_mult"],
+                             mode='train')
         self.run_task = Task(cfg, self.model)
         self.run_task.modelLoad("models/h36m_finetuned.pth")
 
         if dev:
-            self.files = glob.glob(self.tester_path+"/*.jpg")
+            self.files = glob.glob(self.tester_path + "/*.jpg")
             self.file_counter = 0
 
         return True
@@ -102,7 +99,6 @@ class MovenetModule(yarp.RFModule):
     def updateModule(self):
         # synchronous update called every get period seconds.
         print("Press space at the image window to end the program.")
-
 
         if dev:
             np_input = cv2.imread(self.files[self.file_counter])
@@ -134,13 +130,13 @@ class MovenetModule(yarp.RFModule):
 
         input_image = np.copy(np_input)
 
-        input_image_resized = np.zeros([1, 3, self.image_h_model,self.image_w_model])
+        input_image_resized = np.zeros([1, 3, self.image_h_model, self.image_w_model])
         # print(input_image_resized.shape)
 
-        input_image = cv2.resize(input_image,(self.image_h_model,self.image_w_model))
-        input_image_resized[0, 0,:,:] = input_image[:,:]
-        input_image_resized[0, 1,:,:] = input_image[:,:]
-        input_image_resized[0, 2,:,:] = input_image[:,:]
+        input_image = cv2.resize(input_image, (self.image_h_model, self.image_w_model))
+        input_image_resized[0, 0, :, :] = input_image[:, :]
+        input_image_resized[0, 1, :, :] = input_image[:, :]
+        input_image_resized[0, 2, :, :] = input_image[:, :]
 
         input_image_resized = input_image_resized.astype(np.float32)
 
@@ -149,18 +145,30 @@ class MovenetModule(yarp.RFModule):
         pre = self.run_task.predict_online(input_image_resized)
 
         # Visualize the result
-        image_show(input_image,pre=pre['joints'],center=pre['center'])
-        k = cv2.waitKey(100)
+        if self.cfg['show_center']:
+            img = image_show(input_image, pre=pre['joints'], center=pre['center'])
+            sup_img = superimpose(img, pre['center_heatmap'])
+            cv2.imshow('', cv2.resize(sup_img,[sup_img.shape[0]*4,sup_img.shape[1]*4]))
+            k = cv2.waitKey(100)
+        else:
+            img = image_show(input_image, pre=pre['joints'])
+
+
         if dev:
             self.file_counter += 1
             if self.file_counter >= 19:
                 return False
         else:
             self.last_timestamp = stamp
+            print(stamp)
+            if self.cfg['write_output']:
+                write_output('file.csv', pre['joints'], stamp)
+
         if k == 32:
             return False
 
         return True
+
 
 if __name__ == '__main__':
     # prepare and configure the resource finder

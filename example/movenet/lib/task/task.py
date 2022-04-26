@@ -122,6 +122,7 @@ class Task():
             img = np.transpose(img[0].cpu().numpy(), axes=[1, 2, 0])
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             _, instant['joints'] = restore_sizes(img, pre, (int(img_size_original[2]), int(img_size_original[3])))
+            instant['center_heatmap'] = centers[0]
 
             return instant
 

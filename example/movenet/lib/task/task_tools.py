@@ -8,6 +8,8 @@ import numpy as np
 import cv2
 
 from lib.utils.utils import maxPoint, extract_keypoints
+from datasets.h36m.utils.parsing import movenet_to_hpecore
+from csv import writer
 
 _range_weight_x = np.array([[x for x in range(48)] for _ in range(48)])
 _range_weight_y = _range_weight_x.T
@@ -167,6 +169,8 @@ def image_show(img,pre=None,center=None):
     h, w = img.shape[:2]
     if np.amax(img) >1:
         img = img/255
+    img = cv2.merge([img, img, img])
+
 
     if pre is not None:
         pre[pre[:]<0]=0
@@ -175,15 +179,54 @@ def image_show(img,pre=None,center=None):
             for i in range(len(pre[0]) // 2):
                 x = int(pre[0][i * 2] * w)
                 y = int(pre[0][i * 2 + 1] * h)
-                cv2.circle(img, (x, y), 3, (255, 0, 0), 2)
+                cv2.circle(img, (x, y), 3, (0, 0, 255), 2)
         else:
             for i in range(len(pre)):
-                cv2.circle(img, (int(pre[i,0]), int(pre[i,1])), 2, (255, 0, 0), 1)
+                cv2.circle(img, (int(pre[i,0]), int(pre[i,1])), 2, (0, 0, 100), 1)
+    print(img.shape)
     if center is not None:
-        cv2.circle(img, (int(center[0]*w), int(center[1]*h)), 3, (255, 0, 0), 2)
-
-    img = cv2.resize(img,(img.shape[0]*4,img.shape[1]*4))
-    cv2.imshow("output", img)
+        cv2.circle(img, (int(center[0]*w), int(center[1]*h)), 3, (100, 0, 0), 2)
 
 
-    return 0
+    return img
+
+def write_output(path,skl,ts):
+
+    #     Ensure the skeleton is a np array.
+    skl = np.asarray(skl)
+    #     Convert into the dhp19 sequence.
+    skl = movenet_to_hpecore(skl)
+    #     flatten the input.
+    skl = skl.flatten()
+    #     Create a row [ts xxx x1 y1 x2 y2 x3 y3 ... x13 y13]
+    skl_list = list([ts,0])
+    skl_list.extend(list(skl))
+    with open(path, 'a') as f_object:
+        # Pass this file object to csv.writer()
+        # and get a writer object
+        writer_object = writer(f_object)
+
+        # Pass the list as an argument into
+        # the writerow()
+        writer_object.writerow(skl_list)
+
+        # Close the file object
+        f_object.close()
+
+    #     Write into the file.
+
+def superimpose(base_image,heatmap):
+
+
+    # Ensure the sizes match.
+    shape_base = base_image.shape
+    shape_heatmap = heatmap.shape
+    heatmap = cv2.resize(heatmap,[shape_base[0],shape_base[1]])
+    heatmap = cv2.merge([heatmap, heatmap, heatmap])
+    heatmap = heatmap*255
+    heatmap = heatmap.astype(np.uint8)
+    base_image = base_image*255
+    base_image = base_image.astype(np.uint8)
+
+    fin = cv2.addWeighted(heatmap*255, 0.2, base_image, 0.8, 0)
+    return fin

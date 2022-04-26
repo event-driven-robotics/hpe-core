@@ -17,7 +17,7 @@ This is A Pytorch implementation of MoveNet inspired from the [Movenet.Pytorch](
     $ cd <workspace>
     $ git clone git@github.com:event-driven-robotics/hpe-core.git
     $ cd hpe-core/example/movenet
-    $ docker build -t movenet .
+    $ docker build -t movenet --ssh default --build-arg ssh_pub_key="$(cat ~/.ssh/<publicKeyFile>.pub)" --build-arg ssh_prv_key="$(cat ~/.ssh/<privateKeyFile>)" - < Dockerfile
     ```
 :bulb: `<workspace>` is the parent directory in which the repository is cloned
 
