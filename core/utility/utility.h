@@ -220,6 +220,7 @@ inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 
             cv::drawMarker(image, jv[i], colorS, cv::MARKER_TILTED_CROSS, 8);
 
     if(jb[head]) cv::circle(image, jv[head]+ cv::Point(0, 10), 10, colorS, th);
+    if(jb[head] && jb[shoulderL] && jb[shoulderR]) cv::line(image, (jv[shoulderL] + jv[shoulderR])/2, jv[head] + cv::Point(0, 20), colorS, th);
     if(jb[shoulderL] && jb[shoulderR]) cv::line(image, jv[shoulderL], jv[shoulderR], colorS, th);
     if(jb[shoulderL] && jb[elbowL]) cv::line(image, jv[shoulderL], jv[elbowL], colorS, th);
     if(jb[shoulderR] && jb[elbowR]) cv::line(image, jv[shoulderR], jv[elbowR], colorS, th);
