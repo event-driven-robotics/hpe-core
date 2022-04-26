@@ -316,9 +316,11 @@ public:
     void close()
     {
         stop = true;
-        std::cout << "hpecore::writer: please wait..." << std::endl;
-        th.join();
-        fileio.close();
+        if(fileio.is_open()) {
+            std::cout << "hpecore::writer: please wait..." << std::endl;
+            th.join();
+            fileio.close();
+        }
     }
 };
 
