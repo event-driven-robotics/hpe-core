@@ -210,19 +210,14 @@ public:
         // and then calculate a new velocity for the joint
         for (auto &v_new : q_new)
         {
-            for (int j = 0; j < 13; j++)
+            for (int k = 0; k < 13; k++)
             {
-                // check if it's in the j-th roi
-                if (fabs(v_new.x - state[j].u) < roi_width/2 && fabs(v_new.y - state[j].v) < roi_width/2)
+                // check if it's in the k-th roi
+                if (fabs(v_new.x - state[k].u) < roi_width/2 && fabs(v_new.y - state[k].v) < roi_width/2)
                 {
                     npe.stamp = v_new.stamp;
                     npe.x = v_new.x;
                     npe.y = v_new.y;
-                    qROI[j].push_front(npe);
-                    n_added[j]++;
-                }
-                if(n_added[j])
-                {
                     // if it was in the roi also compute the velocity
                     int n_neighbours = 0;
                     double xdot = 0.0, ydot = 0.0;
@@ -232,9 +227,9 @@ public:
                         {
                             if(int(TOS.at<unsigned char>(j, i)) && (npe.x!=i || npe.y!=j))
                             {
-                                double inv_dt = 1.0 / (v_new.stamp - SAE.at<float>(j, i));
-                                int dx = v_new.x - i;
-                                int dy = v_new.y - j;
+                                double inv_dt = 1.0 / (npe.stamp - SAE.at<float>(j, i));
+                                int dx = npe.x - i;
+                                int dy = npe.y - j;
                                 xdot += dx * inv_dt;
                                 ydot += dy * inv_dt;
                                 n_neighbours++;
@@ -243,30 +238,30 @@ public:
                     }
 
                     // calculate the average for this event
-                    if (n_neighbours)
+                    if (n_neighbours > 1)
                     {
                         double inv_neighbours = 1.0 / n_neighbours; // (F) why doing this?
-                        velocity[j].u += (xdot * inv_neighbours);
-                        velocity[j].v += (ydot * inv_neighbours);
-                        n_used[j]++;
+                        velocity[k].u += (xdot * inv_neighbours);
+                        velocity[k].v += (ydot * inv_neighbours);
+                        n_used[k]++;
                     }
                 }
             }            
         }
 
-        for (int j = 0; j < 13; j++)
+        for (int k = 0; k < 13; k++)
         {
             // calculate the average velocity over all new events
-            if (n_used[j])
+            if (n_used[k])
             {
-                double inv_used = 1.0 / n_used[j]; // (F) why doing this?
-                velocity[j].u *= inv_used;
-                velocity[j].v *= inv_used;
+                double inv_used = 1.0 / n_used[k]; // (F) why doing this?
+                velocity[k].u *= inv_used;
+                velocity[k].v *= inv_used;
             }
 
             // remove events from the old q
-            while (qROI[j].size() > q_limit)
-                qROI[j].pop_back();
+            while (qROI[k].size() > q_limit)
+                qROI[k].pop_back();
         }
     
         return velocity;
