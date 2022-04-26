@@ -201,35 +201,27 @@ public:
     template <typename T>
     skeleton13_vel update(const T &q_new, skeleton13 state, cv::Mat SAE,cv::Mat TOS)
     {
-        pixel_event npe;
-        int n_added[13] = {0};
         int n_used[13] = {0};
         skeleton13_vel velocity = {0};
 
-        // see if the new event is in the roi of each joint, add it to the corresponding queue,
-        // and then calculate a new velocity for the joint
-        for (auto &v_new : q_new)
+        for (auto &v_new : q_new) // each event
         {
-            for (int k = 0; k < 13; k++)
+            for (int k = 0; k < 13; k++) // each joint
             {
-                // check if it's in the k-th roi
+                // check if it's in the k-th roi and iff compute the velocity
                 if (fabs(v_new.x - state[k].u) < roi_width/2 && fabs(v_new.y - state[k].v) < roi_width/2)
                 {
-                    npe.stamp = v_new.stamp;
-                    npe.x = v_new.x;
-                    npe.y = v_new.y;
-                    // if it was in the roi also compute the velocity
                     int n_neighbours = 0;
                     double xdot = 0.0, ydot = 0.0;
-                    for(int i = npe.x-minor_width; i < npe.x+minor_width; i++) // past events
+                    for(int i = v_new.x-minor_width; i <= v_new.x+minor_width; i++) // past events
                     {
-                        for(int j = npe.y-minor_width; j < npe.y+minor_width; j++)
+                        for(int j = v_new.y-minor_width; j <= v_new.y+minor_width; j++)
                         {
-                            if(int(TOS.at<unsigned char>(j, i)) && (npe.x!=i || npe.y!=j))
+                            if(int(TOS.at<unsigned char>(j, i)) && (v_new.x!=i || v_new.y!=j))
                             {
-                                double inv_dt = 1.0 / (npe.stamp - SAE.at<float>(j, i));
-                                int dx = npe.x - i;
-                                int dy = npe.y - j;
+                                double inv_dt = 1.0 / (v_new.stamp - SAE.at<float>(j, i));
+                                int dx = v_new.x - i;
+                                int dy = v_new.y - j;
                                 xdot += dx * inv_dt;
                                 ydot += dy * inv_dt;
                                 n_neighbours++;
