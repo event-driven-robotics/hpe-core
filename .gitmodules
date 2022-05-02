@@ -1,0 +1,3 @@
+[submodule "datasets/utils/externals/v2e"]
+	path = datasets/utils/externals/v2e
+	url = git@github.com:SensorsINI/v2e.git
