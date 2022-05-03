@@ -209,7 +209,7 @@ private:
     int max_neighbours{3};
     int q_limit{1000};
     cv::Mat SAE, SAE_vis;
-    hpecore::surface TOS;
+    hpecore::TOS tos;
 
 public:
     void setParameters(int roi_width, int minor_width, int max_neighbours, int q_limit, cv::Size image_size) {
@@ -220,7 +220,7 @@ public:
 
         this->SAE = cv::Mat::zeros(image_size, CV_32F);
         this->SAE_vis = cv::Mat::zeros(image_size, CV_32F);
-        this->TOS.init(image_size.width, image_size.height, 7, 2);
+        this->tos.init(image_size.width, image_size.height, 7, 2);
     }
 
     template <typename T>
@@ -242,7 +242,7 @@ public:
                     {
                         for(int j = v_new.y-minor_width; j <= v_new.y+minor_width; j++)
                         {
-                            if(int(this->TOS.getSurface().at<unsigned char>(j, i)) && (v_new.x!=i || v_new.y!=j))
+                            if(int(this->tos.getSurface().at<unsigned char>(j, i)) && (v_new.x!=i || v_new.y!=j))
                             {
                                 double inv_dt = 1.0 / (v_new.stamp - this->SAE.at<float>(j, i));
                                 int dx = v_new.x - i;
@@ -279,7 +279,7 @@ public:
 
         for (auto &qi : q_new)
         {
-            this->TOS.TOSupdate(qi.x, qi.y);
+            this->tos.update(qi.x, qi.y);
             this->SAE.at<float>(qi.y, qi.x) = float(qi.stamp);
         }
 
@@ -290,7 +290,7 @@ public:
     void getImages(cv::Mat &SAEout, cv::Mat &TOSout)
     {
         cv::normalize(this->SAE,SAEout, 0, 1, cv::NORM_MINMAX); // for visualization purposes
-        this->TOS.getSurface().copyTo(TOSout);
+        this->tos.getSurface().copyTo(TOSout);
     }
 };
 }

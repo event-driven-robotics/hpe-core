@@ -81,23 +81,51 @@ T spatiotemporalWarp(T original, point_flow flow, double deltat)
 
 class surface 
 {
-private:
+protected:
     int kernel_size{0};
     int half_kernel{0};
     cv::Rect roi_full, roi_raw, roi_valid;
     double parameter{0};
+    double time_now{0};
+
     cv::Mat surf;
     cv::Mat region;
+    cv::Mat sae;
 
     bool setRoiAndRegion(int x, int y);
 
 public:
    
     const cv::Mat& getSurface();
-    void init(int width, int height, int kernel_size, double parameter = 0.0);
-    bool TOSupdate(const int vx, const int vy);
-    bool SITSupdate(const int vx, const int vy);
-    bool EROSupdate(const int vx, const int vy);
+    virtual void init(int width, int height, int kernel_size, double parameter = 0.0);
+    virtual bool update(int x, int y, double ts, int p) = 0;
+    void temporalDecay(double ts);
+    void spatialDecay(int k);
+};
+
+class EROS : public surface
+{
+public:
+    bool update(int x, int y, double t = 0, int p = 0) override;
+};
+
+class TOS : public surface
+{
+public:
+    bool update(int x, int y, double t = 0, int p = 0) override;
+};
+
+class SITS : public surface
+{
+public:
+    bool update(int x, int y, double t = 0, int p = 0) override;
+};
+
+class PIM : public surface
+{
+public:
+    void init(int width, int height, int kernel_size, double parameter = 0.0) override;
+    bool update(int x, int y, double t = 0, int p = 0) override;
 };
 
     
