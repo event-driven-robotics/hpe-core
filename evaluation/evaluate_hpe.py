@@ -312,6 +312,21 @@ def main(args):
         if 'skeleton' not in yarp_path.parent.name:
             continue
 
+        # ground truth in yarp format is supposed to be stored in folders name <dataset_name>/ch<channel_id>[frequency_info]skeleton
+        # find the channel id
+        numbers = re.findall('[0-9]+', yarp_path.parent.name)
+        channel_id = numbers[0]
+        parent_folder_prefix = yarp_path.parent.name.split(channel_id)[0]
+        channel_folder = f'{parent_folder_prefix}{channel_id}'
+        dataset_name = yarp_path.parent.parent.name
+        results_key = f'{dataset_name}_{channel_folder}'
+
+        predictions_path = Path(args.predictions_path) / dataset_name / channel_folder
+        predictions_file_path = list(predictions_path.glob('**/*.txt'))
+        if len(predictions_file_path) == 0:
+            print("Skipping ", dataset_name, " as no results exist in", predictions_path)
+            continue
+
         data = ds_parsing.import_yarp_skeleton_data(yarp_path)
 
         ts_gt = np.concatenate(([.0], data['ts'], [data['ts'][-1] + 1]))
@@ -334,15 +349,6 @@ def main(args):
         else:
             pck_sizes_gt_interp = interpolate.interp1d(ts_gt, np.concatenate(([data['head_sizes'][0]], data['head_sizes'], [data['head_sizes'][-1]])))
 
-        # ground truth in yarp format is supposed to be stored in folders name <dataset_name>/ch<channel_id>[frequency_info]skeleton
-        # find the channel id
-        numbers = re.findall('[0-9]+', yarp_path.parent.name)
-        channel_id = numbers[0]
-        parent_folder_prefix = yarp_path.parent.name.split(channel_id)[0]
-        channel_folder = f'{parent_folder_prefix}{channel_id}'
-        dataset_name = yarp_path.parent.parent.name
-        results_key = f'{dataset_name}_{channel_folder}'
-
         output_ds_folder_path = output_folder_path / results_key
         output_ds_folder_path.mkdir(parents=True, exist_ok=True)
 
@@ -352,12 +358,9 @@ def main(args):
         skeletons_predictions = []
 
         # parse predictions
-        predictions_path = Path(args.predictions_path) / dataset_name / channel_folder
-        predictions_file_path = list(predictions_path.glob('**/*.txt'))
         for pred_path in predictions_file_path:
 
             algo_name = pred_path.stem
-
             predictions = np.loadtxt(str(pred_path.resolve()), dtype=float)
 
             ts_pred = predictions[:, 0]
