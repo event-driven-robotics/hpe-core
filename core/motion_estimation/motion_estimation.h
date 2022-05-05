@@ -111,7 +111,7 @@ public:
             velocity.v *= inv_used;
         }
 
-        std::cout << "* " << velocity.u << ", " << velocity.v << std::endl;
+        //std::cout << "* " << velocity.u << ", " << velocity.v << std::endl;
 
         // remove events from the old q
         while (q.size() > q_limit)
