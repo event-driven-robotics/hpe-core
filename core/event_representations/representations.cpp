@@ -122,8 +122,8 @@ bool surface::setRoiAndRegion(int x, int y)
     return !(roi_raw == roi_valid);
 }
 
-void surface::temporalDecay(double ts) {
-    surf *= cv::exp(parameter * (time_now - ts));
+void surface::temporalDecay(double ts, double alpha) {
+    surf *= cv::exp(alpha * (time_now - ts));
     time_now = ts;
 }
 

@@ -99,7 +99,7 @@ public:
     const cv::Mat& getSurface();
     virtual void init(int width, int height, int kernel_size, double parameter = 0.0);
     virtual bool update(int x, int y, double ts, int p) = 0;
-    void temporalDecay(double ts);
+    void temporalDecay(double ts, double alpha);
     void spatialDecay(int k);
 };
 
@@ -124,7 +124,7 @@ public:
 class PIM : public surface
 {
 public:
-    void init(int width, int height, int kernel_size, double parameter = 0.0) override;
+    void init(int width, int height, int kernel_size = 0, double parameter = 0.0) override;
     bool update(int x, int y, double t = 0, int p = 0) override;
 };
 
