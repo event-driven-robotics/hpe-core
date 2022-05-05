@@ -13,6 +13,9 @@ def import_yarp_skeleton_data(yarp_file_path: pathlib.Path) -> Dict:
     with open(str(yarp_file_path.resolve())) as f:
         content = f.readlines()
 
+    if(len(content) == 0):
+        raise Exception("No file, or no file content") 
+
     # line format is 'id timestamp SKLT (<flattened 2D keypoints coordinates>) head_size torso_size'
     pattern = re.compile('\d* (\d*.\d*) SKLT \((.*)\) (-?\d*.\d*) (\d*.\d*)')
 
@@ -21,9 +24,17 @@ def import_yarp_skeleton_data(yarp_file_path: pathlib.Path) -> Dict:
     torso_sizes = np.zeros((len(content)), dtype=float)
     data_dict = {k: [] for k in HPECoreSkeleton.KEYPOINTS_MAP}
 
+    try:
+        tss, points, head_size, torso_size = pattern.findall(content[0])[0]
+    except:
+        print("Dataset", yarp_file_path, "does not match pattern")
+        print("required: [# TS SKLT (int x26) head torso]")
+        print("got     :", content[0])
+        exit()
+
     for li, line in enumerate(content):
         tss, points, head_size, torso_size = pattern.findall(line)[0]
-
+            
         points = np.array(list(filter(None, points.split(' ')))).astype(int).reshape(-1, 2)
         for d, label in zip(points, HPECoreSkeleton.KEYPOINTS_MAP):
             data_dict[label].append(d)
