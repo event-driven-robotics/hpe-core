@@ -187,7 +187,9 @@ RUN cd $SOURCE_FOLDER/hpe-core/core && \
 # install movenet dependencies
 RUN cd $SOURCE_FOLDER/hpe-core/example/movenet && \
     python3 -m pip install --upgrade pip && \
-    python3 -m pip install -r requirements.txt
+    python3 -m pip install -r requirements.txt && \
+    mkdir build && cd build && \
+    cmake .. && make install -j$(nproc)
 
 
 

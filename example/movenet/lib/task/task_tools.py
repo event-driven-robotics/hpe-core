@@ -167,10 +167,9 @@ def image_show(img,pre=None,center=None):
     # img = np.transpose(img[0].cpu().numpy(), axes=[1, 2, 0])
     # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     h, w = img.shape[:2]
-    if np.amax(img) >1:
-        img = img/255
+    # if np.amax(img) >1:
+    #     img = img/255
     img = cv2.merge([img, img, img])
-
 
     if pre is not None:
         pre[pre[:]<0]=0
@@ -183,7 +182,6 @@ def image_show(img,pre=None,center=None):
         else:
             for i in range(len(pre)):
                 cv2.circle(img, (int(pre[i,0]), int(pre[i,1])), 2, (0, 0, 100), 1)
-    print(img.shape)
     if center is not None:
         cv2.circle(img, (int(center[0]*w), int(center[1]*h)), 3, (100, 0, 0), 2)
 
@@ -225,7 +223,7 @@ def superimpose(base_image,heatmap):
     heatmap = cv2.merge([heatmap, heatmap, heatmap])
     heatmap = heatmap*255
     heatmap = heatmap.astype(np.uint8)
-    base_image = base_image*255
+    # base_image = base_image*255
     base_image = base_image.astype(np.uint8)
 
     fin = cv2.addWeighted(heatmap*255, 0.2, base_image, 0.8, 0)
