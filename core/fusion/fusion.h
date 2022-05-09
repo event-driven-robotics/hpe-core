@@ -39,7 +39,9 @@ namespace hpecore {
 class stateEstimator {
    protected:
     bool pose_initialised{false};
-    skeleton13 state{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    skeleton13 state{0};
+    skeleton13_vel velocity{0};
+    std::deque<hpecore::jDot> error[13];
 
    public:
     virtual bool initialise(std::vector<double> parameters = {});
@@ -51,6 +53,9 @@ class stateEstimator {
     bool poseIsInitialised();
     skeleton13 query();
     joint query(jointName name);
+    skeleton13_vel queryVelocity();
+    void setVelocity(skeleton13_vel vel);
+    std::deque<hpecore::jDot>* queryError();
 };
 
 class kfEstimator : public stateEstimator {

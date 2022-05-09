@@ -48,6 +48,21 @@ joint stateEstimator::query(jointName name)
     return state[name];
 }
 
+skeleton13_vel stateEstimator::queryVelocity()
+{
+    return velocity;
+}
+
+void stateEstimator::setVelocity(skeleton13_vel vel)
+{
+    velocity = vel;
+}
+
+std::deque<hpecore::jDot>* stateEstimator::queryError()
+{
+    return error;
+}
+
 void kfEstimator::setTimePeriod(double dt)
 {
     for (auto &kf : kf_array)

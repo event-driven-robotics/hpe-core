@@ -287,6 +287,82 @@ public:
         return velocity;
     }
 
+template <typename T>
+    void errorToVel(const T &q_new, skeleton13 state, skeleton13_vel prevVelocity, std::deque<hpecore::jDot>* error)                                
+    {
+        for (auto &v_new : q_new) // each event
+        {
+            for (int k = 0; k < 13; k++) // each joint
+            {
+                // check if it's in the k-th roi and iff compute the velocity
+                if (fabs(v_new.x - state[k].u) < roi_width/2 && fabs(v_new.y - state[k].v) < roi_width/2)
+                {
+                    int n_neighbours = 0;
+                    double xdot = 0.0, ydot = 0.0;
+                    jDot vel = {0};
+                    for(int i = v_new.x-minor_width; i <= v_new.x+minor_width; i++) // past events
+                    {
+                        for(int j = v_new.y-minor_width; j <= v_new.y+minor_width; j++)
+                        {
+                            if(int(this->tos.getSurface().at<unsigned char>(j, i)) && (v_new.x!=i || v_new.y!=j))
+                            {
+                                double inv_dt = 1.0 / (v_new.stamp - this->SAE.at<float>(j, i));
+                                int dx = v_new.x - i;
+                                int dy = v_new.y - j;
+                                xdot += dx * inv_dt;
+                                ydot += dy * inv_dt;
+                                n_neighbours++;
+                            }
+                        }
+                    }
+
+                    // calculate the average for this event
+                    if (n_neighbours > 1)
+                    {
+                        double inv_neighbours = 1.0 / n_neighbours; // (F) why doing this?
+                        vel.u = (xdot * inv_neighbours);
+                        vel.v = (ydot * inv_neighbours);
+                        jDot e{vel.u - prevVelocity[k].u, vel.v - prevVelocity[k].v};
+                        error[k].push_back(e);
+                    }
+                }
+            }            
+        }
+        // update time surfaces
+        for (auto &qi : q_new)
+        {
+            this->tos.update(qi.x, qi.y);
+            this->SAE.at<float>(qi.y, qi.x) = float(qi.stamp);
+        }
+    }
+
+    skeleton13_vel updateOnError(skeleton13_vel prevVelocity, std::deque<hpecore::jDot>* error)
+    {
+        skeleton13_vel velocity = {0};
+
+        for(int j=0; j<13; j++) // each joint
+        {
+            int n_error = 0;
+            double ex = 0.0, ey = 0.0;
+            while (!error[j].empty())
+            {
+                ex += error[j].front().u;
+                ey += error[j].front().v;
+                error[j].pop_front();
+                n_error++;
+            }
+            if(n_error)
+            {
+                ex /= n_error;
+                ey /= n_error;
+                velocity[j].u = prevVelocity[j].u + ex;
+                velocity[j].v = prevVelocity[j].v + ey;
+            }
+        }
+
+        return velocity;
+    }
+
     void getImages(cv::Mat &SAEout, cv::Mat &TOSout)
     {
         cv::normalize(this->SAE,SAEout, 0, 1, cv::NORM_MINMAX); // for visualization purposes
