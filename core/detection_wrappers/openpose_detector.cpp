@@ -45,7 +45,7 @@ bool OpenPoseDetector::init(std::string models_path, std::string pose_model)
 
         // TODO: set poseJointsNum (get number of joints from openpose mapping)
 
-        const auto netInputSize = op::flagsToPoint(op::String("-1x368"), "-1x368");
+        const auto netInputSize = op::flagsToPoint(op::String("-1x256"), "-1x256");
         const auto outputSize = op::flagsToPoint(op::String("-1x-1"), "-1x-1");
         const auto keypointScaleMode = op::flagsToScaleMode(0);
         const auto multipleView = false;
@@ -69,11 +69,11 @@ bool OpenPoseDetector::init(std::string models_path, std::string pose_model)
         const auto prototxt_path = "";
         const auto caffemodel_path = "";
         const auto upsampling_ratio = 0.;
-        const auto disable_multi_thread = false;    /////////////////////////////////
+        const auto disable_multi_thread = true;    /////////////////////////////////
         // process_real_time  ////////////////////////////////////////
 
         const op::WrapperStructPose wrapperStructPose{
-            poseMode, netInputSize, 1., outputSize, keypointScaleMode, num_gpu,
+            poseMode, netInputSize, outputSize, keypointScaleMode, num_gpu,
             num_gpu_start, scale_number, (float)scale_gap,
             op::flagsToRenderMode(render_pose, multipleView), poseModel, !disable_blending,
             (float)alpha_pose, (float)alpha_heatmap, part_to_show, op::String(models_path),
