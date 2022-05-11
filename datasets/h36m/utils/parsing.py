@@ -1,9 +1,7 @@
-
 import numpy as np
 import os
 
 from time import time
-
 
 # DVS camera
 H36M_VIDEO_HEIGHT = 1000
@@ -125,16 +123,20 @@ def h36m_to_dhp19(pose):
 def dhp19_to_movenet(pose):
     return pose[DHP19_TO_MOVENET_INDICES[:, 1], :]
 
+
 def h36m_to_movenet(pose):
     return dhp19_to_movenet(pose)
 
+
 def movenet_to_dhp19(pose):
+    # TODO
     pass
 
 
 def dhp19_to_h36m(pose):
     # TODO
     pass
+
 
 def get_h36m_body_parts(pose):
     inv_map = {v: k for k, v in pose.items()}
@@ -161,10 +163,8 @@ def writer(directory, datalines, infolines):
         for line in infolines:
             f.write("%s\n" % line)
 
-
 class H36mIterator:
-    def __init__(self, data, data_skl):
-        # TODO: add return of skeleton
+    def __init__(self, data, data_skl, time_factor=1):
 
         self.events_ts = data['ts']  # timestamps present in the dvs
 
@@ -183,6 +183,8 @@ class H36mIterator:
         self.skl_keys = [str(i) for i in range(0, 13)]
         self.skl = data_skl
 
+        self.events_ts = self.events_ts / time_factor
+
     def __iter__(self):
         return self
 
@@ -191,8 +193,7 @@ class H36mIterator:
 
     def __next__(self):
 
-        t1 = time()
-
+        # t1 = time()
         if self.stop_flag:
             raise StopIteration
 
@@ -202,95 +203,32 @@ class H36mIterator:
         # Extracting all relevant events in the time frame
         events_iter = np.array([])
 
-        # print(f'self.prev: {self.prev}, self.current: {self.current}')
-        # print(f'self.prev_event_ts: {self.prev_event_ts}')
-        event_found = False
-
         for i, t in enumerate(self.events_ts[self.prev_event_ts:]):
             if self.prev_skl_ts < t <= self.current_skl_ts:
 
-                if not event_found:
-                    self.prev_event_ts = i
-                event_found = True
-
                 # events = np.array([self.events_x[i], self.events_y[i]], dtype=int).reshape(1, 2)
                 events = np.zeros((1, 2), dtype=int)
-                events[0, 0] = self.events_x[i]
-                events[0, 1] = self.events_y[i]
+                events[0, 0] = self.events_x[self.prev_event_ts + i]
+                events[0, 1] = self.events_y[self.prev_event_ts + i]
                 try:
                     events_iter = np.concatenate((events, events_iter), axis=0)
                 except:
                     events_iter = events
             elif t > self.current_skl_ts:
+                self.prev_event_ts = self.prev_event_ts + i - 1
                 break
 
         # Extracting the GT skeleton
-        # skl = []
-        # [skl.append(self.skl[k][self.ind]) for k in self.skl_keys]
-        # skl = np.vstack(skl)
-        skl = np.zeros((13, 2), dtype=int)
-        for i, k in enumerate(self.skl_keys):
-            skl[i] = self.skl[k][self.ind]
+        skl = [self.skl[k][self.ind] for k in self.skl_keys]
+        skl = np.vstack(skl)
+
         self.ind += 1
         self.__update_current_index(self.ind)
-        # print(events_iter.shape)
 
         # print(f'elapsed time for {self.__class__.__name__}.__next__: {time() - t1}')
 
         return events_iter, skl, self.current_skl_ts
 
     def __update_current_index(self, end_ind):
-
         if end_ind >= self.skeletons_ts.shape[0]:
             self.stop_flag = True
-
-# class Dhp19EventsIterator:
-#
-#     # TODO: add param for overlapping?
-#     # def __init__(self, data, cam_id, window_size=DHP19_FRAME_EVENTS_NUM, stride=None):
-#     def __init__(self, data, cam_id, window_size=DHP19_CAM_FRAME_EVENTS_NUM):
-#
-#         self.timestamps = data['out']['extra']['ts']  # array containing timestamps of events from all cameras
-#
-#         self.events = data['out']['data'][f'cam{cam_id}']['dvs']  # events specific to selected camera
-#
-#         # events location indices follow matlab indexing convention, i.e. they start from 1 instead of 0
-#         self.events['x'] = self.events['x'] - 1
-#         self.events['y'] = self.events['y'] - 1
-#
-#         # events x indices are shifted by sensor_width * camera id
-#         self.events['x'] = self.events['x'] - DHP19_SENSOR_WIDTH * cam_id
-#
-#         # events are sampled from all cameras, thus the actual window size is the desired input one (representing the
-#         # desired number of frames from a single camera) multiplied by the number of cameras (for an explanation, see
-#         # Section 4.1 of paper "DHP19: Dynamic Vision Sensor 3D Human Pose Dataset")
-#         self.window_size = window_size * DHP19_CAM_NUM
-#
-#         self.curr_ind = 0
-#
-#     def __iter__(self):
-#         return self
-#
-#     def __len__(self):
-#         return int(np.ceil(len(self.timestamps) / self.window_size))
-#
-#     def __next__(self):
-#         if self.curr_ind == -1:
-#             raise StopIteration
-#
-#         end_ind = self.curr_ind + self.window_size
-#
-#         # select events from the specified camera with timestamps within the current window
-#         window_timestamps = self.timestamps[self.curr_ind:end_ind]
-#         event_indices = np.isin(self.events['ts'], window_timestamps)
-#         data = np.concatenate((np.reshape(self.events['ts'][event_indices], (-1, 1)),
-#                                np.reshape(self.events['x'][event_indices], (-1, 1)),
-#                                np.reshape(self.events['y'][event_indices], (-1, 1)),
-#                                np.reshape(self.events['pol'][event_indices], (-1, 1))), axis=1, dtype=np.float64)
-#
-#         if end_ind >= self.timestamps.shape[0]:
-#             self.curr_ind = -1
-#         else:
-#             self.curr_ind = end_ind
-#
-#         return data

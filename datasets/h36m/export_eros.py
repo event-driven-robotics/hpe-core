@@ -23,6 +23,7 @@ def ensure_location(path):
     if not os.path.isdir(path):
         os.makedirs(path)
 
+
 def str2bool(v):
     if isinstance(v, bool):
         return v
@@ -32,6 +33,7 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
+
 
 def importSkeletonData(filename):
     with open(filename) as f:
@@ -87,34 +89,35 @@ def get_torso_length(pose, h_frame=1, w_frame=1):
 
 
 def get_center(pose, h_frame=1, w_frame=1):
-    x_cen = np.mean([min(pose[:, 0]), max(pose[:, 0])]) / w_frame
-    y_cen = np.mean([min(pose[:, 1]), max(pose[:, 1])]) / h_frame
+    # x_cen = np.mean([min(pose[:, 0]), max(pose[:, 0])]) / w_frame
+    # y_cen = np.mean([min(pose[:, 1]), max(pose[:, 1])]) / h_frame
+    x_cen = np.mean(pose[:, 0]) / w_frame
+    y_cen = np.mean(pose[:, 1]) / h_frame
     return [x_cen, y_cen]
 
 
-def export_to_eros(data_dvs_file, data_vicon_file, output_path_images, skip=None,args=None):
-
+def export_to_eros(data_dvs_file, data_vicon_file, output_path_images, skip=None, args=None):
     if skip == None:
         skip = 1
     else:
-        skip = int(skip)+1
+        skip = int(skip) + 1
     action_name = data_dvs_file.split(os.sep)[-2]
 
     data_vicon = importSkeletonData(data_vicon_file)
     data_dvs = import_dvs(filePathOrName=data_dvs_file)
 
-    iterator = H36mIterator(data_dvs['data']['left']['dvs'], data_vicon)
+    iterator = H36mIterator(data_dvs['data']['left']['dvs'], data_vicon,time_factor=12.5)
     eros = EROS(kernel_size=args.eros_kernel, frame_width=args.frame_width, frame_height=args.frame_height)
 
     poses_movenet = []
     for fi, (events, pose, ts) in enumerate(iterator):
         if args.dev:
-            print(fi)
+            print('frame: ', fi)
         for ei in range(len(events)):
             eros.update(vx=int(events[ei, 0]), vy=int(events[ei, 1]))
         frame = eros.get_frame()
 
-        if fi <200:  # Almost empty images, not beneficial for training
+        if fi < 2:  # Almost empty images, not beneficial for training
             kps_old = get_keypoints(pose, args.frame_height, args.frame_width)
             continue
 
@@ -130,19 +133,31 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path_images, skip=None
 
             # print(sample_anno)
             frame = cv2.GaussianBlur(frame, (args.gauss_kernel, args.gauss_kernel), 0)
-            cv2.imwrite(os.path.join(output_path_images, sample_anno['img_name']), frame)
-
+            if args.dev:
+                keypoints = np.reshape(sample_anno['keypoints'], [-1, 3])
+                h, w = frame.shape
+                for i in range(len(keypoints)):
+                    frame = cv2.circle(frame, [int(keypoints[i, 0] * w), int(keypoints[i, 1] * h)], 1, (255, 0, 0), 2)
+                frame = cv2.circle(frame, [int(sample_anno['center'][0] * w), int(sample_anno['center'][1] * h)], 1,
+                                   (255, 0, 0), 4)
+                cv2.imshow('', frame)
+                cv2.waitKey(1)
+            else:
+                cv2.imwrite(os.path.join(output_path_images, sample_anno['img_name']), frame)
             poses_movenet.append(sample_anno)
 
             kps_old = sample_anno['keypoints']
     return poses_movenet
 
+
 def setup_testing_list(path):
+    if not os.path.exists(path):
+        return []
     with open(str(path), 'r+') as f:
         poses = json.load(f)
     files = [sample['original_sample'] for sample in poses]
-    files_uniquw = set(files)
-    return files_uniquw
+    files_unique = set(files)
+    return files_unique
 
 
 def main(args):
@@ -159,8 +174,7 @@ def main(args):
     ensure_location(output_path_images)
     ensure_location(output_path_anno)
 
-
-    input_data_dir = args.data_home + "/yarp"
+    input_data_dir = args.data_home + "/../h36m_cropped/yarp/"
     input_data_dir = os.path.abspath(input_data_dir)
 
     dir_list = os.listdir(input_data_dir)
@@ -168,16 +182,20 @@ def main(args):
     already_done = setup_testing_list(output_json)
     # print(already_done)
     for i in tqdm(range(len(dir_list))):
-        sample = dir_list[i]
+        if args.dev:
+            sample = 'cam2_S5_Directions_1'
+        else:
+            sample = dir_list[i]
         cam = sample[3]
         dvs_dir = os.path.join(input_data_dir, sample, 'ch0dvs')
         data_vicon_file = os.path.join(input_data_dir, sample, f'ch{cam}GT50Hzskeleton/data.log')
-        print(str(i) + sample)
+        print(str(i), sample)
+        print(data_vicon_file)
         if sample in already_done:
             continue
-        exit()
+
         if os.path.exists(dvs_dir) and os.path.exists(data_vicon_file):
-            poses_sample = export_to_eros(dvs_dir, data_vicon_file, output_path_images, skip=args.skip_image,args=args)
+            poses_sample = export_to_eros(dvs_dir, data_vicon_file, output_path_images, skip=args.skip_image, args=args)
 
             if args.write_annotation:
                 if args.from_scratch:
@@ -191,29 +209,33 @@ def main(args):
                         poses = json.load(f)
                         poses.extend(poses_sample)
                         f.seek(0)
-                        poses = json.dump(poses, f, ensure_ascii=False)
-            # poses.extend(poses_sample)
+                        json.dump(poses, f, ensure_ascii=False)
+
         else:
             print(f"File {sample} not found.")
             if args.dev:
                 print(os.path.exists(dvs_dir))
                 print(os.path.exists(data_vicon_file))
 
+        if args.dev:
+            exit()
+
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-eros_kernel', help='', default=6,type=int)
-    parser.add_argument('-frame_width', help='', default=640,type=int)
-    parser.add_argument('-frame_height', help='', default=480,type=int)
-    parser.add_argument('-gauss_kernel', help='', default=7,type=int)
+    parser.add_argument('-eros_kernel', help='', default=6, type=int)
+    parser.add_argument('-frame_width', help='', default=640, type=int)
+    parser.add_argument('-frame_height', help='', default=480, type=int)
+    parser.add_argument('-gauss_kernel', help='', default=7, type=int)
     parser.add_argument('-skip_image', help='', default=None)
-    parser.add_argument('-data_home', help='Path to dataset folder', default='/home/ggoyal/data/h36m/',type=str)
-    parser.add_argument("-from_scratch", type=str2bool, nargs='?', const=True, default=True, help="Write annotation file from scratch.")
-    parser.add_argument("-write_annotation", type=str2bool, nargs='?', const=True, default=True, help="Write annotation file.")
+    parser.add_argument('-data_home', help='Path to dataset folder', default='/home/ggoyal/data/h36m/', type=str)
+    parser.add_argument("-from_scratch", type=str2bool, nargs='?', const=True, default=True,
+                        help="Write annotation file from scratch.")
+    parser.add_argument("-write_annotation", type=str2bool, nargs='?', const=True, default=True,
+                        help="Write annotation file.")
     parser.add_argument("-write_images", type=str2bool, nargs='?', const=True, default=True, help="Save images.")
-    parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=False, help="Run in dev mode.")
-
+    parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=True, help="Run in dev mode.")
 
     args = parser.parse_args()
     try:
@@ -232,5 +254,3 @@ if __name__ == '__main__':
     # dev = True
     # skip_image = 4
 
-
-# TODO: Shuffle the pose files. Save the json file.
