@@ -235,7 +235,7 @@ if __name__ == '__main__':
     parser.add_argument("-write_annotation", type=str2bool, nargs='?', const=True, default=True,
                         help="Write annotation file.")
     parser.add_argument("-write_images", type=str2bool, nargs='?', const=True, default=True, help="Save images.")
-    parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=True, help="Run in dev mode.")
+    parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=False, help="Run in dev mode.")
 
     args = parser.parse_args()
     try:
