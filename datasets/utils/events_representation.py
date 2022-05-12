@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from time import time
 
 
 def add_salt_and_pepper(image, low_th, high_th):
@@ -68,11 +69,9 @@ class EROS:
 
         if roi_valid is None:
             return True
-
-        update_mask = np.ones((self.frame_height, self.frame_width), dtype=np.float)
         roi = [roi_valid.y_tl, roi_valid.y_tl + roi_valid.height, roi_valid.x_tl, roi_valid.x_tl + roi_valid.width]
-        update_mask[roi[0]:roi[1], roi[2]:roi[3]] *= odecay
-        self._image = np.multiply(self._image, update_mask).astype(np.uint8)
+        update_mask = np.ones((roi[1]-roi[0], roi[3]-roi[2]), dtype=np.float) * odecay
+        self._image[roi[0]:roi[1], roi[2]:roi[3]] = np.multiply(self._image[roi[0]:roi[1], roi[2]:roi[3]], update_mask).astype(np.uint8)
         self._image[vy, vx] = 255
 
         return roi_raw != roi_valid
