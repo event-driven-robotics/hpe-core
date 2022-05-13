@@ -46,16 +46,13 @@ def main(args):
         print(f'************************** processing video {video_id}')
 
         # create output folders
-        output_video_folder_path = output_folder_path / video_id
+        output_events_folder_path = output_folder_path / video_id / 'events'
         try:
-            output_video_folder_path.mkdir(parents=True, exist_ok=False)
+            output_events_folder_path.mkdir(parents=True, exist_ok=False)
         except:
-            print(f'skipping video {video_id} (directory {str(output_video_folder_path)} already exists)')
+            print(f'skipping video {video_id} (directory {str(output_events_folder_path)} already exists)')
             continue
-
-        output_events_folder_path = output_video_folder_path / 'events'
-        output_events_folder_path.mkdir(parents=True)
-        output_frames_folder_path = output_video_folder_path / 'frames'
+        output_frames_folder_path = output_folder_path / video_id / 'frames'
         output_frames_folder_path.mkdir(parents=True)
 
         # get sorted frames names
