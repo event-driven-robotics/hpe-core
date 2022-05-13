@@ -45,18 +45,25 @@ def main(args):
 
         print(f'************************** processing video {video_id}')
 
+        # check if video folder exists
+        mpii_frames_path = video_frames_batches_path / video_id
+        if not mpii_frames_path.exists():
+            print(f'skipping video {video_id} (directory {str(mpii_frames_path)} does not exist)')
+
         # create output folders
-        output_events_folder_path = output_folder_path / video_id / 'events'
+        output_video_folder_path = output_folder_path / video_id
         try:
-            output_events_folder_path.mkdir(parents=True, exist_ok=False)
+            output_video_folder_path.mkdir(parents=True, exist_ok=False)
         except:
-            print(f'skipping video {video_id} (directory {str(output_events_folder_path)} already exists)')
+            print(f'skipping video {video_id} (directory {str(output_video_folder_path)} already exists)')
             continue
-        output_frames_folder_path = output_folder_path / video_id / 'frames'
+
+        output_events_folder_path = output_video_folder_path / 'events'
+        output_events_folder_path.mkdir(parents=True)
+        output_frames_folder_path = output_video_folder_path / 'frames'
         output_frames_folder_path.mkdir(parents=True)
 
         # get sorted frames names
-        mpii_frames_path = video_frames_batches_path / video_id
         mpii_frames_names = [str(fpath.name) for fpath in mpii_frames_path.glob('*.jpg')]
         mpii_frames_names.sort()
 
