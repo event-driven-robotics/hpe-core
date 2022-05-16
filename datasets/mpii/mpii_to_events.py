@@ -30,14 +30,15 @@ def main(args):
     output_folder_path = pathlib.Path(output_folder_path.resolve())
     output_folder_path.mkdir(exist_ok=True)
 
-    # get training annotations indices
+    # get only annotated training frames
     train_ann_indices = data_ann['RELEASE']['img_train'] == 1
     train_video_keyframe_mapping = video_keyframe_mapping['annolist_keyframes'][train_ann_indices]
 
-    # ...
+    # get path to input video frames folder
     video_frames_batches_path = pathlib.Path(args.f)
     video_frames_batches_path = pathlib.Path(video_frames_batches_path.resolve())
 
+    # process frames
     for keyframe_dict in train_video_keyframe_mapping:
         path_cmps = keyframe_dict['image']['name'].split('/')
         video_id = path_cmps[0]
@@ -45,10 +46,22 @@ def main(args):
 
         print(f'************************** processing video {video_id}')
 
-        # check if video folder exists
+        # check if input video folder exists
         mpii_frames_path = video_frames_batches_path / video_id
         if not mpii_frames_path.exists():
             print(f'skipping video {video_id} (directory {str(mpii_frames_path)} does not exist)')
+            continue
+
+        # sort frames by name
+        mpii_frames_names = [str(fpath.name) for fpath in mpii_frames_path.glob('*.jpg')]
+        mpii_frames_names.sort()
+
+        # check if keyframe is present in the input video folder (some of them are not)
+        try:
+            keyframe_ind = mpii_frames_names.index(keyframe_name)
+        except:
+            print(f'skipping keyframe (no file {keyframe_name} in folder {str(mpii_frames_path)})')
+            continue
 
         # create output folders
         output_video_folder_path = output_folder_path / video_id
@@ -63,12 +76,7 @@ def main(args):
         output_frames_folder_path = output_video_folder_path / 'frames'
         output_frames_folder_path.mkdir(parents=True)
 
-        # get sorted frames names
-        mpii_frames_names = [str(fpath.name) for fpath in mpii_frames_path.glob('*.jpg')]
-        mpii_frames_names.sort()
-
-        # copy the annotated frame and the n preceding ones to the output folder
-        keyframe_ind = mpii_frames_names.index(keyframe_name)
+        # copy only the required frames (the annotated and the specified 'n' preceding ones) to the output folder
         if args.n <= keyframe_ind:
             start_ind = args.n
         else:
@@ -79,7 +87,7 @@ def main(args):
             target_path_str = str(output_frames_folder_path / name)
             shutil.copy(src=source_path_str, dst=target_path_str)
 
-        # run v2e
+        # run v2e on the copied frames
         cmd = f'python ../utils/externals/v2e/v2e.py -i {str(output_frames_folder_path)} ' \
               f'--output_folder {str(output_events_folder_path)} ' \
               f'--input_frame_rate 17.0 --dvs{args.v2e_dvs_res} ' \
