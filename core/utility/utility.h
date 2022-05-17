@@ -89,6 +89,13 @@ struct stampedPose {
     skeleton13 pose;
 };
 
+struct stampedError {
+    double timestamp;
+    int jointNumber;
+    jDot prevVel;
+    joint err;
+};
+
 enum jointName {head, shoulderR, shoulderL, elbowR, elbowL,
              hipL, hipR, handR, handL, kneeR, kneeL, footR, footL};
 static const std::vector<jointName> jointNames = {head, shoulderR, shoulderL, elbowR, elbowL,
@@ -324,4 +331,79 @@ public:
     }
 };
 
+class errorWriter
+{
+private:
+    std::ofstream fileio;
+    std::thread th;
+    bool stop{false};
+
+    std::mutex m;
+    std::deque<stampedError> buffers[2];
+    int b_sel{0};
+    static constexpr void switch_buffer(int &buf_i) { buf_i = (buf_i + 1) % 2; };
+
+    void run()
+    {
+        while (!stop || buffers[0].size() || buffers[1].size())
+        {
+
+            std::deque<stampedError> &c_buf = buffers[b_sel];
+            m.lock();
+            int n_data = buffers[b_sel].size();
+            switch_buffer(b_sel);
+            m.unlock();
+
+            if (n_data)
+            {
+
+                // write the full_buffer and clear it
+                for (auto &i : c_buf)
+                {
+                    fileio << std::fixed << std::setprecision(5) << i.timestamp;
+                    fileio << " " << std::to_string(i.jointNumber);
+                    fileio << " " << std::scientific << i.prevVel.u << " " << i.prevVel.v << " " << i.err.u << " " << i.err.v << std::endl;
+                }
+                c_buf.clear();
+            }
+            else
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        }
+    }
+
+public:
+    bool open(std::string pathname)
+    {
+        // open the file output
+        fileio.open(pathname);
+        if (!fileio.is_open())
+            return false;
+        fileio << std::fixed;
+
+        // start the thread
+        th = std::thread([this]
+                         { this->run(); });
+        return true;
+    }
+
+    void write(stampedError data_point)
+    {
+        m.lock();
+        buffers[b_sel].push_back(data_point);
+        m.unlock();
+    }
+
+    void close()
+    {
+        stop = true;
+        if (fileio.is_open())
+        {
+            std::cout << "hpecore::writer: please wait..." << std::endl;
+            th.join();
+            fileio.close();
+        }
+    }
+};
 }
