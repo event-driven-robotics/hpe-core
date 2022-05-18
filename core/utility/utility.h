@@ -324,9 +324,10 @@ public:
     {
         stop = true;
         if(fileio.is_open()) {
-            std::cout << "hpecore::writer: please wait..." << std::endl;
+            std::cout << "hpecore::writer: please wait...";
             th.join();
             fileio.close();
+            std::cout << "complete." << std::endl;
         }
     }
 };
@@ -400,10 +401,21 @@ public:
         stop = true;
         if (fileio.is_open())
         {
-            std::cout << "hpecore::writer: please wait..." << std::endl;
+            std::cout << "hpecore::writer: please wait...";
             th.join();
             fileio.close();
+            std::cout << "complete." << std::endl;
         }
     }
 };
+
+inline void drawProgressBar(cv::Mat &image, double percentage)
+{
+    int width = image.cols;
+    cv::Rect box_border(width * 0.05, width * 0.05, width * 0.9, width * 0.05);
+    cv::Rect box_prog(width * 0.05, width * 0.05, width * 0.9 * percentage, width * 0.05);
+    cv::rectangle(image, box_prog, CV_RGB(255, 255, 255), cv::FILLED);
+    cv::rectangle(image, box_border, CV_RGB(0, 0, 0), 2);
+}
+
 }
