@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 using namespace hpecore;
 
-bool OpenPoseDetector::init(std::string models_path, std::string pose_model)
+bool OpenPoseDetector::init(std::string models_path, std::string pose_model, std::string size)
 {
     try
     {
@@ -45,7 +45,8 @@ bool OpenPoseDetector::init(std::string models_path, std::string pose_model)
 
         // TODO: set poseJointsNum (get number of joints from openpose mapping)
 
-        const auto netInputSize = op::flagsToPoint(op::String("-1x256"), "-1x256");
+        size = "-1x"+size;
+        const auto netInputSize = op::flagsToPoint(op::String(size), size.c_str());
         const auto outputSize = op::flagsToPoint(op::String("-1x-1"), "-1x-1");
         const auto keypointScaleMode = op::flagsToScaleMode(0);
         const auto multipleView = false;

@@ -41,7 +41,7 @@ class OpenPoseDetector {
     int poseJointsNum;
 
   public:
-    bool init(std::string poseModel, std::string poseMode);
+    bool init(std::string poseModel, std::string poseMode, std::string size = "256");
     skeleton13 detect(cv::Mat &input);
     void stop();
 };
