@@ -143,3 +143,25 @@ class EROSSynthetic:
         # salt and pepper params
         self.salt_pepper_low_th = salt_pepper_low_th
         self.salt_pepper_high_th = salt_pepper_high_th
+
+class PIM:
+
+    def __init__(self, frame_height, frame_width, tau=1.0):
+        self.frame_height = frame_height
+        self.frame_width = frame_width
+        self.tau = tau
+        self.ts = 0
+        self._image = np.zeros((frame_height, frame_width), dtype=float)
+
+    def get_frame(self):
+        return self._image
+
+    def update(self, vx, vy, p):
+        if p > 0:
+            self._image[vy, vx] -= 1.0
+        else:
+            self._image[vy, vx] += 1.0
+
+    def perform_decay(self, timestamp):
+        self._image *= np.exp(self.tau * (self.ts - timestamp))
+        self.ts = timestamp
