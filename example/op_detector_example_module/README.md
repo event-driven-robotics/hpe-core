@@ -39,8 +39,8 @@ The software was tested on Ubuntu 20.04.2 LTS with an Nvidia GPU.
 ## Live Atis Camera Usage
 - Run the Docker container and, inside it, run the yarp manager and server
     ```shell
-    $ xhost +
-    $ docker run -it -v /tmp/.X11-unix/:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY --runtime=nvidia <image_id>
+    $ xhost local:docker
+    $ docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb -v /tmp/.X11-unix/:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY --runtime=nvidia --network host <image_id>
     $ yarpmanager &
     $ yarpserver &
     ```
