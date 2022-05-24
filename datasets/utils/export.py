@@ -90,3 +90,7 @@ def crop_pose(sklt, crop):
             sklt[i, 0] -= crop['left']
             sklt[i, 1] -= crop['top']
     return sklt
+
+def ensure_location(path):
+    if not os.path.isdir(path):
+        os.makedirs(path)

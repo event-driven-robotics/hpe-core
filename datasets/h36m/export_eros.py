@@ -16,12 +16,10 @@ import math
 import numpy as np
 from datasets.h36m.utils.parsing import H36mIterator, h36m_to_movenet
 from datasets.utils.events_representation import EROS
+from datasets.utils.export import ensure_location
 from bimvee.importIitYarp import importIitYarp as import_dvs
 
 
-def ensure_location(path):
-    if not os.path.isdir(path):
-        os.makedirs(path)
 
 
 def str2bool(v):
