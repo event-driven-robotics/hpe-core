@@ -120,8 +120,10 @@ void kfEstimator::updateFromPosition(jointName name, joint position, double dt)
 
 void kfEstimator::updateFromPosition(skeleton13 position, double dt)
 {
+    skeleton13_b valid = jointTest(position);
     for (auto &name : jointNames)
-        updateFromPosition(name, position[name], dt);
+        if(valid[name])
+            updateFromPosition(name, position[name], dt);
 }
 
 void kfEstimator::set(skeleton13 pose)
