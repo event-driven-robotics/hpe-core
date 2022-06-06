@@ -128,6 +128,7 @@ public:
         int n_added[13] = {0};
         int n_used[13] = {0};
         skeleton13_vel velocity = {0};
+        int roi_width_half = roi_width/2;
 
         // see if the new event is in the roi of each joint, add it to the corresponding queue,
         // and then calculate a new velocity for the joint
@@ -136,47 +137,44 @@ public:
             for (int j = 0; j < 13; j++)
             {
                 // check if it's in the j-th roi
-                if (fabs(v_new.x - state[j].u) < roi_width/2 && fabs(v_new.y - state[j].v) < roi_width/2)
+                if (fabs(v_new.x - state[j].u) < roi_width_half && fabs(v_new.y - state[j].v) < roi_width_half)
                 {
                     npe.stamp = v_new.stamp;
                     npe.x = v_new.x;
                     npe.y = v_new.y;
                     qROI[j].push_front(npe);
                     n_added[j]++;
+                } else {
+                    continue;
                 }
-                if(n_added[j])
-                {
-                    // if it was in the roi also compute the velocity
-                    int n_neighbours = 0;
-                    double xdot = 0.0, ydot = 0.0;
-                    for (int i = n_added[j]; i < qROI[j].size(); i++)
-                    {
-                        auto &v_old = qROI[j][i];
 
-                        // calculate distance and time
-                        int dx = v_new.x - v_old.x;
-                        int dy = v_new.y - v_old.y;
-                        if (sqrt(dx*dx + dy*dy)<= minor_width)
-                        // if (abs(dx) + abs(dy) <= minor_width) // (F) change to sqrt(dx^2+dy^2)
-                        {
-                            double inv_dt = 1.0 / (v_new.stamp - v_old.stamp);
-                            xdot += dx * inv_dt;
-                            ydot += dy * inv_dt;
-                            n_neighbours++;
-                        }
-                        // if (n_neighbours > max_neighbours) break; // (F) what?
-                    }
+                // if it was in the roi also compute the velocity
+                int n_neighbours = 0;
+                double xdot = 0.0, ydot = 0.0;
+                for (int i = n_added[j]; i < qROI[j].size(); i++) {
+                    auto &v_old = qROI[j][i];
 
-                    // calculate the average for this event
-                    if (n_neighbours)
+                    // calculate distance and time
+                    int dx = v_new.x - v_old.x;
+                    int dy = v_new.y - v_old.y;
+                    if (abs(dx) + abs(dy) <= minor_width)
                     {
-                        double inv_neighbours = 1.0 / n_neighbours; // (F) why doing this?
-                        velocity[j].u += (xdot * inv_neighbours);
-                        velocity[j].v += (ydot * inv_neighbours);
-                        n_used[j]++;
+                        double inv_dt = 1.0 / (v_new.stamp - v_old.stamp);
+                        xdot += dx * inv_dt;
+                        ydot += dy * inv_dt;
+                        n_neighbours++;
                     }
+                    //if (n_neighbours > max_neighbours) break;
                 }
-            }            
+
+                // calculate the average for this event
+                if (n_neighbours) {
+                    double inv_neighbours = 1.0 / n_neighbours;
+                    velocity[j].u += (xdot * inv_neighbours);
+                    velocity[j].v += (ydot * inv_neighbours);
+                    n_used[j]++;
+                }
+            }
         }
 
         for (int j = 0; j < 13; j++)

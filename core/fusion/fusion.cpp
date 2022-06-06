@@ -126,6 +126,12 @@ void kfEstimator::updateFromPosition(skeleton13 position, double dt)
             updateFromPosition(name, position[name], dt);
 }
 
+void kfEstimator::updateFromVelocity(skeleton13 velocity, double dt)
+{
+    for (auto &name : jointNames)
+        updateFromVelocity(name, velocity[name], dt);
+}
+
 void kfEstimator::set(skeleton13 pose)
 {
     state = pose;
@@ -234,6 +240,12 @@ void constVelKalman::updateFromPosition(skeleton13 position, double dt)
 {
     for (auto &name : jointNames)
         updateFromPosition(name, position[name], dt);
+}
+
+void constVelKalman::updateFromVelocity(skeleton13 velocity, double dt)
+{
+    for (auto &name : jointNames)
+        updateFromVelocity(name, velocity[name], dt);
 }
 
 void constVelKalman::set(skeleton13 pose)

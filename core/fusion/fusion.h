@@ -67,6 +67,7 @@ class kfEstimator : public stateEstimator {
 
    public:
     bool initialise(std::vector<double> parameters) override;
+    void updateFromVelocity(skeleton13 velocity, double dt) override;
     void updateFromVelocity(jointName name, jDot velocity, double dt) override;
     void updateFromPosition(jointName name, joint position, double dt) override;
     void updateFromPosition(skeleton13 position, double dt) override;
@@ -86,6 +87,7 @@ class constVelKalman : public stateEstimator {
 
    public:
     bool initialise(std::vector<double> parameters) override;
+    void updateFromVelocity(skeleton13 velocity, double dt) override;
     void updateFromVelocity(jointName name, jDot velocity, double dt) override;
     void updateFromPosition(jointName name, joint position, double dt) override;
     void updateFromPosition(skeleton13 position, double dt) override;
