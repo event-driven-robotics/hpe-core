@@ -127,7 +127,7 @@ def h36m_to_dhp19(pose):
 def dhp19_to_movenet(pose):
     return pose[DHP19_TO_MOVENET_INDICES[:, 1], :]
 
-def h36m_to_movenet(pose):
+def hpecore_to_movenet(pose):
     return dhp19_to_movenet(pose)
 
 def movenet_to_dhp19(pose):
