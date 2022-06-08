@@ -114,7 +114,7 @@ public:
         cv::cvtColor(img_cv, rgbimage, cv::COLOR_GRAY2BGR);
 
         //call the openpose detector
-        hpecore::skeleton pose = detector.detect(rgbimage);
+        hpecore::skeleton13 pose = detector.detect(rgbimage);
 
         //calculate the running frequency
         t_accum += Time::now() - tic;
@@ -132,17 +132,9 @@ public:
 
         // write openpose's output skeleton to the output port
 
-        hpecore::skeleton13 pose_dhp19;
-        if(pose_model == "COCO")
-            pose_dhp19 = hpecore::coco18_to_dhp19(pose);
-        //else if(pose_model == "BODY_25")
-            //pose_dhp19 = hpecore::body25_to_dhp19(pose);
-        else
-            yInfo() << "Conversion from " << pose_model << " to DHP19 not implemented yet";
-
         // create a Bottle containing the list of joints coordinates
         Bottle coordinates_bottle;
-        for(auto &t : pose_dhp19)
+        for(auto &t : pose)
         {
              coordinates_bottle.addInt32(t.u);
              coordinates_bottle.addInt32(t.v);

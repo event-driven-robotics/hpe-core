@@ -137,6 +137,14 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path_images, skip=None
             kps_old = sample_anno['keypoints']
     return poses_movenet
 
+def setup_testing_list(path):
+    with open(str(path), 'r+') as f:
+        poses = json.load(f)
+    files = [sample['original_sample'] for sample in poses]
+    files_uniquw = set(files)
+    return files_uniquw
+
+
 def main(args):
     if args.dev:
         output_path_images = args.data_home + "/tester/h36m_EROS/"
@@ -156,15 +164,18 @@ def main(args):
     input_data_dir = os.path.abspath(input_data_dir)
 
     dir_list = os.listdir(input_data_dir)
-    #    print(dir_list)
 
-    # for sample in dir_list:
+    already_done = setup_testing_list(output_json)
+    # print(already_done)
     for i in tqdm(range(len(dir_list))):
         sample = dir_list[i]
         cam = sample[3]
         dvs_dir = os.path.join(input_data_dir, sample, 'ch0dvs')
         data_vicon_file = os.path.join(input_data_dir, sample, f'ch{cam}GT50Hzskeleton/data.log')
         print(str(i) + sample)
+        if sample in already_done:
+            continue
+        exit()
         if os.path.exists(dvs_dir) and os.path.exists(data_vicon_file):
             poses_sample = export_to_eros(dvs_dir, data_vicon_file, output_path_images, skip=args.skip_image,args=args)
 

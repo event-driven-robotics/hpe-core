@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 using namespace hpecore;
 
-bool OpenPoseDetector::init(std::string models_path, std::string pose_model)
+bool OpenPoseDetector::init(std::string models_path, std::string pose_model, std::string size)
 {
     try
     {
@@ -45,7 +45,8 @@ bool OpenPoseDetector::init(std::string models_path, std::string pose_model)
 
         // TODO: set poseJointsNum (get number of joints from openpose mapping)
 
-        const auto netInputSize = op::flagsToPoint(op::String("-1x368"), "-1x368");
+        size = "-1x"+size;
+        const auto netInputSize = op::flagsToPoint(op::String(size), size.c_str());
         const auto outputSize = op::flagsToPoint(op::String("-1x-1"), "-1x-1");
         const auto keypointScaleMode = op::flagsToScaleMode(0);
         const auto multipleView = false;
@@ -69,11 +70,11 @@ bool OpenPoseDetector::init(std::string models_path, std::string pose_model)
         const auto prototxt_path = "";
         const auto caffemodel_path = "";
         const auto upsampling_ratio = 0.;
-        const auto disable_multi_thread = false;    /////////////////////////////////
+        const auto disable_multi_thread = true;    /////////////////////////////////
         // process_real_time  ////////////////////////////////////////
 
         const op::WrapperStructPose wrapperStructPose{
-            poseMode, netInputSize, 1., outputSize, keypointScaleMode, num_gpu,
+            poseMode, netInputSize, outputSize, keypointScaleMode, num_gpu,
             num_gpu_start, scale_number, (float)scale_gap,
             op::flagsToRenderMode(render_pose, multipleView), poseModel, !disable_blending,
             (float)alpha_pose, (float)alpha_heatmap, part_to_show, op::String(models_path),
@@ -104,10 +105,10 @@ void OpenPoseDetector::stop()
     detector.stop();
 }
 
-skeleton OpenPoseDetector::detect(cv::Mat &input)
+skeleton13 OpenPoseDetector::detect(cv::Mat &input)
 {
-    skeleton pose;
-    pose.clear();
+    skeleton18 pose = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    skeleton13 pose13 = {0, 0, 0, 0, 0, 0, 0, 0 ,0 ,0 ,0 ,0 ,0 };
 
     try
     {
@@ -116,11 +117,7 @@ skeleton OpenPoseDetector::detect(cv::Mat &input)
         if (datumProcessed == nullptr)
         {
             std::cout << "Image could not be processed" << std::endl;
-
-            // return empty skeleton
-            for (auto ji = 0; ji < poseJointsNum; ji++)
-                pose.push_back(std::make_tuple(0., 0.));
-            return pose;
+            return pose13;
         }
         input = OP_OP2CVCONSTMAT(datumProcessed->at(0)->cvOutputData);
         //cv::imshow("inlib", temp);
@@ -138,8 +135,8 @@ skeleton OpenPoseDetector::detect(cv::Mat &input)
         for (auto bodyPart = 0; bodyPart < poseKeypoints.getSize(1); bodyPart++)
         {
             // get (x, y) coords
-            std::tuple<double, double> joint = std::make_tuple(poseKeypoints[{0, bodyPart, 0}], poseKeypoints[{0, bodyPart, 1}]);
-            pose.push_back(joint);
+
+            pose[bodyPart] = {poseKeypoints[{0, bodyPart, 0}], poseKeypoints[{0, bodyPart, 1}]};
         }
 
         // }
@@ -147,12 +144,8 @@ skeleton OpenPoseDetector::detect(cv::Mat &input)
     catch (const std::exception& e)
     {
         op::error(e.what(), __LINE__, __FUNCTION__, __FILE__);
-        // TODO: print error on stdout
-
-        // return empty skeleton
-        for (auto ji = 0; ji < poseJointsNum; ji++)
-            pose.push_back(std::make_tuple(0., 0.));
     }
 
-    return pose;
+    pose13 = hpecore::coco18_to_dhp19(pose);
+    return pose13;
 }
