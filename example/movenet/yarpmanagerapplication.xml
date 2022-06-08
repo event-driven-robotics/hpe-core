@@ -23,7 +23,7 @@
 </module>
 
 <module>
-   <name> python3 /usr/local/code/hpe-core/example/movenet/run-model.py </name>
+   <name> python3 /usr/local/hpe-core/example/movenet/run-model.py </name>
    <parameters> --name /movenet </parameters>
    <node> localhost </node>
 </module>

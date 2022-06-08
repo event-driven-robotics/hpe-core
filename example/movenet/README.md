@@ -17,23 +17,44 @@ This is A Pytorch implementation of MoveNet inspired from the [Movenet.Pytorch](
     $ cd <workspace>
     $ git clone git@github.com:event-driven-robotics/hpe-core.git
     $ cd hpe-core/example/movenet
-    $ docker build -t movenet --ssh default --build-arg ssh_pub_key="$(cat ~/.ssh/<publicKeyFile>.pub)" --build-arg ssh_prv_key="$(cat ~/.ssh/<privateKeyFile>)" - < Dockerfile
+    $ docker build -t movenet --ssh default \
+    $ --build-arg ssh_pub_key="$(cat ~/.ssh/<publicKeyFile>.pub)"\
+    $ --build-arg ssh_prv_key="$(cat ~/.ssh/<privateKeyFile>)" - < Dockerfile
     ```
-:bulb: `<workspace>` is the parent directory in which the repository is cloned
+:bulb: `<workspace>` is the parent directory of choice in which the repository is cloned
+This will create a Docker image names movenet. Before running docker, instruct the host to accept GUI windows with the following command:
+    
+```shell
+    $ xhost local:docker
+```
 
-Note: You can also, instead, install the libraries named in `requirements.py` directly on your system.
+Then run a container with the right parameters:
+
+```shell
+    $ docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb \
+    -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY \
+    --name <container_name> eventdrivenrobotics/atis-gen3:latest
+```
+
+The meaning of the options are:
+* -it : runs the container in an interactive bash
+* --privileged : give the docker rights to open devices (to read the camera over usb)
+* -v /dev/bus/usb:/dev/bus/usb : mount the /dev folder so the docker can find the right device
+* -v /tmp/.X11-unix:/tmp/.X11-unix : mount the temporary configuration for x11 to use the same options as the host
+* -e DISPLAY=unix$DISPLAY : set the environment variable for X11 forwarding
+* --name : name your container so you remember it, if not specified docker will assign a random name that you will have to remember
+
+In case you wish to load any data present on host system, load its path when creating the container but adding another parameters in the command in the the format: `-v /path/on/host:/usr/local/data`
+
 ## Usage
-- Run the Docker container and, inside it, run the movenet pose detector
-    ```shell
-    $ docker run -it -v <workspace>/hpe-core/example/test_dataset:/data movenet bash
-    ```
+To reopen a running container: 
+```shell
+    $ docker exec -it <container_name> bash
+  ```
 
-2.To test the model, run 
-```
-python3 evaluate.py
-```
+To run the movenet app, run 
+```shell
+    $ yarpmanager
+  ```
 
-For run this setup on a new data, add the sample frames to folder data/ and run predict.py
-```
-python3 predict.py
-```
+and load the file `/usr/local/hpe-core/examples/movenet/yarpmanagerapplication.xml`. Run all and connect all to dectec pose from the camera input

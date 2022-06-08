@@ -8,11 +8,17 @@ ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update && \
     apt-get install -y unzip nano git wget sudo build-essential libssl-dev cmake
 
+###########################
+# CUDA PUBLIC KEYS UPDATE #
+###########################
 
+RUN sudo apt-key del 7fa2af80
+RUN sudo apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/3bf863cc.pub
 
 ##########
 # PYTHON #
 ##########
+
 
 # update python
 ARG PYTHON_VERSION=3.8
@@ -32,6 +38,7 @@ RUN python3 -m pip install --upgrade pip
 
 # other prerequisites
 RUN apt-get install -y libopencv-dev python3-opencv python3-dev
+
 
 
 
@@ -60,6 +67,40 @@ RUN echo "$ssh_prv_key" > /root/.ssh/id_ed25519 && \
     chmod 600 /root/.ssh/id_ed25519.pub
 
 
+###############
+# ATIS BRIDGE #
+###############
+
+RUN if [ $hvga -eq 1 ]; then \
+		echo "Installing older 1.4 version for HVGA"; \
+		echo "deb [arch=amd64 trusted=yes] https://prophesee:DbnLdKL5YXnMndWg@apt.prophesee.ai/dists/ubuntu focal main" >> /etc/apt/sources.list; \
+    apt update; \
+    apt install -y prophesee-* ; \
+	else \
+    	echo "deb [arch=amd64 trusted=yes] https://apt.prophesee.ai/dists/public/7l58osgr/ubuntu focal essentials" >> /etc/apt/sources.list; \
+      apt update; \
+      apt install -y metavision-*; \
+    fi
+
+RUN python3 -m pip install scikit-build matplotlib jupyter pandas
+
+RUN apt install -y \
+  libcanberra-gtk-module \
+  python3.7 \
+  python3-pip \
+  python3-tk \
+  cmake \
+  && apt-get autoremove \
+  && apt-get clean \
+  && rm -rf /tmp/* /var/lib/apt/lists/* /var/tmp/*
+
+RUN pip3 install \
+  scikit-build
+
+RUN pip3 install \
+  matplotlib \
+  jupyter
+
 
 ############
 #   YARP   #
@@ -74,7 +115,7 @@ ARG MUSTARD_COMMIT=18e702892f6028c69a2a9e224f459bc26147b20e
 ARG BUILD_TYPE=Release
 ARG SOURCE_FOLDER=/usr/local
 ARG OPENGL=0
-ARG HPE_BRANCH=main
+ARG HPE_BRANCH=eval_movenet_app
 
 RUN apt update
 
@@ -146,6 +187,8 @@ RUN cd $SOURCE_FOLDER && \
     mkdir build && cd build && \
     cmake -DVLIB_CLOCK_PERIOD_NS=1000 \
           -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+          -DBUILD_HARDWAREIO=ON\
+          -DENABLE_atis3=ON\
           .. && \
     make install -j$(nproc)
 
@@ -191,24 +234,6 @@ RUN cd $SOURCE_FOLDER/hpe-core/example/movenet && \
     mkdir build && cd build && \
     cmake .. && make install -j$(nproc)
 
-
-
-###############
-# ATIS BRIDGE #
-###############
-
-RUN if [ $hvga -eq 1 ]; then \
-		echo "Installing older 1.4 version for HVGA"; \
-		echo "deb [arch=amd64 trusted=yes] https://prophesee:DbnLdKL5YXnMndWg@apt.prophesee.ai/dists/ubuntu focal main" >> /etc/apt/sources.list; \
-    apt update; \
-    apt install -y prophesee-* ; \
-	else \
-    	echo "deb [arch=amd64 trusted=yes] https://apt.prophesee.ai/dists/public/7l58osgr/ubuntu focal essentials" >> /etc/apt/sources.list; \
-      apt update; \
-      apt install -y metavision-*; \
-    fi
-
-RUN python3 -m pip install scikit-build matplotlib jupyter pandas
-
+RUN export PYTHONPATH=$PYTHONPATH:$SOURCE_FOLDER/hpe-core
 
 WORKDIR $SOURCE_FOLDER/hpe-core/example/movenet
