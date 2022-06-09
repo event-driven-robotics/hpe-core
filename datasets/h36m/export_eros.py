@@ -14,7 +14,7 @@ import os
 import re
 import math
 import numpy as np
-from datasets.h36m.utils.parsing import H36mIterator, h36m_to_movenet
+from datasets.h36m.utils.parsing import H36mIterator, hpecore_to_movenet
 from datasets.utils.events_representation import EROS
 from bimvee.importIitYarp import importIitYarp as import_dvs
 
@@ -49,7 +49,7 @@ def importSkeletonData(filename):
         tss, points = pattern.findall(line)[0]
         points = np.array(list(filter(None, points.split(' ')))).astype(int).reshape(-1, 2)
         # points = np.array(points.split(' ')).astype(int).reshape(-1, 2)
-        points_movenet = h36m_to_movenet(points)
+        points_movenet = hpecore_to_movenet(points)
         for d, label in zip(points_movenet, keys):
             data_dict[label].append(d)
         timestamps.append(tss)

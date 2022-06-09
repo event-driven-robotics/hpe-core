@@ -82,6 +82,8 @@ DHP19_TO_MOVENET_INDICES = np.array([
     [12, 11]  # rankle
 ])
 
+MOVENET_TO_DHP19_INDICES = DHP19_TO_MOVENET_INDICES[np.argsort(DHP19_TO_MOVENET_INDICES[:,1]),:]
+
 # H36M_TO_HPECORE_SKELETON_MAP = OrderedDict()
 # H36M_TO_HPECORE_SKELETON_MAP['head'] = 14
 # H36M_TO_HPECORE_SKELETON_MAP['shoulderL'] = 17
@@ -125,12 +127,14 @@ def h36m_to_dhp19(pose):
 def dhp19_to_movenet(pose):
     return pose[DHP19_TO_MOVENET_INDICES[:, 1], :]
 
-def h36m_to_movenet(pose):
+def hpecore_to_movenet(pose):
     return dhp19_to_movenet(pose)
 
 def movenet_to_dhp19(pose):
-    pass
+    return pose[MOVENET_TO_DHP19_INDICES[:, 0],:]
 
+def movenet_to_hpecore(pose):
+    return movenet_to_dhp19(pose)
 
 def dhp19_to_h36m(pose):
     # TODO
