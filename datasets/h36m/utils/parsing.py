@@ -1,7 +1,9 @@
+
 import numpy as np
 import os
 
 from time import time
+
 
 # DVS camera
 H36M_VIDEO_HEIGHT = 1000
@@ -80,6 +82,8 @@ DHP19_TO_MOVENET_INDICES = np.array([
     [12, 11]  # rankle
 ])
 
+MOVENET_TO_DHP19_INDICES = DHP19_TO_MOVENET_INDICES[np.argsort(DHP19_TO_MOVENET_INDICES[:,1]),:]
+
 # H36M_TO_HPECORE_SKELETON_MAP = OrderedDict()
 # H36M_TO_HPECORE_SKELETON_MAP['head'] = 14
 # H36M_TO_HPECORE_SKELETON_MAP['shoulderL'] = 17
@@ -123,20 +127,18 @@ def h36m_to_dhp19(pose):
 def dhp19_to_movenet(pose):
     return pose[DHP19_TO_MOVENET_INDICES[:, 1], :]
 
-
-def h36m_to_movenet(pose):
+def hpecore_to_movenet(pose):
     return dhp19_to_movenet(pose)
 
-
 def movenet_to_dhp19(pose):
-    # TODO
-    pass
+    return pose[MOVENET_TO_DHP19_INDICES[:, 0],:]
 
+def movenet_to_hpecore(pose):
+    return movenet_to_dhp19(pose)
 
 def dhp19_to_h36m(pose):
     # TODO
     pass
-
 
 def get_h36m_body_parts(pose):
     inv_map = {v: k for k, v in pose.items()}
@@ -162,6 +164,7 @@ def writer(directory, datalines, infolines):
     with open(infoFile, 'w') as f:
         for line in infolines:
             f.write("%s\n" % line)
+
 
 class H36mIterator:
     def __init__(self, data, data_skl, time_factor=1):

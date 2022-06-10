@@ -1,3 +1,5 @@
+#include "motion_estimation.h"
+
 /* BSD 3-Clause License
 
 Copyright (c) 2021, Event Driven Perception for Robotics
@@ -27,23 +29,5 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
-#pragma once
 
-#include "utility.h"
-#include <opencv2/opencv.hpp>
-#include <openpose/headers.hpp>
-
-namespace hpecore {
-
-class OpenPoseDetector {
-
-    op::Wrapper detector{op::ThreadManagerMode::Asynchronous};
-    int poseJointsNum;
-
-  public:
-    bool init(std::string poseModel, std::string poseMode, std::string size = "256");
-    skeleton13 detect(cv::Mat &input);
-    void stop();
-};
-
-}
+#include "motion_estimation.h"

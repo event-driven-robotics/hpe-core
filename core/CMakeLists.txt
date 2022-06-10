@@ -55,6 +55,8 @@ set( folder_source
   detection_wrappers/detection.cpp
   motion_estimation/jointMotionEstimator.cpp
   event_representations/representations.cpp
+  motion_estimation/motion_estimation.cpp
+  fusion/fusion.cpp
 )
 
 set( folder_header
@@ -82,14 +84,13 @@ set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "${folder_header}
                                                           VERSION ${hpe-core_VERSION}
                                                           SOVERSION 2)                                               
 
-target_include_directories(${PROJECT_NAME} PRIVATE utility
-                                           PRIVATE motion_estimation
+target_include_directories(${PROJECT_NAME} PRIVATE utility event_representations
                                            PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
                                                   "$<INSTALL_INTERFACE:$<INSTALL_PREFIX>/${CMAKE_INSTALL_INCLUDEDIR}>") # FIXME INSTALL PATH
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC ${OpenPose_LIBS} ${OpenCV_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PUBLIC ${OpenPose_LIBS} ${OpenCV_LIBRARIES} pthread)
 
 install(TARGETS ${PROJECT_NAME}
         EXPORT hpecore

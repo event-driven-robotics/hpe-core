@@ -122,17 +122,30 @@ bool surface::setRoiAndRegion(int x, int y)
     return !(roi_raw == roi_valid);
 }
 
-bool surface::TOSupdate(const int vx, const int vy) 
+void surface::temporalDecay(double ts, double alpha) {
+    surf *= cv::exp(alpha * (time_now - ts));
+    time_now = ts;
+}
+
+void surface::spatialDecay(int k) 
 {
+    cv::GaussianBlur(surf, surf, cv::Size(k, k), 0);
+}
+
+bool TOS::update(int x, int y, double t, int p) 
+{
+    (void)t;
+    (void)p;
     //parameter default = 2
     static const int threshold = 255 - kernel_size * parameter;
 
-    bool border = setRoiAndRegion(vx, vy);
+    bool border = setRoiAndRegion(x, y);
 
+    //fix this bug that at borders c may not be correct pixel.
     unsigned char &c = region.at<unsigned char>(half_kernel, half_kernel);
-    for (auto x = 0; x < region.cols; x++) {
-        for (auto y = 0; y < region.rows; y++) {
-            unsigned char &p = region.at<unsigned char>(y, x);
+    for (auto xi = 0; xi < region.cols; xi++) {
+        for (auto yi = 0; yi < region.rows; yi++) {
+            unsigned char &p = region.at<unsigned char>(yi, xi);
             if (p < threshold) p = 0;
             if (p > c) p--;
         }
@@ -142,16 +155,16 @@ bool surface::TOSupdate(const int vx, const int vy)
     return border;
 }
 
-bool surface::SITSupdate(const int vx, const int vy) 
+bool SITS::update(int x, int y, double t, int p) 
 {
     static const int maximum_value = kernel_size * kernel_size;
 
-    bool border = setRoiAndRegion(vx, vy);
+    bool border = setRoiAndRegion(x, y);
 
     unsigned char &c = region.at<unsigned char>(half_kernel, half_kernel);
-    for (auto x = 0; x < region.cols; x++) {
-        for (auto y = 0; y < region.rows; y++) {
-            unsigned char &p = region.at<unsigned char>(y, x);
+    for (auto xi = 0; xi < region.cols; xi++) {
+        for (auto yi = 0; yi < region.rows; yi++) {
+            unsigned char &p = region.at<unsigned char>(yi, xi);
             if (p > c) p--;
         }
     }
@@ -160,23 +173,39 @@ bool surface::SITSupdate(const int vx, const int vy)
     return border;
 }
 
-bool surface::EROSupdate(const int vx, const int vy) 
+bool EROS::update(int x, int y, double t, int p) 
 {
     //parameter default = 0.3
     static double odecay = pow(parameter, 1.0 / kernel_size);
 
-    bool border = setRoiAndRegion(vx, vy);
+    bool border = setRoiAndRegion(x, y);
 
     unsigned char &c = region.at<unsigned char>(half_kernel, half_kernel);
-    for (auto x = 0; x < region.cols; x++) {
-        for (auto y = 0; y < region.rows; y++) {
-            unsigned char &p = region.at<unsigned char>(y, x);
+    for (auto xi = 0; xi < region.cols; xi++) {
+        for (auto yi = 0; yi < region.rows; yi++) {
+            unsigned char &p = region.at<unsigned char>(yi, xi);
             if(p > c) p *= odecay;
         }
     }
     c = 255;
 
     return border;
+}
+
+void PIM::init(int width, int height, int kernel_size, double parameter) 
+{
+    surface::init(width, height, kernel_size, parameter);
+    surf = cv::Mat(height, width, CV_32F);
+}
+
+bool PIM::update(int x, int y, double t, int p) 
+{
+    if (p)
+        surf.at<float>(y, x) -= 1.0f;
+    else
+        surf.at<float>(y, x) += 1.0f;
+
+    return true;
 }
 
 }
