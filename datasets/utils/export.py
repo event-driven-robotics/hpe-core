@@ -3,6 +3,7 @@ import numpy
 
 from pathlib import Path
 from typing import Optional
+import os
 
 
 def skeleton_to_dict(skeleton, image_name, image_width, image_height, head_size, torso_size):
@@ -78,8 +79,9 @@ def format_crop_file(crop_lines):
 
 def crop_frame(frame, crop):
     # crop a frame based on values from dictonary element crop.
+    w,h,_ = frame.shape
     if crop is not None:
-        frame = frame[crop['top'] + 1:-crop['bottom'], crop['left'] + 1:-crop['right'], :]
+        frame = frame[crop['top'] + 1:w-crop['bottom'], crop['left'] + 1:h-crop['right'], :]
     return frame
 
 
@@ -90,3 +92,7 @@ def crop_pose(sklt, crop):
             sklt[i, 0] -= crop['left']
             sklt[i, 1] -= crop['top']
     return sklt
+
+def ensure_location(path):
+    if not os.path.isdir(path):
+        os.makedirs(path)
