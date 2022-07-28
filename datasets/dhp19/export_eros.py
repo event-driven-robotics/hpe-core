@@ -99,12 +99,12 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path_images, skip=None
         skip = 1
     else:
         skip = int(skip) + 1
-    action_name = data_dvs_file.split(os.sep)[-2]
+    action_name = data_dvs_file.split(os.sep)[-4]
 
     data_vicon = importSkeletonData(data_vicon_file)
     data_dvs = import_dvs(filePathOrName=data_dvs_file)
 
-    iterator = H36mIterator(data_dvs['data']['left']['dvs'], data_vicon,time_factor=12.5)
+    iterator = H36mIterator(data_dvs['data']['left']['dvs'], data_vicon,time_factor=1)
     eros = EROS(kernel_size=args.eros_kernel, frame_width=args.frame_width, frame_height=args.frame_height)
 
     poses_movenet = []
@@ -132,15 +132,15 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path_images, skip=None
             # print(sample_anno)
             frame = cv2.GaussianBlur(frame, (args.gauss_kernel, args.gauss_kernel), 0)
             if args.dev:
-                # keypoints = np.reshape(sample_anno['keypoints'], [-1, 3])
-                # h, w = frame.shape
+                keypoints = np.reshape(sample_anno['keypoints'], [-1, 3])
+                h, w = frame.shape
                 # for i in range(len(keypoints)):
-                #     frame = cv2.circle(frame, [int(keypoints[i, 0] * w), int(keypoints[i, 1] * h)], 1, (255, 0, 0), 2)
+                    # frame = cv2.circle(frame, [int(keypoints[i, 0] * w), int(keypoints[i, 1] * h)], 1, (255, 0, 0), 2)
                 # frame = cv2.circle(frame, [int(sample_anno['center'][0] * w), int(sample_anno['center'][1] * h)], 1,
                 #                    (255, 0, 0), 4)
-                cv2.imshow('', frame)
+                cv2.imshow('', cv2.resize(frame,[w*2,h*2]))
                 cv2.waitKey(1)
-                cv2.imwrite(os.path.join(output_path_images, sample_anno['img_name']), frame)
+                # cv2.imwrite(os.path.join(output_path_images, sample_anno['img_name']), frame)
             else:
                 cv2.imwrite(os.path.join(output_path_images, sample_anno['img_name']), frame)
             poses_movenet.append(sample_anno)
@@ -161,19 +161,23 @@ def setup_testing_list(path):
 
 def main(args):
     if args.dev:
-        output_path_images = args.data_home + "/../h36m_cropped/tester/h36m_EROS/"
-        output_path_anno = args.data_home + "/../h36m_cropped/tester/h36m_anno/"
+        output_path_images = args.data_home + "/tester/h36m_EROS/"
+        output_path_anno = args.data_home + "/tester/h36m_anno/"
     else:
-        output_path_images = args.data_home + "/training/h36m_EROS/"
-        output_path_anno = args.data_home + "/training/h36m_anno/"
+        output_path_images = args.data_home + "/training_2/h36m_EROS/"
+        output_path_anno = args.data_home + "/training_2/h36m_anno/"
 
     output_path_images = os.path.abspath(output_path_images)
     output_path_anno = os.path.abspath(output_path_anno)
-    output_json = output_path_anno + '/poses.json'
+    if args.skip_image:
+        output_json = output_path_anno + f'/poses_{args.skip_image}.json'
+    else:
+        output_json = output_path_anno + f'/poses.json'
+
     ensure_location(output_path_images)
     ensure_location(output_path_anno)
 
-    input_data_dir = args.data_home + "/../h36m_cropped/yarp/"
+    input_data_dir = args.data_home + "/subset/"
     input_data_dir = os.path.abspath(input_data_dir)
 
     dir_list = os.listdir(input_data_dir)
@@ -182,12 +186,14 @@ def main(args):
     # print(already_done)
     for i in tqdm(range(len(dir_list))):
         if args.dev:
-            sample = 'cam2_S11_Directions'
+            sample = 'S1_2_1'
         else:
             sample = dir_list[i]
-        cam = sample[3]
-        dvs_dir = os.path.join(input_data_dir, sample, 'ch0dvs')
-        data_vicon_file = os.path.join(input_data_dir, sample, f'ch{cam}GT50Hzskeleton/data.log')
+        cam = 3
+        dvs_dir = os.path.join(input_data_dir, sample,'yarp',f'ch{cam}', f'ch{cam}dvs')
+        # dvs_dir = "/home/ggoyal/data/DHP19/subset/S1_2_1/yarp/ch3/ch3dvs"
+        data_vicon_file = os.path.join(input_data_dir, sample,'yarp',f'ch{cam}', f'ch{cam}GTskeleton/data.log')
+        # data_vicon_file = "/home/ggoyal/data/DHP19/subset/S1_2_1/yarp/ch3/ch3GTskeleton/data.log"
         print(str(i), sample)
         print(data_vicon_file)
         if sample in already_done:
@@ -223,18 +229,18 @@ def main(args):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-eros_kernel', help='', default=8, type=int)
-    parser.add_argument('-frame_width', help='', default=640, type=int)
-    parser.add_argument('-frame_height', help='', default=480, type=int)
-    parser.add_argument('-gauss_kernel', help='', default=7, type=int)
-    parser.add_argument('-skip_image', help='', default=None)
-    parser.add_argument('-data_home', help='Path to dataset folder', default='/home/ggoyal/data/h36m/', type=str)
+    parser.add_argument('-eros_kernel', help='', default=12, type=int)
+    parser.add_argument('-frame_width', help='', default=346, type=int)
+    parser.add_argument('-frame_height', help='', default=260, type=int)
+    parser.add_argument('-gauss_kernel', help='', default=3, type=int)
+    parser.add_argument('-skip_image', help='', default=10)
+    parser.add_argument('-data_home', help='Path to dataset folder', default='/home/ggoyal/data/DHP19/', type=str)
     parser.add_argument("-from_scratch", type=str2bool, nargs='?', const=True, default=True,
                         help="Write annotation file from scratch.")
     parser.add_argument("-write_annotation", type=str2bool, nargs='?', const=True, default=True,
                         help="Write annotation file.")
     parser.add_argument("-write_images", type=str2bool, nargs='?', const=True, default=True, help="Save images.")
-    parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=True, help="Run in dev mode.")
+    parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=False, help="Run in dev mode.")
 
     args = parser.parse_args()
     try:
