@@ -174,6 +174,7 @@ class H36mIterator:
         self.events = zip(data['ts'], data['x'], data['y'], data['pol'])
         self.events_x = data['x']
         self.events_y = data['y']
+        self.events_p = data['pol']
 
         self.skeletons_ts = data_skl['ts']  # timestamps from vicon
 
@@ -210,9 +211,10 @@ class H36mIterator:
             if self.prev_skl_ts < t <= self.current_skl_ts:
 
                 # events = np.array([self.events_x[i], self.events_y[i]], dtype=int).reshape(1, 2)
-                events = np.zeros((1, 2), dtype=int)
+                events = np.zeros((1, 3), dtype=int)
                 events[0, 0] = self.events_x[self.prev_event_ts + i]
                 events[0, 1] = self.events_y[self.prev_event_ts + i]
+                events[0, 2] = self.events_p[self.prev_event_ts + i]
                 try:
                     events_iter = np.concatenate((events, events_iter), axis=0)
                 except:
