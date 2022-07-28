@@ -24,7 +24,15 @@ void stateEstimator::updateFromVelocity(skeleton13 velocity, double dt)
 
 void stateEstimator::updateFromPosition(skeleton13 position, double dt)
 {
-    state = position;
+    skeleton13_b valid = jointTest(position);
+    for (auto &name : jointNames)
+    {
+        if(valid[name] && position[name].u && position[name].v)
+        {
+            state[name] = position[name];
+        }
+    }
+    // state = position;
 }
 
 void stateEstimator::set(skeleton13 pose)
@@ -122,7 +130,7 @@ void kfEstimator::updateFromPosition(skeleton13 position, double dt)
 {
     skeleton13_b valid = jointTest(position);
     for (auto &name : jointNames)
-        if(valid[name])
+        if(valid[name] && position[name].u && position[name].v)
             updateFromPosition(name, position[name], dt);
 }
 
