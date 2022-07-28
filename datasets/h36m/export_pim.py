@@ -59,22 +59,19 @@ def importSkeletonData(filename):
     return data_dict
 
 
-def export_to_pim(data_dvs_file, data_vicon_file, output_path_images, skip=None, args=None):
+def export_to_pim(data_dvs_file, data_vicon_file, video_output_path, skip=None, args=None):
     if skip == None:
         skip = 1
     else:
         skip = int(skip) + 1
 
     data_vicon = importSkeletonData(data_vicon_file)
-    data_dvs = import_dvs(filePathOrName=data_dvs_file)
+    data_dvs = import_dvs(filePathOrName=data_dvs_file[:-9])
 
     iterator = H36mIterator(data_dvs['data']['left']['dvs'], data_vicon,time_factor=12.5)
     pim = PIM(frame_height=args.frame_height, frame_width=args.frame_width, tau=args.tau)
 
-    vid = cv2.VideoCapture(output_path_images)
-    sample_name = data_dvs_file.split(os.sep)[-2]
-    video_out = cv2.VideoWriter(f'{output_path_images}/pim.mp4', cv2.VideoWriter_fourcc(*'h264'), args.fps, (args.frame_width, args.frame_height))
-    poses_movenet = []
+    video_out = cv2.VideoWriter(video_output_path, cv2.VideoWriter_fourcc(*'h264'), args.fps, (args.frame_width, args.frame_height))
 
     for fi, (events, pose, ts) in enumerate(iterator):
         if args.dev:
@@ -95,48 +92,41 @@ def export_to_pim(data_dvs_file, data_vicon_file, output_path_images, skip=None,
 
 def main(args):
 
-    input_data_dir = args.data_home
-    input_data_dir = os.path.abspath(input_data_dir)
+    input_data_dir = os.path.abspath(args.data_home)
 
-    dir_list = os.listdir(input_data_dir)
-
-    dir_list.sort()
+    if args.dev:
+        dir_list = ['cam2_S9_Directions']
+    else:
+        dir_list = os.listdir(input_data_dir)
+        dir_list.sort()
 
     # print(already_done)
     for i in tqdm(range(len(dir_list))):
-
-        #if it begins with _ ignore for now
-
-        if args.dev:
-            sample = 'cam2_S9_Directions'
-        else:
-            sample = dir_list[i]
+        sample = dir_list[i]
 
         #cam = sample[3]
-        dvs_dir = os.path.join(input_data_dir, sample, 'ch0dvs')
         #data_vicon_file = os.path.join(input_data_dir, sample, f'ch{cam}GT50Hzskeleton/data.log')
-        data_vicon_file = os.path.join(input_data_dir, sample, f'ch2GT50Hzskeleton/data.log')
+
+        dvs_data = os.path.join(input_data_dir, sample, 'ch0dvs/data.log')
+        data_vicon_file = os.path.join(input_data_dir, sample, 'ch2GT50Hzskeleton/data.log')
+        output_video_path = os.path.join(input_data_dir, sample, 'pim.mp4')
 
         print(str(i), sample)
-        print(data_vicon_file)
 
-        output_video_path = os.path.join(input_data_dir, sample)
+        print(data_vicon_file)
         print(output_video_path)
 
-        if os.path.exists(dvs_dir) and os.path.exists(data_vicon_file):
-            print('Files found.')
-            poses_sample = export_to_pim(dvs_dir, data_vicon_file, output_video_path, skip=args.skip_image, args=args)
-
-
+        #check that the file already exists, and that it is the right size
+        if os.path.exists(output_video_path):
+            print('skipping: ', output_video_path, '(already exists)')
+        elif not os.path.exists(dvs_data):
+            print('skipping: ',  dvs_data, 'does not exist') 
+        elif not os.path.exists(data_vicon_file):
+            print('skipping: ',  data_vicon_file, 'does not exist')
         else:
-            print(f"File {sample} not found.")
-            #if args.dev:
-            print(os.path.exists(dvs_dir))
-            print(os.path.exists(data_vicon_file))
-            print(' ')
-
-        if args.dev:
-            exit()
+            print('processing: ', output_video_path)
+            poses_sample = export_to_pim(dvs_data, data_vicon_file, output_video_path, skip=args.skip_image, args=args)
+        print('')
 
 
 if __name__ == '__main__':
