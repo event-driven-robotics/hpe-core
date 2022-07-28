@@ -20,7 +20,25 @@ from datasets.utils.export import ensure_location
 from bimvee.importIitYarp import importIitYarp as import_dvs
 
 
+def checkframecount(video_file_name, gt_file_name):
 
+    vid = cv2.VideoCapture(video_file_name)
+    vid_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    vid.release()
+
+    num_lines = sum(1 for line in open(gt_file_name)) - 1
+
+    if vid_frames == 0:
+        print("no video frames")
+        return False
+    if num_lines == 0:
+        print("no skeleton files")
+        return False
+    if vid_frames != num_lines:
+        print("not correctly processed", vid_frames, num_lines)
+        return False
+    return True
+    
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -111,19 +129,20 @@ def main(args):
         data_vicon_file = os.path.join(input_data_dir, sample, 'ch2GT50Hzskeleton/data.log')
         output_video_path = os.path.join(input_data_dir, sample, 'pim.mp4')
 
-        print(str(i), sample)
-
-        print(data_vicon_file)
-        print(output_video_path)
-
+        process = True
         #check that the file already exists, and that it is the right size
         if os.path.exists(output_video_path):
-            print('skipping: ', output_video_path, '(already exists)')
+            if checkframecount(output_video_path, data_vicon_file):
+                print('skipping: ', output_video_path, '(already exists)')
+                process = False
         elif not os.path.exists(dvs_data):
-            print('skipping: ',  dvs_data, 'does not exist') 
+            print('skipping: ',  dvs_data, 'does not exist')
+            process = False
         elif not os.path.exists(data_vicon_file):
             print('skipping: ',  data_vicon_file, 'does not exist')
-        else:
+            process = False
+        
+        if process:
             print('processing: ', output_video_path)
             poses_sample = export_to_pim(dvs_data, data_vicon_file, output_video_path, skip=args.skip_image, args=args)
         print('')
