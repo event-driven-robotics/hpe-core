@@ -73,14 +73,14 @@ def export_to_pim(data_dvs_file, data_vicon_file, video_output_path, skip=None, 
              pim.update(vx=int(batch['x'][ei]), vy=int(batch['y'][ei]), p=int(batch['pol'][ei]))
 
         if fi % skip == 0:
-            pim.perform_decay(batch['ts'][-1])
+            pim.perform_decay(skeleton['ts'])
             frame = pim.get_normed_rgb()       
             video_out.write(frame)
         if fi % args.fps == 0:
             cv2.imshow('', frame)
             cv2.waitKey(1)
             if args.dev:
-                print('frame: ', fi, 'timestamp: ', batch['ts'][-1])
+                print('frame: ', fi, 'timestamp: ', skeleton['ts'])
 
     video_out.release()
 
