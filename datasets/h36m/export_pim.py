@@ -58,23 +58,14 @@ def export_to_pim(data_dvs_file, data_vicon_file, video_output_path, skip=None, 
     else:
         skip = int(skip) + 1
 
-    #data_vicon = importSkeletonData(data_vicon_file)
-    print("loading ground truth skeleton")
     ground_truth = import_yarp_skeleton_data(pathlib.Path(data_vicon_file))
-    print("done!")
-
-    print("loading events")
     data_dvs = import_dvs(filePathOrName=data_dvs_file[:-9])
     data_dvs['data']['left']['dvs']['ts'] /= 12.5
-    print("done!")
-
-    print("creating iterator...")
     iterator = batchIterator(data_dvs['data']['left']['dvs'], ground_truth)
-    print("done!")
 
     pim = PIM(frame_height=args.frame_height, frame_width=args.frame_width, tau=args.tau)
 
-    video_out = cv2.VideoWriter(video_output_path, cv2.VideoWriter_fourcc(*'h264'), args.fps, (args.frame_width, args.frame_height))
+    video_out = cv2.VideoWriter(video_output_path, cv2.VideoWriter_fourcc(*'avc1'), args.fps, (args.frame_width, args.frame_height))
 
     for fi, (batch, skeleton, batch_size) in enumerate(iterator):
         
@@ -117,6 +108,7 @@ def main(args):
         output_video_path = os.path.join(input_data_dir, sample, 'pim.mp4')
 
         process = True
+        print("=====", sample, "=====")
         #check that the file already exists, and that it is the right size
         if os.path.exists(output_video_path):
             if checkframecount(output_video_path, data_vicon_file):
