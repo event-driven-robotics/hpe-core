@@ -60,7 +60,7 @@ def export_to_pim(data_dvs_file, data_vicon_file, video_output_path, skip=None, 
 
     ground_truth = import_yarp_skeleton_data(pathlib.Path(data_vicon_file))
     data_dvs = import_dvs(filePathOrName=data_dvs_file[:-9])
-    data_dvs['data']['left']['dvs']['ts'] /= 12.5
+    data_dvs['data']['left']['dvs']['ts'] /= args.ts_scaler
     iterator = batchIterator(data_dvs['data']['left']['dvs'], ground_truth)
 
     pim = PIM(frame_height=args.frame_height, frame_width=args.frame_width, tau=args.tau)
@@ -96,7 +96,6 @@ def main(args):
         dir_list = os.listdir(input_data_dir)
         dir_list.sort()
 
-    # print(already_done)
     for i in tqdm(range(len(dir_list))):
         sample = dir_list[i]
 
@@ -137,6 +136,7 @@ if __name__ == '__main__':
     parser.add_argument('-skip_image', help='', default=None)
     parser.add_argument('-data_home', help='Path to dataset folder', default='/home/ggoyal/data/h36m/', type=str)
     parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=False, help="Run in dev mode.")
+    parser.add_argument("-ts_scaler", help='', default=1.0, type=float)
 
     args = parser.parse_args()
     try:
@@ -144,14 +144,4 @@ if __name__ == '__main__':
     except argparse.ArgumentError:
         print('Catching an argumentError')
     main(args)
-    # eros_kernel = 6
-    # frame_width = 640
-    # frame_height = 480
-    # gauss_kernel = 7
-    # data_home = '/home/ggoyal/data/h36m/'
-    # from_scratch = True
-    # write_annotation = True
-    # write_images = True
-    # dev = True
-    # skip_image = 4
 

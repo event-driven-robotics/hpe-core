@@ -122,7 +122,7 @@ class YarpHPEIterator:
         self.prev_event_ts = 0
 
         self.stop_flag = False
-        self._event_indices = (0.0 < self.events_ts) & (4.0 > self.events_ts)
+
 
     def __iter__(self):
         return self
@@ -139,9 +139,7 @@ class YarpHPEIterator:
         self.current_skl_ts = self.skeletons_ts[self.ind]
 
         # select events between the previous and the current poses
-        #event_indices = (self.prev_skl_ts < self.events_ts) & (self.events_ts <= self.current_skl_ts)
-        event_indices = self._event_indices
-        
+        event_indices = (self.prev_skl_ts < self.events_ts) & (self.events_ts <= self.current_skl_ts)
         window_events = np.concatenate((np.reshape(self.events_ts[event_indices], (-1, 1)),
                                         np.reshape(self.events_x[event_indices], (-1, 1)),
                                         np.reshape(self.events_y[event_indices], (-1, 1)),
