@@ -144,7 +144,7 @@ if __name__ == '__main__':
     parser.add_argument('-fps', help='', default=50, type=int)
     parser.add_argument('-skip_image', help='', default=None)
     parser.add_argument('-data_home', help='Path to dataset folder', default='/home/ggoyal/data/h36m/', type=str)
-    parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=True, help="Run in dev mode.")
+    parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=False, help="Run in dev mode.")
 
     args = parser.parse_args()
     try:
