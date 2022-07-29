@@ -9,14 +9,15 @@ LICENSE GOES HERE
 from tqdm import tqdm
 import argparse
 import cv2
-import json
+import pathlib
 import os
 import re
-import math
 import numpy as np
+
+
+from datasets.utils.parsing import import_yarp_skeleton_data, YarpHPEIterator, batchIterator
 from datasets.h36m.utils.parsing import H36mIterator, hpecore_to_movenet
 from datasets.utils.events_representation import PIM
-from datasets.utils.export import ensure_location
 from bimvee.importIitYarp import importIitYarp as import_dvs
 
 
@@ -26,7 +27,7 @@ def checkframecount(video_file_name, gt_file_name):
     vid_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     vid.release()
 
-    num_lines = sum(1 for line in open(gt_file_name)) - 1
+    num_lines = sum(1 for line in open(gt_file_name))
 
     if vid_frames == 0:
         print("no video frames")
@@ -51,61 +52,47 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
-def importSkeletonData(filename):
-    with open(filename) as f:
-        content = f.readlines()
-
-    # TODO: Read and safe skeletons in the movenet skeleton points.
-    pass
-    pattern = re.compile('\d* (\d*.\d*) SKLT \((.*)\)')
-
-    data_dict = {}
-    timestamps = []
-    keys = [str(i) for i in range(0, 13)]
-    data_dict = {k: [] for k in keys}
-    for line in content:
-        tss, points = pattern.findall(line)[0]
-        points = np.array(list(filter(None, points.split(' ')))).astype(int).reshape(-1, 2)
-        # points = np.array(points.split(' ')).astype(int).reshape(-1, 2)
-        points_movenet = hpecore_to_movenet(points)
-        for d, label in zip(points_movenet, keys):
-            data_dict[label].append(d)
-        timestamps.append(tss)
-    data_dict['ts'] = np.array(timestamps).astype(float)
-    for d in data_dict:
-        data_dict[d] = np.array(data_dict[d])
-    return data_dict
-
-
 def export_to_pim(data_dvs_file, data_vicon_file, video_output_path, skip=None, args=None):
     if skip == None:
         skip = 1
     else:
         skip = int(skip) + 1
 
-    data_vicon = importSkeletonData(data_vicon_file)
-    data_dvs = import_dvs(filePathOrName=data_dvs_file[:-9])
+    #data_vicon = importSkeletonData(data_vicon_file)
+    print("loading ground truth skeleton")
+    ground_truth = import_yarp_skeleton_data(pathlib.Path(data_vicon_file))
+    print("done!")
 
-    iterator = H36mIterator(data_dvs['data']['left']['dvs'], data_vicon,time_factor=12.5)
+    print("loading events")
+    data_dvs = import_dvs(filePathOrName=data_dvs_file[:-9])
+    data_dvs['data']['left']['dvs']['ts'] /= 12.5
+    print("done!")
+
+    print("creating iterator...")
+    iterator = batchIterator(data_dvs['data']['left']['dvs'], ground_truth)
+    print("done!")
+
     pim = PIM(frame_height=args.frame_height, frame_width=args.frame_width, tau=args.tau)
 
     video_out = cv2.VideoWriter(video_output_path, cv2.VideoWriter_fourcc(*'h264'), args.fps, (args.frame_width, args.frame_height))
 
-    for fi, (events, pose, ts) in enumerate(iterator):
-        if args.dev:
-            print('frame: ', fi, 'timestamp: ', ts)
-        for ei in range(len(events)):
-            pim.update(vx=int(events[ei, 0]), vy=int(events[ei, 1]), p=events[ei, 2])
+    for fi, (batch, skeleton, batch_size) in enumerate(iterator):
+        
+        for ei in range(batch_size):
+             pim.update(vx=int(batch['x'][ei]), vy=int(batch['y'][ei]), p=int(batch['pol'][ei]))
 
         if fi % skip == 0:
-            pim.perform_decay(ts)
+            pim.perform_decay(batch['ts'][-1])
             frame = pim.get_normed_rgb()       
             video_out.write(frame)
+        if fi % args.fps == 0:
             cv2.imshow('', frame)
             cv2.waitKey(1)
+            if args.dev:
+                print('frame: ', fi, 'timestamp: ', batch['ts'][-1])
 
     video_out.release()
-            # kps_old = sample_anno['keypoints']
+
     return
 
 def main(args):
