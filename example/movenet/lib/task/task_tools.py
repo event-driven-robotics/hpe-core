@@ -152,15 +152,21 @@ def movenetDecode(data, kps_mask=None, mode='output', num_joints=17,
 
     return res
 
-def restore_sizes(img,pose,size_out):
-    size_in = img.shape
+def restore_sizes(img_tensor,pose,size_out):
+
+    # resize image
+    try:
+        img = np.transpose(img_tensor.cpu().numpy(), axes=[1, 2, 0])
+    except AttributeError:
+        img = img_tensor
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     img_out = cv2.resize(img,(size_out[1],size_out[0]))
     pose_out = np.copy(pose.reshape((-1,2)))
     for i in range(len(pose_out)):
         pose_out[i,0] = pose_out[i,0] * size_out[1]
         pose_out[i,1] = pose_out[i,1] * size_out[0]
-    return img_out, np.round(pose_out)
 
+    return img_out, pose_out
 
 def image_show(img,pre=None,center=None):
 
@@ -175,13 +181,13 @@ def image_show(img,pre=None,center=None):
         pre[pre[:]<0]=0
 
         if len(pre.squeeze().shape) == 1:
-            for i in range(len(pre[0]) // 2):
-                x = int(pre[0][i * 2] * w)
-                y = int(pre[0][i * 2 + 1] * h)
-                cv2.circle(img, (x, y), 3, (0, 0, 255), 2)
+            for i in range(len(pre) // 2):
+                x = int(pre[i * 2])
+                y = int(pre[i * 2 + 1])
+                cv2.circle(img, (x, y), 2, (0, 0, 200), 3)
         else:
             for i in range(len(pre)):
-                cv2.circle(img, (int(pre[i,0]), int(pre[i,1])), 2, (0, 0, 100), 1)
+                cv2.circle(img, (int(pre[i,0]), int(pre[i,1])), 2, (0, 0, 200), 3)
     if center is not None:
         cv2.circle(img, (int(center[0]*w), int(center[1]*h)), 3, (100, 0, 0), 2)
 

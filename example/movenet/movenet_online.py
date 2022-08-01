@@ -22,16 +22,16 @@ class MovenetModule(yarp.RFModule):
     def __init__(self, cfg):
         yarp.RFModule.__init__(self)
         self.input_port = yarp.BufferedPortImageMono()
-        self.output_port = yarp.BufferedPortImageMono()
+        self.output_port = yarp.Port()
         self.stamp = yarp.Stamp()
         # self.counter = 0
         self.image_w = 640  # Size of image expected from the framer.
         self.image_h = 480  #
         # self.np_input = None
         self.yarp_image = yarp.ImageMono()
-        self.yarp_image_out = yarp.ImageRgb()
+        self.yarp_sklt_out = yarp.Bottle()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.checkpoint_path = "models/h36m_finetuned.pth"
+        self.checkpoint_path = "/home/ggoyal/data/models/h36m_cropped_cam2-4_iter2_from-pretrained_/e12_valacc0.77841.pth"
 
         self.resultsPath = '/outputs'
         self.image_w_model = 192  # Size of the image expected by the model
@@ -43,7 +43,8 @@ class MovenetModule(yarp.RFModule):
         self.last_timestamp = 0.0
         self.cfg = cfg
         if dev:
-            self.tester_path = '/media/Data/data/eros_samples_live_220408/'  # path to a folder with images.
+            self.tester_path = '/home/ggoyal/data/eros_samples_live_220408'  # path to a folder with images.
+        print("Press space at the image window to end the program.")
 
     def configure(self, rf):
 
@@ -64,7 +65,7 @@ class MovenetModule(yarp.RFModule):
         if not self.input_port.open(self.getName() + "/img:i"):
             print("Could not open input port")
             return False
-        if not self.output_port.open(self.getName() + "/img:o"):
+        if not self.output_port.open(self.getName() + "/sklt:o"):
             print("Could not open output port")
             return False
 
@@ -74,7 +75,7 @@ class MovenetModule(yarp.RFModule):
                              width_mult=self.cfg["width_mult"],
                              mode='train')
         self.run_task = Task(cfg, self.model)
-        self.run_task.modelLoad("models/h36m_finetuned.pth")
+        self.run_task.modelLoad(self.checkpoint_path)
 
         if dev:
             self.files = glob.glob(self.tester_path + "/*.jpg")
@@ -98,13 +99,12 @@ class MovenetModule(yarp.RFModule):
 
     def updateModule(self):
         # synchronous update called every get period seconds.
-        print("Press space at the image window to end the program.")
+
 
         if dev:
             np_input = cv2.imread(self.files[self.file_counter])
-            print(np_input.shape)
             np_input = cv2.cvtColor(np_input, cv2.COLOR_BGR2GRAY)
-            print(np_input.shape)
+            stamp_in = 17.34450
         else:
 
             # Preparing input and output image buffers
@@ -119,7 +119,7 @@ class MovenetModule(yarp.RFModule):
             # Read the image
             read_image = self.input_port.read()
             self.input_port.getEnvelope(self.stamp)
-            stamp = self.stamp.getTime()
+            stamp_in = self.stamp.getTime()
 
             # End of input file
             # if self.last_timestamp == stamp:
@@ -130,42 +130,66 @@ class MovenetModule(yarp.RFModule):
 
         input_image = np.copy(np_input)
 
-        input_image_resized = np.zeros([1, 3, self.image_h_model, self.image_w_model])
-        # print(input_image_resized.shape)
+        # input_image_resized = np.zeros([1, 3, self.image_h_model, self.image_w_model])
+        # # print(input_image_resized.shape)
+        #
+        # input_image = cv2.resize(input_image, (self.image_h_model, self.image_w_model))
+        # input_image_resized[0, 0, :, :] = input_image[:, :]
+        # input_image_resized[0, 1, :, :] = input_image[:, :]
+        # input_image_resized[0, 2, :, :] = input_image[:, :]
 
-        input_image = cv2.resize(input_image, (self.image_h_model, self.image_w_model))
-        input_image_resized[0, 0, :, :] = input_image[:, :]
-        input_image_resized[0, 1, :, :] = input_image[:, :]
-        input_image_resized[0, 2, :, :] = input_image[:, :]
-
-        input_image_resized = input_image_resized.astype(np.float32)
+        # input_image_resized = input_image_resized.astype(np.float32)
 
         # Predict the pose
-
-        pre = self.run_task.predict_online(input_image_resized)
+        # pre = self.run_task.predict_online(input_image_resized)
+        pre = self.run_task.predict_online(input_image)
 
         # Visualize the result
-        if self.cfg['show_center']:
-            img = image_show(input_image, pre=pre['joints'], center=pre['center'])
-            sup_img = superimpose(img, pre['center_heatmap'])
-            cv2.imshow('', cv2.resize(sup_img,[sup_img.shape[0]*4,sup_img.shape[1]*4]))
-            k = cv2.waitKey(100)
-        else:
-            img = image_show(input_image, pre=pre['joints'])
+        # if self.cfg['show_center']:
+        #     img = image_show(input_image, pre=pre['joints'], center=pre['center'])
+        #     sup_img = superimpose(img, pre['center_heatmap'])
+        #     cv2.imshow('', cv2.resize(sup_img,[sup_img.shape[0],sup_img.shape[1]]))
+        #     k = cv2.waitKey(100)
+        # else:
+        #     img = image_show(input_image, pre=pre['joints'])
+        #     cv2.imshow('', img)
+        #     if dev:
+        #         k = cv2.waitKey(100)
+        #     else:
+        #         k = cv2.waitKey(1)
 
 
         if dev:
             self.file_counter += 1
             if self.file_counter >= 19:
-                return False
+                # return False
+                self.file_counter = 0
         else:
-            self.last_timestamp = stamp
-            print(stamp)
+            self.last_timestamp = stamp_in
+            print(stamp_in)
             if self.cfg['write_output']:
-                write_output('file.csv', pre['joints'], stamp)
+                write_output('file.csv', pre['joints'], stamp_in)
 
-        if k == 32:
-            return False
+        # Export output skeleton
+
+        stamp = yarp.Stamp(0,stamp_in)
+
+        self.output_port.setEnvelope(stamp)
+        self.yarp_sklt_out.clear()
+        out_sklt =  pre['joints']
+        # output_bottle = 'SKLT' + str(out_sklt)
+        # self.yarp_sklt_out.setExternal(output_bottle.data, output_bottle.shape[1], output_bottle.shape[0])
+        self.yarp_sklt_out.addString('SKLT')
+        # self.yarp_sklt_out.addList()
+        temp_list = self.yarp_sklt_out.addList()
+        for i in out_sklt:
+            temp_list.addInt(int(i))
+
+        self.output_port.write(self.yarp_sklt_out)
+
+
+        # if k == 32:
+        #     return False
 
         return True
 
