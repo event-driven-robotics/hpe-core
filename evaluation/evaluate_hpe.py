@@ -159,14 +159,15 @@ def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
         elif isinstance(metric, metrics_utils.RMSE):
             #all_values.append(joints_metric_values[::2])  # add metric values for x coordinates
             #all_values.append(joints_metric_values[1::2])  # add metric values for y coordinates
-            all_values.append(np.sqrt(np.square(joints_metric_values[::2]) + np.square(joints_metric_values[1::2])))
+            # all_values.append(np.sqrt(np.square(joints_metric_values[::2]) + np.square(joints_metric_values[1::2])))
+            all_values.append((joints_metric_values[::2] + joints_metric_values[1::2])/2)
 
             tick_labels.extend([f'{algo_name}'])
             ax.set_xlabel('Joints RMSE')
 
     # plot values
     y_ticks = np.arange(len(tick_labels))
-    ax.boxplot(all_values, vert=False)
+    ax.boxplot(all_values, vert=False, showfliers=False)
     ax.set_yticks(y_ticks)
     ax.set_yticklabels(tick_labels)
     ax.set_title(descr)
@@ -181,7 +182,8 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
     assert 1 <= joints_gt.shape[2] <= 3, 'coordinates must be either 2D or 3D'
 
     # define a color for each algorithm and each coordinate
-    algo_colors = [[np.random.rand(3,) for _ in range(joints_gt.shape[2])] for _ in algo_names]
+    # algo_colors = [[np.random.rand(3,) for _ in range(joints_gt.shape[2])] for _ in algo_names]
+    algo_colors = [['tab:blue','tab:orange'], ['blue', 'red'], ['violet', 'chocolate'], ['purple', 'sienna'], ['lime', 'gold']]
 
     # iterate on each joint
     for joint_key, joint_ind in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
@@ -199,16 +201,19 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
 
         for coord_ind in range(joints_gt.shape[2]):
 
+            coord_gt = joints_gt[:, joint_ind, coord_ind]
             if coord_ind == 0:
                 lbl_coord = 'x'
+                # plot ground-truth
+                ax.plot(timestamps, coord_gt, color='tab:blue', alpha=0.2, label=f'GT {lbl_coord}')
             if coord_ind == 1:
                 lbl_coord = 'y'
+                ax.plot(timestamps, coord_gt, color='tab:orange', alpha=0.2, label=f'GT {lbl_coord}')
             if coord_ind == 2:
                 lbl_coord = 'z'
+                ax.plot(timestamps, coord_gt, color='tab:green', alpha=0.2, label=f'GT {lbl_coord}')
 
-            # plot ground-truth
-            coord_gt = joints_gt[:, joint_ind, coord_ind]
-            ax.plot(timestamps, coord_gt, color='tab:green', alpha=0.3, label=f'GT {lbl_coord}')
+            
 
             y_lim_min = min(y_lim_min, min(coord_gt))
             y_lim_max = max(y_lim_max, max(coord_gt))
@@ -218,6 +223,7 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
                 # plot predictions
                 coord_pred = predictions_algo[:, joint_ind, coord_ind]
                 ax.plot(timestamps, coord_pred, color=algo_colors[pi][coord_ind], marker=".", label=f'{algo_names[pi]} {lbl_coord}', linestyle='None', alpha=1.0)
+                # ax.plot(timestamps, coord_pred, marker=".", linestyle='None', alpha=1.0)
 
                 y_lim_min = min(y_lim_min, min(coord_pred))
                 y_lim_max = max(y_lim_max, max(coord_pred))
@@ -232,27 +238,42 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
             fig.suptitle(f'dataset {ds_name}, joint \'{joint_key}\' coordinates', fontsize=28, y=0.97)
             plt.tick_params(axis='both', which='major', labelsize=18)
             ax.legend(fontsize=16, loc='upper right')
+            
+            # plt.show()
 
             # save plot
             fig_path = output_folder_path / f'{ds_name}_{joint_key}_predictions.png'
-            plt.savefig(str(fig_path.resolve()))
+            # plt.savefig(str(fig_path.resolve()))
 
 
 def tabulate_metric_over_algorithms(algo_metrics: dict, header: list, descr: Optional[str], to_latex: bool = False, file_path: Optional[Path] = None, file_stem: str = None) -> None:
 
     # create results table
     table = list()
+    table2 = list()
+    header2 = list()
+    header2.append("Joint")
+    table2.append(header)
     for (algo_name, metric) in algo_metrics.items():
         values = metric.get_value()
         joints_values = values[0]
         avg_value = values[1]
         table_row = joints_values.tolist()
+        table_row2 = joints_values.tolist()
         if isinstance(avg_value, np.ndarray):
             table_row.extend(avg_value.tolist())
+            table_row2.extend(avg_value.tolist())
         else:
             table_row.append(avg_value)
+            table_row2.append(avg_value)
+        table2.append(table_row2)
         table_row.insert(0, algo_name)
         table.append(table_row)
+        header2.append(algo_name)
+     
+    # transpose list of lists
+    table2 = list(map(list, zip(*table2)))
+        
 
     # set table format
     fmt = 'simple'
@@ -268,24 +289,27 @@ def tabulate_metric_over_algorithms(algo_metrics: dict, header: list, descr: Opt
 
             # create latex string
             if to_latex:
-                file_content = r'\documentclass[preview]{standalone}'\
+                file_content2 = r'\documentclass[preview]{standalone}'\
                                r'\usepackage[utf8]{inputenc}'\
                                r'\usepackage{diagbox}'\
                                r'\begin{document}'\
                                r'\begin{table}'\
                                r'\centering'
-                file_content += tabulate(table, headers=header, tablefmt=fmt)
+                # file_content += tabulate(table, headers=header, tablefmt=fmt)
+                file_content2 = tabulate(table2, headers=header2, tablefmt=fmt)
                 if descr:
-                    file_content += r'\caption{' \
+                    file_content2 += r'\caption{' \
                                     f'{descr}' \
                                     r'}'
-                file_content += r'\end{table}' \
+                file_content2 += r'\end{table}' \
                                 r'\end{document}'
 
             else:
                 file_content = tabulate(table, headers=header, tablefmt=fmt)
+                file_content2 = tabulate(table2, headers=header2, tablefmt=fmt)
+                print(file_content2)
 
-            f.write(file_content)
+            f.write(file_content2)
 
     else:
         if descr:
@@ -294,6 +318,9 @@ def tabulate_metric_over_algorithms(algo_metrics: dict, header: list, descr: Opt
 
 
 def main(args):
+    
+    plt.close('all')
+    # plt.ioff()
 
     output_folder_path = Path(args.output_folder)
     output_folder_path = output_folder_path.resolve()
@@ -304,7 +331,7 @@ def main(args):
     results = dict()
     results['datasets'] = dict()
     results['global'] = dict()
-
+    print("====================================\n")
     # import GT from yarp
     datasets_path = Path(args.datasets_path)
     yarp_file_paths = list(datasets_path.glob('**/data.log'))
@@ -322,7 +349,8 @@ def main(args):
         dataset_name = yarp_path.parent.parent.name
         results_key = f'{dataset_name}_{channel_folder}'
 
-        predictions_path = Path(args.predictions_path) / dataset_name / channel_folder
+        # predictions_path = Path(args.predictions_path) / dataset_name / channel_folder
+        predictions_path = Path(args.predictions_path) / dataset_name
         predictions_file_path = list(predictions_path.glob('**/*.csv'))
         predictions_file_path.sort()
         if len(predictions_file_path) == 0:
@@ -332,9 +360,9 @@ def main(args):
         data = ds_parsing.import_yarp_skeleton_data(yarp_path)
 
         ts_gt = np.concatenate(([.0], data['ts'], [data['ts'][-1] + 1]))
-
+        
         # TODO: use numpy.interp
-        # TODO: make it general for 2d/3d coordinates
+        # TODO: make it GeneratorExit()eral for 2d/3d coordinates
 
         # interpolate ground truth joints so that they can be compared with the high frequency predictions
         for k_map in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
@@ -366,12 +394,40 @@ def main(args):
             predictions = np.loadtxt(str(pred_path.resolve()), dtype=float)
 
             ts_pred = predictions[:, 0]
-            skeletons_gt = np.zeros((len(ts_pred), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), 2))
+            
+            # GT at 1 KHz
+            fHz = 1000
+            tGT = np.arange(ts_gt[0], ts_gt[-1], 1/fHz)
+            # x_int = np.interp(tGT, ts_gt, x_interpolation)
+            # y_int = np.interp(tGT, ts_gt, y_interpolation)
+            skeletons_gt = np.zeros((len(tGT), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), 2))
             for k_map in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
-                skeletons_gt[:, k_map[1], 0] = data[k_map[0]]['x'](ts_pred)
-                skeletons_gt[:, k_map[1], 1] = data[k_map[0]]['y'](ts_pred)
+               skeletons_gt[:, k_map[1], 0] = data[k_map[0]]['x'](tGT)
+               skeletons_gt[:, k_map[1], 1] = data[k_map[0]]['y'](tGT)
+            
+            # skeletons_gt = np.zeros((len(ts_pred), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), 2))
+            # # skeletons_gt = np.zeros((len(tGT), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), 2))
+            # for k_map in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
+            #     skeletons_gt[:, k_map[1], 0] = data[k_map[0]]['x'](ts_pred)
+            #     skeletons_gt[:, k_map[1], 1] = data[k_map[0]]['y'](ts_pred)
+            
+            # x_int = np.interp(tGT, ts_gt, x_interpolation)
+            # y_int = np.interp(tGT, ts_gt, y_interpolation)
+            
+            pred1K = np.zeros([len(tGT),28])
+            pred1K[:,0] = tGT
+            for i in range(1,28):
+                interp = np.interp(tGT, ts_pred, predictions[:,i])
+                pred1K[:,i] = interp
 
-            skeletons_pred = predictions[:, 2:].reshape(len(predictions), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), -1)
+            # skeletons_pred = predictions[:, 2:].reshape(len(predictions), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), -1)
+            skeletons_pred = pred1K[:, 2:].reshape(len(pred1K), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), -1)
+
+            # for k_map in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
+            #     x_int = np.interp(tGT, ts_pred, skeletons_pred[:,k_map[1], 0])
+            #     y_int = np.interp(tGT, ts_pred, skeletons_pred[:,k_map[1], 1])
+            #     skeletons_pred[]
+                
 
             algorithm_names.append(algo_name)
             skeletons_predictions.append(skeletons_pred)
@@ -428,7 +484,9 @@ def main(args):
                 rmse = results['global']['rmse'][algo_name]
                 rmse.update_samples(skeletons_pred, skeletons_gt)
 
-        #plot_predictions(output_ds_folder_path, results_key, ts_pred, skeletons_gt, algorithm_names, skeletons_predictions)
+        # plot_predictions(output_ds_folder_path, results_key, ts_pred, skeletons_gt, algorithm_names, skeletons_predictions)
+        plot_predictions(output_ds_folder_path, results_key, tGT, skeletons_gt, algorithm_names, skeletons_predictions)
+        plt.show()
 
     # iterate over datasets metrics and print results
     for (ds_name, metrics) in results['datasets'].items():
