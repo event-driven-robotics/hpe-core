@@ -11,45 +11,11 @@ import argparse
 import cv2
 import pathlib
 import os
-import re
-import numpy as np
 
-
-from datasets.utils.parsing import import_yarp_skeleton_data, YarpHPEIterator, batchIterator
-from datasets.h36m.utils.parsing import H36mIterator, hpecore_to_movenet
+from datasets.utils.parsing import import_yarp_skeleton_data, batchIterator
 from datasets.utils.events_representation import PIM
+from datasets.utils.export import str2bool, checkframecount
 from bimvee.importIitYarp import importIitYarp as import_dvs
-
-
-def checkframecount(video_file_name, gt_file_name):
-
-    vid = cv2.VideoCapture(video_file_name)
-    vid_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
-    vid.release()
-
-    num_lines = sum(1 for line in open(gt_file_name))
-
-    if vid_frames == 0:
-        print("no video frames")
-        return False
-    if num_lines == 0:
-        print("no skeleton files")
-        return False
-    if vid_frames != num_lines:
-        print("not correctly processed", vid_frames, num_lines)
-        return False
-    return True
-    
-
-def str2bool(v):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
 def export_to_pim(data_dvs_file, data_vicon_file, video_output_path, skip=None, args=None):
@@ -122,7 +88,7 @@ def main(args):
         
         if process:
             print('processing: ', output_video_path)
-            poses_sample = export_to_pim(dvs_data, data_vicon_file, output_video_path, skip=args.skip_image, args=args)
+            export_to_pim(dvs_data, data_vicon_file, output_video_path, skip=args.skip_image, args=args)
         print('')
 
 
