@@ -132,15 +132,14 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path_images, skip=None
             # print(sample_anno)
             frame = cv2.GaussianBlur(frame, (args.gauss_kernel, args.gauss_kernel), 0)
             if args.dev:
-                # keypoints = np.reshape(sample_anno['keypoints'], [-1, 3])
-                # h, w = frame.shape
-                # for i in range(len(keypoints)):
-                #     frame = cv2.circle(frame, [int(keypoints[i, 0] * w), int(keypoints[i, 1] * h)], 1, (255, 0, 0), 2)
-                # frame = cv2.circle(frame, [int(sample_anno['center'][0] * w), int(sample_anno['center'][1] * h)], 1,
-                #                    (255, 0, 0), 4)
+                keypoints = np.reshape(sample_anno['keypoints'], [-1, 3])
+                h, w = frame.shape
+                for i in range(len(keypoints)):
+                    frame = cv2.circle(frame, [int(keypoints[i, 0] * w), int(keypoints[i, 1] * h)], 1, (255, 0, 0), 2)
+                frame = cv2.circle(frame, [int(sample_anno['center'][0] * w), int(sample_anno['center'][1] * h)], 1,
+                                   (255, 0, 0), 4)
                 cv2.imshow('', frame)
                 cv2.waitKey(1)
-                cv2.imwrite(os.path.join(output_path_images, sample_anno['img_name']), frame)
             else:
                 cv2.imwrite(os.path.join(output_path_images, sample_anno['img_name']), frame)
             poses_movenet.append(sample_anno)
@@ -161,8 +160,8 @@ def setup_testing_list(path):
 
 def main(args):
     if args.dev:
-        output_path_images = args.data_home + "/../h36m_cropped/tester/h36m_EROS/"
-        output_path_anno = args.data_home + "/../h36m_cropped/tester/h36m_anno/"
+        output_path_images = args.data_home + "/tester/h36m_EROS/"
+        output_path_anno = args.data_home + "/tester/h36m_anno/"
     else:
         output_path_images = args.data_home + "/training/h36m_EROS/"
         output_path_anno = args.data_home + "/training/h36m_anno/"
@@ -182,7 +181,7 @@ def main(args):
     # print(already_done)
     for i in tqdm(range(len(dir_list))):
         if args.dev:
-            sample = 'cam2_S11_Directions'
+            sample = 'cam2_S5_Directions_1'
         else:
             sample = dir_list[i]
         cam = sample[3]
@@ -223,7 +222,7 @@ def main(args):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-eros_kernel', help='', default=8, type=int)
+    parser.add_argument('-eros_kernel', help='', default=6, type=int)
     parser.add_argument('-frame_width', help='', default=640, type=int)
     parser.add_argument('-frame_height', help='', default=480, type=int)
     parser.add_argument('-gauss_kernel', help='', default=7, type=int)
@@ -234,7 +233,7 @@ if __name__ == '__main__':
     parser.add_argument("-write_annotation", type=str2bool, nargs='?', const=True, default=True,
                         help="Write annotation file.")
     parser.add_argument("-write_images", type=str2bool, nargs='?', const=True, default=True, help="Save images.")
-    parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=True, help="Run in dev mode.")
+    parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=False, help="Run in dev mode.")
 
     args = parser.parse_args()
     try:
