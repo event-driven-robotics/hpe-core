@@ -52,6 +52,54 @@ def import_yarp_skeleton_data(yarp_file_path: pathlib.Path) -> Dict:
         data_dict[d] = np.array(data_dict[d])
     return data_dict
 
+class batchIterator:
+    def __init__(self, events: Dict, gt_skel: Dict):
+
+        self._index = 0
+        self._events = events
+        self._gt_skel = gt_skel
+        self._samples_count = len(gt_skel['ts'])
+        self._events_count = len(events['ts'])
+        self._skel_sample = [[0,0]] * len(gt_skel)
+
+        self._batch_indices = [0] * (self._samples_count+1)
+
+        gt_i = 0
+        ev_i = 0
+        for ev_i in range(self._events_count):
+            if self._events['ts'][ev_i] > gt_skel['ts'][gt_i]:
+                self._batch_indices[gt_i+1] = ev_i
+                gt_i += 1
+                if(gt_i >= self._samples_count):
+                    break
+
+    def __iter__(self):
+        return self
+
+    def __len__(self):
+        return self._samples_count
+
+    def __next__(self):
+
+        if self._index >= self._samples_count: 
+            raise StopIteration
+
+        i1 = self._batch_indices[self._index]
+        i2 = self._batch_indices[self._index+1]
+
+        retv = dict()
+        retv['ts'] = self._events['ts'][i1:i2]
+        retv['x'] = self._events['x'][i1:i2]
+        retv['y'] = self._events['y'][i1:i2]
+        retv['pol'] = self._events['pol'][i1:i2]
+
+        rets = dict()
+        for jname in self._gt_skel.keys():
+            rets[jname] = self._gt_skel[jname][self._index]
+
+        self._index += 1
+        return retv, rets, len(retv['ts'])
+
 
 class YarpHPEIterator:
     def __init__(self, data_events: Dict, data_skl: Dict):
@@ -74,6 +122,7 @@ class YarpHPEIterator:
         self.prev_event_ts = 0
 
         self.stop_flag = False
+
 
     def __iter__(self):
         return self

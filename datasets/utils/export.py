@@ -1,9 +1,13 @@
 
 import numpy
-
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 import os
+import argparse
+import cv2
+import math
+from datasets.utils.constants import HPECoreSkeleton
+from datasets.h36m.utils.parsing import hpecore_to_movenet
 
 
 def skeleton_to_dict(skeleton, image_name, image_width, image_height, head_size, torso_size):
@@ -96,3 +100,75 @@ def crop_pose(sklt, crop):
 def ensure_location(path):
     if not os.path.isdir(path):
         os.makedirs(path)
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+def checkframecount(video_file_name, gt_file_name):
+
+    vid = cv2.VideoCapture(video_file_name)
+    vid_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+    vid.release()
+
+    num_lines = sum(1 for line in open(gt_file_name))
+
+    if vid_frames == 0:
+        print("no video frames")
+        return False
+    if num_lines == 0:
+        print("no skeleton files")
+        return False
+    if vid_frames != num_lines:
+        print("not correctly processed", vid_frames, num_lines)
+        return False
+    return True
+
+
+def get_movenet_keypoints(pose: Dict, h_frame=1, w_frame=1, add_visibility=True):
+
+    keypoints = []
+    pose_hpecore = numpy.zeros([len(HPECoreSkeleton.KEYPOINTS_MAP),2], float)
+    for key, value in HPECoreSkeleton.KEYPOINTS_MAP.items():
+        pose_hpecore[value,:] = pose[key][:]
+    pose_movenet = hpecore_to_movenet(pose_hpecore)
+    for k in pose_movenet:
+        if add_visibility:
+            k_scaled = [k[0] / w_frame, k[1] / h_frame, 2]
+        else:
+            k_scaled = [k[0] / w_frame, k[1] / h_frame]
+        keypoints.extend(k_scaled)
+    return keypoints
+
+
+def get_torso_length(pose, h_frame=1, w_frame=1):
+    k = {}
+    # k['left_shoulder']=pose[1,:]
+    # k['right_shoulder']=pose[2,:]
+    # k['left_hip']=pose[7,:]
+    # k['right_hip']=pose[8,:]
+
+    k['shoulder_mean'] = numpy.mean(pose[1:3, :], axis=0)
+    k['hip_mean'] = numpy.mean(pose[7:9, :], axis=0)
+    k['shoulder_mean'] = k['shoulder_mean'][0] / w_frame, k['shoulder_mean'][1] / h_frame
+    k['hip_mean'] = k['hip_mean'][0] / w_frame, k['hip_mean'][1] / h_frame
+    k['torso_dist'] = math.dist(k['shoulder_mean'], k['hip_mean'])
+
+    return k['torso_dist']
+
+
+def get_center(pose, h_frame=1, w_frame=1):
+    # x_cen = np.mean([min(pose[:, 0]), max(pose[:, 0])]) / w_frame
+    # y_cen = np.mean([min(pose[:, 1]), max(pose[:, 1])]) / h_frame
+    pose_hpecore = numpy.zeros([len(HPECoreSkeleton.KEYPOINTS_MAP),2], float)
+    for key, value in HPECoreSkeleton.KEYPOINTS_MAP.items():
+        pose_hpecore[value,:] = pose[key][:]
+    x_cen = numpy.mean(pose_hpecore[:, 0]) / w_frame
+    y_cen = numpy.mean(pose_hpecore[:, 1]) / h_frame
+    return [x_cen, y_cen]
