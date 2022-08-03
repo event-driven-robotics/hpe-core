@@ -138,8 +138,8 @@ def main(args):
         else:
             sample = dir_list[i]
         cam = sample[3]
-        dvs_dir = os.path.join(input_data_dir, sample, 'ch0dvs')
-        data_vicon_file = os.path.join(input_data_dir, sample, f'ch{cam}GT50Hzskeleton/data.log')
+        dvs_dir = os.path.join(input_data_dir, sample, 'yarp', f'ch{cam}', f'ch{cam}dvs')
+        data_vicon_file = os.path.join(input_data_dir, sample, 'yarp', f'ch{cam}', f'ch{cam}GTskeleton/data.log')
         process = True
         print(str(i), "=====", sample, "=====")
 
@@ -177,7 +177,7 @@ if __name__ == '__main__':
     parser.add_argument("-write_video", type=str2bool, nargs='?', const=True, default=False, help="Save video.")
     parser.add_argument('-fps', help='', default=50, type=int)
     parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=False, help="Run in dev mode.")
-    parser.add_argument("-ts_scaler", help='', default=12.50, type=float)
+    parser.add_argument("-ts_scaler", help='', default=1, type=float)
 
     args = parser.parse_args()
     try:
@@ -185,5 +185,7 @@ if __name__ == '__main__':
     except argparse.ArgumentError:
         print('Catching an argumentError')
     main(args)
+
+
 
 
