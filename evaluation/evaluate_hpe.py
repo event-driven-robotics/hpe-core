@@ -281,19 +281,21 @@ def tabulate_metric_over_algorithms(algo_metrics: dict, headers: list, descr: Op
 
             # create latex string
             if to_latex:
-                file_content = r'\documentclass[preview]{standalone}'\
-                               r'\usepackage[utf8]{inputenc}'\
-                               r'\usepackage{diagbox}'\
-                               r'\begin{document}'\
-                               r'\begin{table}'\
-                               r'\centering'
-                file_content = tabulate(table, headers=header, tablefmt=fmt)
+                file_content = ''
+                file_content += r"""\documentclass[varwidth]{standalone}
+\usepackage[utf8]{inputenc}
+\begin{document}
+\begin{table}
+\centering"""
+                file_content += tabulate(table, headers=header, tablefmt=fmt)
                 if descr:
+                    descr_tex = descr.replace('_', '\_')
                     file_content += r'\caption{' \
-                                    f'{descr}' \
+                                    f'{descr_tex}' \
                                     r'}'
-                file_content += r'\end{table}' \
-                                r'\end{document}'
+                file_content += r"""
+\end{table}
+\end{document}"""
 
             else:
                 file_content = tabulate(table, headers=header, tablefmt=fmt)
@@ -310,7 +312,6 @@ def tabulate_metric_over_algorithms(algo_metrics: dict, headers: list, descr: Op
 def main(args):
     
     plt.close('all')
-    # plt.ioff()
 
     output_folder_path = Path(args.output_folder)
     output_folder_path = output_folder_path.resolve()
@@ -342,7 +343,7 @@ def main(args):
         predictions_file_path = list(predictions_path.glob('**/*.csv'))
         predictions_file_path.sort()
         if len(predictions_file_path) == 0:
-            print('\x1b[1;33;40m' + "Skipping " + str(dataset_name) + " as no results exist in" + str(predictions_path) + '\x1b[0m')
+            print('\x1b[1;33;20m' + "Skipping " + str(dataset_name) + " as no results exist in" + str(predictions_path) + '\x1b[0m')
             continue
 
         data = ds_parsing.import_yarp_skeleton_data(yarp_path)
@@ -394,36 +395,19 @@ def main(args):
             # resample GT at 1 KHz for rmse
             fHz = 1000
             tGT1K = np.arange(ts_gt[0], ts_gt[-1], 1/fHz)
-            # x_int = np.interp(tGT, ts_gt, x_interpolation)
-            # y_int = np.interp(tGT, ts_gt, y_interpolation)
             skeletons_gt1K = np.zeros((len(tGT1K), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), 2))
             for k_map in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
                skeletons_gt1K[:, k_map[1], 0] = data[k_map[0]]['x'](tGT1K)
                skeletons_gt1K[:, k_map[1], 1] = data[k_map[0]]['y'](tGT1K)
-            
-            # skeletons_gt = np.zeros((len(ts_pred), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), 2))
-            # # skeletons_gt = np.zeros((len(tGT), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), 2))
-            # for k_map in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
-            #     skeletons_gt[:, k_map[1], 0] = data[k_map[0]]['x'](ts_pred)
-            #     skeletons_gt[:, k_map[1], 1] = data[k_map[0]]['y'](ts_pred)
-            
-            # x_int = np.interp(tGT, ts_gt, x_interpolation)
-            # y_int = np.interp(tGT, ts_gt, y_interpolation)
-            
             pred1K = np.zeros([len(tGT1K),28])
             pred1K[:,0] = tGT1K
             for i in range(1,28):
                 interp = np.interp(tGT1K, ts_pred, predictions[:,i])
                 pred1K[:,i] = interp
 
+            # predictions
             skeletons_pred = predictions[:, 2:].reshape(len(predictions), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), -1)
-            skeletons_pred1K = pred1K[:, 2:].reshape(len(pred1K), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), -1)
-
-            # for k_map in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
-            #     x_int = np.interp(tGT, ts_pred, skeletons_pred[:,k_map[1], 0])
-            #     y_int = np.interp(tGT, ts_pred, skeletons_pred[:,k_map[1], 1])
-            #     skeletons_pred[]
-                
+            skeletons_pred1K = pred1K[:, 2:].reshape(len(pred1K), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), -1)                
 
             algorithm_names.append(algo_name)
             skeletons_predictions.append(skeletons_pred)
@@ -481,7 +465,6 @@ def main(args):
                 rmse = results['global']['rmse'][algo_name]
                 rmse.update_samples(skeletons_pred1K, skeletons_gt1K)
 
-        # plot_predictions(output_ds_folder_path, results_key, ts_pred, skeletons_gt, algorithm_names, skeletons_predictions)
         if(args.plot_traj):
             plot_predictions(output_ds_folder_path, results_key, tGT1K, skeletons_gt1K, algorithm_names, skeletons_predictions1K)
         plt.show()
@@ -489,9 +472,12 @@ def main(args):
     # iterate over datasets metrics and print results
     for (ds_name, metrics) in results['datasets'].items():
         
-        print("\n==================================================")
-        print("Dataset: ", ds_name)
-        print("==================================================")
+        if(not(to_latex)):
+            print("\n==================================================")
+            print("Dataset: ", ds_name)
+            print("==================================================")
+        else:
+            print("Dataset ", ds_name, " ✓")
 
         output_ds_folder_path = output_folder_path / ds_name
         output_ds_folder_path.mkdir(parents=True, exist_ok=True)
@@ -506,7 +492,8 @@ def main(args):
                 header.append('avg PCK')
 
                 for (th, algos) in metric_results.items():
-                    print("\n-= PCK threshold = ", th, " =-")
+                    if(not(to_latex)):
+                        print("\n-= PCK threshold = ", th, " =-")
                     tabulate_metric_over_algorithms(algos, header,
                                                     descr=f'PCK results for dataset {ds_name}, threshold {th}',
                                                     to_latex=to_latex,
@@ -514,7 +501,8 @@ def main(args):
                                                     file_stem=f'pck_{th}_{ds_name}')
 
             elif metric_name == 'rmse':
-                print("\n-= RMSE =-")
+                if(not(to_latex)):
+                    print("\n-= RMSE =-")
                 # header = [header_str for key in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.keys() for header_str in [f'{key} x', f'{key} y']]
                 # header.append('avg RMSE x')
                 # header.append('avg RMSE y')
@@ -533,10 +521,12 @@ def main(args):
 
     # iterate over global metrics and print results
     for (metric_name, metric_results) in results['global'].items():
-        
-        print("\n==================================================")
-        print("Global results: ")
-        print("==================================================")
+        if(not(to_latex)):
+            print("\n==================================================")
+            print("Global results: ")
+            print("==================================================")
+        else:
+            print("Global results ✓")
 
         if metric_name == 'pck':
 
@@ -547,7 +537,8 @@ def main(args):
             header.append('avg PCK')
 
             for (th, algos) in metric_results.items():
-                print("\n-= PCK threshold = ", th, " =-")
+                if(not(to_latex)):
+                    print("\n-= PCK threshold = ", th, " =-")
                 tabulate_metric_over_algorithms(algos, header,
                                                 descr=f'Global PCK results for threshold {th}',
                                                 to_latex=to_latex,
@@ -555,7 +546,8 @@ def main(args):
                                                 file_stem=f'pck_{th}')
 
         elif metric_name == 'rmse':
-            print("\n-= RMSE =-")
+            if(not(to_latex)):
+                    print("\n-= RMSE =-")
             # create table
             # header = [header_str for key in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.keys() for header_str in [f'{key} x', f'{key} y']]
             # header.append('avg RMSE x')
@@ -590,6 +582,6 @@ if __name__ == '__main__':
 
     args, unknown = parser.parse_known_args()
     if(unknown):
-        print('\x1b[1;37;41m' + 'Unknown argument/s: ' + ' '.join(unknown) + '\x1b[0m')
+        print('\x1b[1;31;20m' + 'Unknown argument/s: ' + ' '.join(unknown) + '\x1b[0m')
 
     main(args)
