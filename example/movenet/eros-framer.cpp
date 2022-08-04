@@ -14,7 +14,7 @@ class eroser : public RFModule, public Thread {
 
 private:
 
-    hpecore::surface eros;
+    hpecore::EROS eros;
     vReadPort<vector<AE> > input_port;
     BufferedPort<ImageOf<PixelMono> > output_port;
     std::mutex m;
@@ -106,7 +106,7 @@ public:
 
             m.lock();
             for (auto& qi : *q)
-                eros.EROSupdate(qi.x, qi.y);
+                eros.update(qi.x, qi.y);
             m.unlock();
         }
     }
