@@ -166,7 +166,8 @@ def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
 
     # plot values
     y_ticks = np.arange(len(tick_labels))
-    ax.boxplot(all_values, vert=False, showfliers=False)
+    meanlineprops = dict(linestyle='-', linewidth=2.0, color='green')
+    ax.boxplot(all_values, vert=False, showfliers=False, showmeans=True, meanline=True, meanprops=meanlineprops)
     ax.set_yticks(y_ticks)
     ax.set_yticklabels(tick_labels)
     ax.set_title(descr)
@@ -255,7 +256,8 @@ def tabulate_metric_over_algorithms(algo_metrics: dict, headers: list, descr: Op
         else:
             joints_values = values[0]
         # joints_values = values[0]
-        avg_value = np.max(values[1])
+        # avg_value = np.max(values[1])
+        avg_value = np.mean(joints_values) # this mean matches the mean in the data in boxplot (green line), not the median (orange line)
         table_row = joints_values.tolist()
         if isinstance(avg_value, np.ndarray):
             table_row.extend(avg_value.tolist())
@@ -467,7 +469,6 @@ def main(args):
 
         if(args.plot_traj):
             plot_predictions(output_ds_folder_path, results_key, tGT1K, skeletons_gt1K, algorithm_names, skeletons_predictions1K)
-        plt.show()
 
     # iterate over datasets metrics and print results
     for (ds_name, metrics) in results['datasets'].items():
@@ -564,6 +565,7 @@ def main(args):
             plot_boxplot(metric_results,
                          descr=f'Global RMSE results',
                          file_path=output_folder_path / f'rmse.png')
+        plt.show()
 
 
 if __name__ == '__main__':
