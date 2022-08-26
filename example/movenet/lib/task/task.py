@@ -1,3 +1,4 @@
+
 """
 @Fire
 https://github.com/fire717
@@ -26,7 +27,8 @@ class Task():
 
         self.cfg = cfg
         self.init_epoch = 0
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # edit for Franklin
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # edit for Franklin
+        print(self.device)
         self.model = model.to(self.device)
 
         ############################################################

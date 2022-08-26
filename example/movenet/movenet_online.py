@@ -10,6 +10,8 @@ import numpy as np
 import cv2
 import torch
 
+import datetime
+
 dev = False
 
 if dev:
@@ -31,8 +33,9 @@ class MovenetModule(yarp.RFModule):
         self.yarp_image = yarp.ImageMono()
         self.yarp_sklt_out = yarp.Bottle()
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.checkpoint_path = "/home/ggoyal/data/models/h36m_cropped_cam2-4_iter2_from-pretrained_/e12_valacc0.77841.pth"
-
+        # self.checkpoint_path = "/home/ggoyal/data/models/h36m_cropped_cam2-4_iter2_from-pretrained_/e12_valacc0.77841.pth"
+        self.checkpoint_path = "/usr/local/src/hpe-core/example/movenet/models/e97_valacc0.81209.pth"
+        # self.checkpoint_path = "/usr/local/src/hpe-core/example/movenet/models/hp19_frontcams_e88_valacc0.97142.pth"
         self.resultsPath = '/outputs'
         self.image_w_model = 192  # Size of the image expected by the model
         self.image_h_model = 192  #
@@ -100,13 +103,13 @@ class MovenetModule(yarp.RFModule):
     def updateModule(self):
         # synchronous update called every get period seconds.
 
-
+        t0 = datetime.datetime.now()
         if dev:
             np_input = cv2.imread(self.files[self.file_counter])
             np_input = cv2.cvtColor(np_input, cv2.COLOR_BGR2GRAY)
             stamp_in = 17.34450
         else:
-
+            
             # Preparing input and output image buffers
             np_input = np.ones((self.image_h, self.image_w), dtype=np.uint8)
             self.yarp_image.resize(self.image_w, self.image_h)
@@ -119,7 +122,8 @@ class MovenetModule(yarp.RFModule):
             # Read the image
             read_image = self.input_port.read()
             self.input_port.getEnvelope(self.stamp)
-            stamp_in = self.stamp.getTime()
+            # stamp_in = self.stamp.getTime()
+            stamp_in = self.stamp.getCount() + self.stamp.getTime()
 
             # End of input file
             # if self.last_timestamp == stamp:
@@ -143,7 +147,7 @@ class MovenetModule(yarp.RFModule):
         # Predict the pose
         # pre = self.run_task.predict_online(input_image_resized)
         pre = self.run_task.predict_online(input_image)
-
+        
         # Visualize the result
         # if self.cfg['show_center']:
         #     img = image_show(input_image, pre=pre['joints'], center=pre['center'])
@@ -158,6 +162,11 @@ class MovenetModule(yarp.RFModule):
         #     else:
         #         k = cv2.waitKey(1)
 
+        # latency 
+        t1 = datetime.datetime.now()
+        delta = t1-t0
+        latency = delta.microseconds / 1000
+        # print(latency)
 
         if dev:
             self.file_counter += 1
@@ -172,7 +181,9 @@ class MovenetModule(yarp.RFModule):
 
         # Export output skeleton
 
-        stamp = yarp.Stamp(0,stamp_in)
+        # stamp = yarp.Stamp(0,stamp_in)
+        stamp = yarp.Stamp(0,latency)
+        
 
         self.output_port.setEnvelope(stamp)
         self.yarp_sklt_out.clear()

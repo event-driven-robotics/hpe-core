@@ -21,6 +21,7 @@ private:
 
     resolution res;
     Stamp yarpstamp;
+    int freq;
 
 public:
 
@@ -55,13 +56,15 @@ public:
 
         eros.init(res.width, res.height, 7, 0.3);
 
+        freq = rf.check("f", Value(50)).asInt32();
+
         //start the asynchronous and synchronous threads
         return Thread::start();
     }
 
     virtual double getPeriod()
     {
-        return 0.1; //period of synchrnous thread
+        return 1.0/freq; //period of synchrnous thread
     }
 
     bool interruptModule()
