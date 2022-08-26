@@ -166,7 +166,7 @@ def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
 
     # plot values
     y_ticks = np.arange(len(tick_labels))
-    meanlineprops = dict(linestyle='-', linewidth=2.0, color='green')
+    meanlineprops = dict(linestyle='-', linewidth=2.0, color='tab:blue')
     ax.boxplot(all_values, vert=False, showfliers=False, showmeans=True, meanline=True, meanprops=meanlineprops)
     ax.set_yticks(y_ticks)
     ax.set_yticklabels(tick_labels)
@@ -221,7 +221,7 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
 
                 # plot predictions
                 coord_pred = predictions_algo[:, joint_ind, coord_ind]
-                ax.plot(timestamps, coord_pred, color=algo_colors[pi][coord_ind], marker=".", label=f'{algo_names[pi]} {lbl_coord}', linestyle='None', alpha=1.0)
+                ax.plot(timestamps, coord_pred, color=algo_colors[pi][coord_ind], marker=".", label=f'{algo_names[pi]} {lbl_coord}', linestyle='-', alpha=1.0)
 
                 y_lim_min = min(y_lim_min, min(coord_pred))
                 y_lim_max = max(y_lim_max, max(coord_pred))
@@ -378,6 +378,7 @@ def main(args):
         algorithm_names = []
         skeletons_predictions = []
         skeletons_predictions1K = []
+        latency = dict()
 
         # parse predictions
         for pred_path in predictions_file_path:
@@ -386,11 +387,13 @@ def main(args):
             predictions = np.loadtxt(str(pred_path.resolve()), dtype=float)
 
             ts_pred = predictions[:, 0]
-            skeletons_gt = np.zeros((len(ts_pred), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), 2))
-            skeletons_gt = np.zeros((len(ts_pred), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), 2))
-            for k_map in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
-                skeletons_gt[:, k_map[1], 0] = data[k_map[0]]['x'](ts_pred)
-                skeletons_gt[:, k_map[1], 1] = data[k_map[0]]['y'](ts_pred)
+            latency[algo_name] = np.mean(predictions[:, 1])
+            # print(np.mean(latency)) 
+            # skeletons_gt = np.zeros((len(ts_pred), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), 2))
+            # skeletons_gt = np.zeros((len(ts_pred), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), 2))
+            # for k_map in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
+            #     skeletons_gt[:, k_map[1], 0] = data[k_map[0]]['x'](ts_pred)
+            #     skeletons_gt[:, k_map[1], 1] = data[k_map[0]]['y'](ts_pred)
 
             skeletons_pred = predictions[:, 2:].reshape(len(predictions), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), -1)
   
@@ -519,6 +522,10 @@ def main(args):
                 plot_boxplot(metric_results,
                              descr=f'RMSE results for dataset {ds_name}',
                              file_path=output_ds_folder_path / f'rmse_{ds_name}.png')
+            print("Average latency\t\t", end='')
+            for l in latency.items():
+                print("{:.4f}\t".format(l[1]),'\t', end='')
+                # print(print ("{:.4f}\t".format(l[1])))
 
     # iterate over global metrics and print results
     for (metric_name, metric_results) in results['global'].items():
@@ -566,6 +573,7 @@ def main(args):
                          descr=f'Global RMSE results',
                          file_path=output_folder_path / f'rmse.png')
         plt.show()
+        
 
 
 if __name__ == '__main__':
