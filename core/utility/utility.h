@@ -221,11 +221,10 @@ inline skeleton13 body25_to_dhp19(const skeleton25 skeleton_in)
     return skeleton_out;
 }
 
-inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 3> color = {0, 0, 200}) 
+inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 3> color = {0, 0, 200}, int th =1) 
 {
     skeleton13_b jb = jointTest(pose);
     skeleton13_v jv = jointConvert(pose);
-    int th = 1;
     auto colorS = CV_RGB(color[0], color[1], color[2]);
 
     // plot detected joints
