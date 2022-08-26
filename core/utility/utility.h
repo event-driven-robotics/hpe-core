@@ -130,6 +130,20 @@ inline void print_skeleton(const T &s)
         std::cout << t.u << " " << t.v << std::endl;
 }
 
+inline bool poseNonZero(skeleton13 pose)
+{
+    bool nonZero = false;
+    for (int j = 0; j < 13; j++)
+    {
+        if(pose[j].u || pose[j].v)
+        {
+            nonZero = true;
+            break;
+        }
+    }
+    return nonZero;
+}
+
 template <typename T>
 inline void getEventsUV(std::deque<T> &input, std::deque<joint> &output, std::deque<double> &ts, double scaler) 
 {
