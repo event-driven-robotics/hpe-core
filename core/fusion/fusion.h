@@ -67,6 +67,27 @@ class kfEstimator : public stateEstimator {
 
    public:
     bool initialise(std::vector<double> parameters) override;
+    void updateFromVelocity(skeleton13 velocity, double dt) override;
+    void updateFromVelocity(jointName name, jDot velocity, double dt) override;
+    void updateFromPosition(jointName name, joint position, double dt) override;
+    void updateFromPosition(skeleton13 position, double dt) override;
+    void set(skeleton13 pose) override;
+    bool poseIsInitialised();
+    skeleton13 query();
+    joint query(jointName name);
+};
+
+class constVelKalman : public stateEstimator {
+   private:
+    std::array<cv::KalmanFilter, 13> kf_array;
+    double procU{0.0}, measU{0.0}, procUd{0.0}, measUd{0.0};
+    cv::Mat measurement_velocity, measurement_position;
+
+    void setTimePeriod(double dt);
+
+   public:
+    bool initialise(std::vector<double> parameters) override;
+    void updateFromVelocity(skeleton13 velocity, double dt) override;
     void updateFromVelocity(jointName name, jDot velocity, double dt) override;
     void updateFromPosition(jointName name, joint position, double dt) override;
     void updateFromPosition(skeleton13 position, double dt) override;
