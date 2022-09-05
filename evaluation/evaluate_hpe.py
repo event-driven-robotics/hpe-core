@@ -117,7 +117,9 @@ def plot_pck_over_thresholds(pck_thresholds_results, output_folder_path, ds_name
 
     # plot pcks
     for algo_name, pcks in algos.items():
-        ax.plot(thresholds, pcks, color=np.random.rand(3, ), marker="o", label=f'{algo_name}',
+        # ax.plot(thresholds, pcks, color=np.random.rand(3, ), marker="o", label=f'{algo_name}',
+        #         linestyle='-', alpha=1.0)
+        ax.plot(thresholds, pcks, marker="o", label=f'{algo_name}',
                 linestyle='-', alpha=1.0)
 
     # set axis limits
