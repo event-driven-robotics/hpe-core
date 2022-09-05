@@ -85,7 +85,7 @@ def printDash(num=50):
 #     return res
 
 
-_center_weight = np.load('lib/data/center_weight_origin.npy').reshape(48, 48)
+_center_weight = np.load('/usr/local/src/hpe-core/example/movenet/lib/data/center_weight_origin.npy').reshape(48, 48)
 
 
 # _center_weight = np.load("lib/data/my_weight_center.npy")
@@ -187,8 +187,8 @@ def extract_keypoints(heatmap):
 def arg_parser(cfg):
     parser = argparse.ArgumentParser()
     ##### Global Setting
-    parser.add_argument('--show_center', help='Show center of the detected human',
-                        action='store_true')
+    parser.add_argument('--show_center', help='Show center of the detected human', action='store_true')
+    parser.add_argument('--write_output', help='Write output pose to a .csv file', action='store_true')
     parser.add_argument('--GPU_ID', help='GPUs to use. Example: 0,1,2', default=cfg['GPU_ID'])
     parser.add_argument('--dataset', help='Training dataset.', default=cfg['dataset'],
                         choices=["mpii", "coco", 'h36m', 'dhp19'], type=str)

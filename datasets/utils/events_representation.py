@@ -1,5 +1,8 @@
 import cv2
+from cv2 import cvtColor
+from cv2 import COLOR_GRAY2BGR
 import numpy as np
+from time import time
 
 
 def add_salt_and_pepper(image, low_th, high_th):
@@ -68,11 +71,9 @@ class EROS:
 
         if roi_valid is None:
             return True
-
-        update_mask = np.ones((self.frame_height, self.frame_width), dtype=np.float)
         roi = [roi_valid.y_tl, roi_valid.y_tl + roi_valid.height, roi_valid.x_tl, roi_valid.x_tl + roi_valid.width]
-        update_mask[roi[0]:roi[1], roi[2]:roi[3]] *= odecay
-        self._image = np.multiply(self._image, update_mask).astype(np.uint8)
+        update_mask = np.ones((roi[1]-roi[0], roi[3]-roi[2]), dtype=np.float) * odecay
+        self._image[roi[0]:roi[1], roi[2]:roi[3]] = np.multiply(self._image[roi[0]:roi[1], roi[2]:roi[3]], update_mask).astype(np.uint8)
         self._image[vy, vx] = 255
 
         return roi_raw != roi_valid
@@ -158,15 +159,29 @@ class PIM:
         self.tau = tau
         self.ts = 0
         self._image = np.zeros((frame_height, frame_width), dtype=float)
+        self._normed = np.zeros((frame_height, frame_width), dtype=float)
+        self._normed8U = np.zeros((frame_height, frame_width), dtype=np.uint8)
+        self._normed3ch = np.zeros((frame_height, frame_width, 3), dtype=np.uint8)
 
     def get_frame(self):
         return self._image
+    
+    def get_normed_rgb(self):
+        #get the minimum and maximum values
+        min_val,max_val,_,_=cv2.minMaxLoc(self._image)
+        #find the absolute maximum
+        max_val = max(abs(max_val), abs(min_val))
+        if max_val > 0:
+            self._normed = ((self._image / (2*max_val)) + 0.5)*255
+        self._normed8U = np.uint8(self._normed)
+        cv2.cvtColor(self._normed8U, cv2.COLOR_GRAY2BGR, self._normed3ch)
+        return self._normed3ch
 
     def update(self, vx, vy, p):
         if p > 0:
-            self._image[vy, vx] -= 1.0
-        else:
             self._image[vy, vx] += 1.0
+        else:
+            self._image[vy, vx] -= 1.0
 
     def perform_decay(self, timestamp):
         self._image *= np.exp(self.tau * (self.ts - timestamp))

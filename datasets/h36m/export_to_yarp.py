@@ -14,22 +14,24 @@ import os
 
 from datasets.utils.constants import HPECoreSkeleton
 from datasets.utils.export import skeleton_to_yarp_row, format_crop_file
-from datasets.utils.export import crop_pose, crop_frame
+from datasets.utils.export import crop_pose, crop_frame, ensure_location
 from utils import parsing
 from os.path import join, isfile
 from tqdm import tqdm
+
 
 ############### ########
 # Configuration values #
 ########################
 WRITE_POSE = False
 WRITE_FRAMES = False
+WRITE_VIDEO = True
 CROP_DATA = True
 
 # paths and parameters
 dataset_path = '/home/ggoyal/data/h36m/extracted'
-data_output_path = '/home/ggoyal/data/h36m/yarp/'
-crop_file = '/media/Data/data/h36m/cropping_data.txt'  # file left right top bottom
+data_output_path = '/home/ggoyal/data/h36m_cropped/yarp'
+crop_file = '/media/Data/data/h36m/cropping_data_clean.txt'  # file left right top bottom
 output_width = 640  # 346
 output_height = 480  # 260
 subs = ['S1', 'S5', 'S6', 'S7', 'S8', 'S9', 'S11']
@@ -41,13 +43,14 @@ errorlog = '/home/ggoyal/data/h36m/errorlog.txt'
 
 
 
-def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl, write_frames=True, write_pose=True,
-                         overwrite=False, crop=None):
+def write_video_and_pose(input_video_path, gt_path, directory_frames, directory_skl, write_frames=True, write_pose=True,
+                         overwrite=False, crop=None,write_video=False,output_video_path=None):
     # Convert the video and annotations to yarp formats.
     counter = 0
     frame_lines = []
     pose_lines = []
-    vid = cv2.VideoCapture(video_path)
+    vid = cv2.VideoCapture(input_video_path)
+    fps = vid.get(cv2.CAP_PROP_FPS)
     cdf_file = cdflib.CDF(gt_path)
     data = (cdf_file.varget("Pose")).squeeze()
 
@@ -59,6 +62,8 @@ def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl, w
             os.makedirs(directory_frames)
     if not os.path.exists(directory_skl):
         os.makedirs(directory_skl)
+    if write_video:
+        video_out = cv2.VideoWriter(output_video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (output_width, output_height))
 
     try:
         assert vid.isOpened()
@@ -86,9 +91,12 @@ def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl, w
         frame = crop_frame(frame, crop)
         dim_input = frame.shape
 
-        if write_frames:
+        if write_frames or write_video:
             frame_resized = cv2.resize(src=frame, dsize=(output_width, output_height), interpolation=cv2.INTER_AREA)
+        if write_frames:
             cv2.imwrite(filename_full, frame_resized)  # create the images
+        if write_video:
+            video_out.write(frame_resized)
 
         # convert h3.6m joints order to hpecore one
         skeleton = skeleton.reshape(-1, 2)
@@ -113,6 +121,8 @@ def write_video_and_pose(video_path, gt_path, directory_frames, directory_skl, w
 
     vid.release()
 
+    if write_video:
+        video_out.release()
     if write_frames:
         parsing.writer(directory_frames, frame_lines, frame_linesInfo)
     if write_pose:
@@ -151,6 +161,7 @@ if __name__ == '__main__':
         video_file = (join(dataset_path, sub, 'Videos', file))
         pose_file = (join(dataset_path, sub, "Poses_D2_Positions", file.replace('mp4', 'cdf')))
         output_folder = ("cam%s_%s_%s" % (cam, sub, file.split('.')[0].replace(' ', '_')))
+        output_video_path = (join(os.path.dirname(data_output_path), "cropped_video", output_folder+'.mp4'))
         dir_frames = join(data_output_path, output_folder, f'ch{cam}frames')
         dir_pose = join(data_output_path, output_folder, f'ch{cam}GT50Hzskeleton')
 
@@ -161,13 +172,16 @@ if __name__ == '__main__':
                 print("Cropping values not present in file for %s. Proceeding without cropping" % output_folder)
                 crop_values = None
 
-        if isfile(join(dir_pose, 'data.log')):
-            continue
-        print((isfile(video_file), isfile(pose_file), dir_frames, dir_pose))
+        # if isfile(join(dir_pose, 'data.log')):
+        #     continue
+        print((isfile(video_file), isfile(pose_file), dir_frames, dir_pose, output_video_path))
         if not isfile(pose_file):
             continue
+        if WRITE_VIDEO:
+            ensure_location(os.path.dirname(output_video_path))
         exitcode = write_video_and_pose(video_file, pose_file, dir_frames, dir_pose, write_frames=WRITE_FRAMES,
-                                        write_pose=WRITE_POSE, overwrite=False, crop=crop_values)
+                                        write_pose=WRITE_POSE, overwrite=False, crop=crop_values,
+                                        write_video=WRITE_VIDEO, output_video_path=output_video_path, )
 
         if exitcode:
             with open(errorlog, 'a') as f:

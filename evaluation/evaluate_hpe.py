@@ -216,6 +216,7 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
                 ax.plot(timestamps, coord_gt, color='tab:green', alpha=0.2, label=f'GT {lbl_coord}')
 
 
+
             y_lim_min = min(y_lim_min, min(coord_gt))
             y_lim_max = max(y_lim_max, max(coord_gt))
 

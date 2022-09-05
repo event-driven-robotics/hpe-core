@@ -130,6 +130,20 @@ inline void print_skeleton(const T &s)
         std::cout << t.u << " " << t.v << std::endl;
 }
 
+inline bool poseNonZero(skeleton13 pose)
+{
+    bool nonZero = false;
+    for (int j = 0; j < 13; j++)
+    {
+        if(pose[j].u || pose[j].v)
+        {
+            nonZero = true;
+            break;
+        }
+    }
+    return nonZero;
+}
+
 template <typename T>
 inline void getEventsUV(std::deque<T> &input, std::deque<joint> &output, std::deque<double> &ts, double scaler) 
 {
@@ -207,11 +221,10 @@ inline skeleton13 body25_to_dhp19(const skeleton25 skeleton_in)
     return skeleton_out;
 }
 
-inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 3> color = {0, 0, 200}) 
+inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 3> color = {0, 0, 200}, int th =1) 
 {
     skeleton13_b jb = jointTest(pose);
     skeleton13_v jv = jointConvert(pose);
-    int th = 1;
     auto colorS = CV_RGB(color[0], color[1], color[2]);
 
     // plot detected joints
@@ -219,8 +232,14 @@ inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 
         if (jb[i])
             cv::drawMarker(image, jv[i], colorS, cv::MARKER_TILTED_CROSS, 8);
 
-    if(jb[head]) cv::circle(image, jv[head]+ cv::Point(0, 10), 10, colorS, th);
-    if(jb[head] && jb[shoulderL] && jb[shoulderR]) cv::line(image, (jv[shoulderL] + jv[shoulderR])/2, jv[head] + cv::Point(0, 20), colorS, th);
+    // if(jb[head]) cv::circle(image, jv[head]+ cv::Point(0, 10), 10, colorS, th);
+    // if(jb[head] && jb[shoulderL] && jb[shoulderR]) cv::line(image, (jv[shoulderL] + jv[shoulderR])/2, jv[head] + cv::Point(0, 20), colorS, th);
+    if(jb[head] && jb[shoulderL] && jb[shoulderR])
+    {
+        int dist = cv::norm(jv[shoulderL]-jv[shoulderR])/3;
+        cv::circle(image, jv[head] + cv::Point(0, 0.0), dist, colorS, th);
+        cv::line(image, (jv[shoulderL] + jv[shoulderR])/2, jv[head] + cv::Point(0, dist), colorS, th);
+    } 
     if(jb[shoulderL] && jb[shoulderR]) cv::line(image, jv[shoulderL], jv[shoulderR], colorS, th);
     if(jb[shoulderL] && jb[elbowL]) cv::line(image, jv[shoulderL], jv[elbowL], colorS, th);
     if(jb[shoulderR] && jb[elbowR]) cv::line(image, jv[shoulderR], jv[elbowR], colorS, th);
