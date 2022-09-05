@@ -14,7 +14,7 @@ import cv2
 _img_size = 192
 _feature_map_size = _img_size // 4
 
-_center_weight_path = 'lib/data/center_weight_origin.npy'
+_center_weight_path = '/usr/local/src/hpe-core/example/movenet/lib/data/center_weight_origin.npy'
 
 
 class JointBoneLoss(torch.nn.Module):

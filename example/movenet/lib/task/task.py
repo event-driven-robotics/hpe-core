@@ -1,3 +1,4 @@
+
 """
 @Fire
 https://github.com/fire717
@@ -18,6 +19,7 @@ from lib.loss.movenet_loss import MovenetLoss
 from lib.utils.utils import printDash, ensure_loc
 # from lib.visualization.visualization import superimpose_pose
 from lib.utils.metrics import myAcc, pck
+from datasets.h36m.utils.parsing import movenet_to_hpecore
 
 
 class Task():
@@ -25,7 +27,8 @@ class Task():
 
         self.cfg = cfg
         self.init_epoch = 0
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # edit for Franklin
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  # edit for Franklin
+        print(self.device)
         self.model = model.to(self.device)
 
         ############################################################
@@ -102,11 +105,20 @@ class Task():
         size = self.cfg["img_size"]
         with torch.no_grad():
 
-            img = torch.from_numpy(img_in)
+            img_size_original = img_in.shape
+            input_image_resized = np.zeros([1, 3, size, size])
+            # print(input_image_resized.shape)
+
+            input_image = cv2.resize(img_in, (size, size))
+            input_image_resized[0, 0, :, :] = input_image[:, :]
+            input_image_resized[0, 1, :, :] = input_image[:, :]
+            input_image_resized[0, 2, :, :] = input_image[:, :]
+            input_image_resized = input_image_resized.astype(np.float32)
+
+            img = torch.from_numpy(input_image_resized)
             img = img.to(self.device)
 
-            img_size_original = img.shape
-            img = img
+            # img_size_original = img.shape
             img = img.to(self.device)
             output = self.model(img)
             instant = {}
@@ -121,10 +133,21 @@ class Task():
 
             img = np.transpose(img[0].cpu().numpy(), axes=[1, 2, 0])
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-            _, instant['joints'] = restore_sizes(img, pre, (int(img_size_original[2]), int(img_size_original[3])))
+            _, pose_pre = restore_sizes(img, pre, (int(img_size_original[0]), int(img_size_original[1])))
             if self.cfg['show_center']:
                 instant['center_heatmap'] = centers[0]
 
+            kps_2d = np.reshape(pose_pre, [-1, 2])
+            kps_hpecore = movenet_to_hpecore(kps_2d)
+            kps_pre_hpecore = np.reshape(kps_hpecore, [-1])
+            # print(kps_pre_hpecore)
+            # row = self.create_row(ts,kps_pre_hpecore, delay=time.time()-start_sample)
+            # sample = '_'.join(os.path.basename(img_names[0]).split('_')[:-1])
+            # write_path = os.path.join(self.cfg['results_path'],self.cfg['dataset'],sample,'movenet_cam2.csv')
+            # ensure_loc(os.path.dirname(write_path))
+            # self.write_results(write_path, row)
+
+            instant['joints'] = kps_pre_hpecore
             return instant
 
 

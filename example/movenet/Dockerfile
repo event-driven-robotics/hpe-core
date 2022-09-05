@@ -107,8 +107,8 @@ RUN pip3 install \
 ############
 
 ARG EVENT_DRIVEN_VERSION=1.5
-ARG YARP_VERSION=3.5.0
-ARG YCM_VERSION=0.13.0
+ARG YARP_VERSION=3.6.0
+ARG YCM_VERSION=0.14.0
 ARG BIMVEE_COMMIT=3670bcc9c75608df1cfdef06f3f1a34b0ca68d43
 # mustard first release
 ARG MUSTARD_COMMIT=18e702892f6028c69a2a9e224f459bc26147b20e
@@ -229,6 +229,7 @@ RUN cd $SOURCE_FOLDER/hpe-core/core && \
 
 # install movenet dependencies
 RUN cd $SOURCE_FOLDER/hpe-core/example/movenet && \
+    git checkout movenet_integration && \
     python3 -m pip install --upgrade pip && \
     python3 -m pip install -r requirements.txt && \
     mkdir build && cd build && \

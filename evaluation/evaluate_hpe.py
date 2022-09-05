@@ -157,10 +157,11 @@ def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
             ax.set_xlabel('Joints PCK')
 
         elif isinstance(metric, metrics_utils.RMSE):
-            all_values.append(joints_metric_values[::2])  # add metric values for x coordinates
-            all_values.append(joints_metric_values[1::2])  # add metric values for y coordinates
+            #all_values.append(joints_metric_values[::2])  # add metric values for x coordinates
+            #all_values.append(joints_metric_values[1::2])  # add metric values for y coordinates
+            all_values.append(np.sqrt(np.square(joints_metric_values[::2]) + np.square(joints_metric_values[1::2])))
 
-            tick_labels.extend([f'{algo_name}_x', f'{algo_name}_y'])
+            tick_labels.extend([f'{algo_name}'])
             ax.set_xlabel('Joints RMSE')
 
     # plot values
@@ -322,7 +323,8 @@ def main(args):
         results_key = f'{dataset_name}_{channel_folder}'
 
         predictions_path = Path(args.predictions_path) / dataset_name / channel_folder
-        predictions_file_path = list(predictions_path.glob('**/*.txt'))
+        predictions_file_path = list(predictions_path.glob('**/*.csv'))
+        predictions_file_path.sort()
         if len(predictions_file_path) == 0:
             print("Skipping ", dataset_name, " as no results exist in", predictions_path)
             continue
@@ -426,7 +428,7 @@ def main(args):
                 rmse = results['global']['rmse'][algo_name]
                 rmse.update_samples(skeletons_pred, skeletons_gt)
 
-        plot_predictions(output_ds_folder_path, results_key, ts_pred, skeletons_gt, algorithm_names, skeletons_predictions)
+        #plot_predictions(output_ds_folder_path, results_key, ts_pred, skeletons_gt, algorithm_names, skeletons_predictions)
 
     # iterate over datasets metrics and print results
     for (ds_name, metrics) in results['datasets'].items():
