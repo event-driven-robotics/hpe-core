@@ -673,7 +673,7 @@ def main(args):
             plot_predictions(output_ds_folder_path, results_key, tGT1K, skeletons_gt1K, algorithm_names, skeletons_predictions1K)
         if(args.plot_sklt):
             plot_predictions_all_joints(output_ds_folder_path, results_key, tGT1K, skeletons_gt1K, algorithm_names, skeletons_predictions1K)
-        if args.lat:  
+        if(args.lat):  
             plot_latency(output_ds_folder_path, results_key, timestamps, algorithm_names, latency)
 
     # iterate over datasets metrics and print results
@@ -784,7 +784,7 @@ def main(args):
             plot_boxplot(metric_results,
                          descr=f'Global RMSE results',
                          file_path=output_folder_path / f'rmse.png')
-        plt.show()
+    plt.show()
         
 
 
