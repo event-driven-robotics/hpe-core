@@ -148,7 +148,7 @@ def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
 
     all_values = list()
     tick_labels = [' ']
-    for (algo_name, metric) in algo_metrics.items():
+    for (algo_name, metric) in sorted(algo_metrics.items(), reverse = True):
         values = metric.get_value()
         joints_metric_values = values[0]
 
@@ -540,18 +540,18 @@ def main(args):
 
         # interpolate ground truth joints so that they can be compared with the high frequency predictions
         for k_map in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
-            x_interpolation = interpolate.interp1d(ts_gt, np.concatenate(([data[k_map[0]][0, 0]], data[k_map[0]][:, 0], [data[k_map[0]][-1, 0]])), fill_value="extrapolate")
-            y_interpolation = interpolate.interp1d(ts_gt, np.concatenate(([data[k_map[0]][0, 1]], data[k_map[0]][:, 1], [data[k_map[0]][-1, 1]])), fill_value="extrapolate")
+            x_interpolation = interpolate.interp1d(ts_gt, np.concatenate(([data[k_map[0]][0, 0]], data[k_map[0]][:, 0], [data[k_map[0]][-1, 0]])))#, fill_value="extrapolate"
+            y_interpolation = interpolate.interp1d(ts_gt, np.concatenate(([data[k_map[0]][0, 1]], data[k_map[0]][:, 1], [data[k_map[0]][-1, 1]])))
             data[k_map[0]] = dict()
             data[k_map[0]]['x'] = x_interpolation
             data[k_map[0]]['y'] = y_interpolation
 
         # GT contains the size of the torso
         if data['head_sizes'][0] == -1:
-            pck_sizes_gt_interp = interpolate.interp1d(ts_gt, np.concatenate(([data['torso_sizes'][0]], data['torso_sizes'], [data['torso_sizes'][-1]])), fill_value="extrapolate")
+            pck_sizes_gt_interp = interpolate.interp1d(ts_gt, np.concatenate(([data['torso_sizes'][0]], data['torso_sizes'], [data['torso_sizes'][-1]])))
         # GT contains the size of the head
         else:
-            pck_sizes_gt_interp = interpolate.interp1d(ts_gt, np.concatenate(([data['head_sizes'][0]], data['head_sizes'], [data['head_sizes'][-1]])), fill_value="extrapolate")
+            pck_sizes_gt_interp = interpolate.interp1d(ts_gt, np.concatenate(([data['head_sizes'][0]], data['head_sizes'], [data['head_sizes'][-1]])))
 
         output_ds_folder_path = output_folder_path / results_key
         output_ds_folder_path.mkdir(parents=True, exist_ok=True)
@@ -568,8 +568,12 @@ def main(args):
         for pred_path in predictions_file_path:
 
             algo_name = pred_path.stem
-            predictions = np.loadtxt(str(pred_path.resolve()), dtype=float)
+            predictions_old = np.loadtxt(str(pred_path.resolve()), dtype=float)
 
+            # ts_pred = predictions[:, 0]
+            idx = np.where(predictions_old[:, 0]<ts_gt[-1])
+            predictions = predictions_old[idx[0], :]
+            # ts_pred = predictions[idx[0], 0]
             ts_pred = predictions[:, 0]
             timestamps.append(ts_pred)
             skeletons_gt = np.zeros((len(ts_pred), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), 2))
