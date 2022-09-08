@@ -205,11 +205,12 @@ class Task():
                 kps_2d = np.reshape(pose_pre, [-1, 2])
                 kps_hpecore = movenet_to_hpecore(kps_2d)
                 kps_pre_hpecore = np.reshape(kps_hpecore, [-1])
-                row = self.create_row(ts,kps_pre_hpecore, delay=time.time()-start_sample)
-                sample = '_'.join(os.path.basename(img_names[0]).split('_')[:-1])
-                write_path = os.path.join(self.cfg['results_path'],self.cfg['dataset'],sample,'movenet.csv')
-                ensure_loc(os.path.dirname(write_path))
-                self.write_results(write_path, row)
+                if self.cfg['write_output']:
+                    row = self.create_row(ts,kps_pre_hpecore, delay=time.time()-start_sample)
+                    sample = '_'.join(os.path.basename(img_names[0]).split('_')[:-1])
+                    write_path = os.path.join(self.cfg['results_path'],self.cfg['dataset'],sample,'movenet.csv')
+                    ensure_loc(os.path.dirname(write_path))
+                    self.write_results(write_path, row)
 
         if not fastmode:
             acc = correct_kps / total_kps
