@@ -148,7 +148,7 @@ def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
 
     all_values = list()
     tick_labels = [' ']
-    for (algo_name, metric) in algo_metrics.items():
+    for (algo_name, metric) in sorted(algo_metrics.items(), reverse = True):
         values = metric.get_value()
         joints_metric_values = values[0]
 
@@ -185,11 +185,10 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
 
     # define a color for each algorithm and each coordinate
     # algo_colors = [[np.random.rand(3,) for _ in range(joints_gt.shape[2])] for _ in algo_names] # random colors
-    algo_colors = [['tab:blue','tab:orange'], ['blue', 'red'], ['violet', 'chocolate'], ['purple', 'sienna'], ['lime', 'gold'], ['aqua', 'olive']] # fixed colors
+    algo_colors = [['tab:green','tab:orange'], ['blue', 'red'], ['violet', 'chocolate'], ['purple', 'sienna'], ['lime', 'gold'], ['aqua', 'olive'], ['tab:blue', 'green'], ['gold', 'lime']] # fixed colors
 
     # iterate on each joint
     for joint_key, joint_ind in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
-
         # create plot
         my_dpi = 96
         fig = plt.figure(num=f'Dataset {ds_name}, Joint \'{joint_key}\'',
@@ -224,14 +223,14 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
 
                 # plot predictions
                 coord_pred = predictions_algo[:, joint_ind, coord_ind]
-                ax.plot(timestamps, coord_pred, color=algo_colors[pi][coord_ind], marker=".", label=f'{algo_names[pi]} {lbl_coord}', linestyle='-', alpha=1.0)
-
+                ax.plot(timestamps, coord_pred, color=algo_colors[pi][coord_ind], marker=".", label=f'{algo_names[pi][1:]} {lbl_coord}', linestyle='-', alpha=1.0, markersize = 12)
                 y_lim_min = min(y_lim_min, min(coord_pred))
                 y_lim_max = max(y_lim_max, max(coord_pred))
 
             # set axis limits
             ax.set_xlim([timestamps[0], timestamps[-1]])
             ax.set_ylim([y_lim_min * 0.6, y_lim_max * 1.4])
+   
 
             # labels and title
             plt.xlabel('time [sec]', fontsize=22, labelpad=5)
@@ -243,6 +242,7 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
             # save plot
             fig_path = output_folder_path / f'{ds_name}_{joint_key}_predictions.png'
             # plt.savefig(str(fig_path.resolve()))
+            
 
 def plot_predictions_all_joints(output_folder_path, ds_name, timestamps, joints_gt, algo_names, joints_predicted):
 
@@ -302,8 +302,6 @@ def plot_predictions_all_joints(output_folder_path, ds_name, timestamps, joints_
         # set axis limits
         ax.set_xlim([timestamps[0], timestamps[-1]])
         ax.set_ylim([y_lim_min * 0.6, y_lim_max * 1.4])
-        # ax.set_xlim([3.3, 26.3])
-        # ax.set_ylim([30, 500])
     
         # labels and title
         plt.xlabel('time [sec]', fontsize=22, labelpad=5)
@@ -322,7 +320,7 @@ def plot_latency(output_folder_path, ds_name, timestamps, algo_names, latencies)
 
     # define a color for each algorithm and each coordinate
     # algo_colors = [[np.random.rand(3,) for _ in range(joints_gt.shape[2])] for _ in algo_names] # random colors
-    algo_colors = ['tab:blue','tab:orange','blue', 'red', 'violet', 'chocolate', 'purple', 'sienna', 'lime', 'gold', 'aqua', 'olive'] # fixed colors
+    algo_colors = ['tab:green','tab:orange','blue', 'red', 'violet', 'chocolate', 'purple', 'sienna', 'lime', 'gold', 'aqua', 'olive'] # fixed colors
 
     
 
@@ -376,12 +374,13 @@ def tabulate_metric_over_algorithms(algo_metrics: dict, headers: list, descr: Op
     for (algo_name, metric) in sorted(algo_metrics.items()):
         values = metric.get_value()
         if(len(values)>2):
-            joints_values = values[2]
+            joints_values = np.around(values[2], decimals=2)
         else:
-            joints_values = values[0]
+            joints_values = np.around(values[0], decimals=2)
         # joints_values = values[0]
         # avg_value = np.max(values[1])
-        avg_value = np.mean(joints_values) # this mean matches the mean in the data in boxplot (green line), not the median (orange line)
+        avg_value =  np.around(np.mean(joints_values), decimals=2)
+        # joints_values = values[0] # this mean matches the mean in the data in boxplot (green line), not the median (orange line)
         table_row = joints_values.tolist()
         if isinstance(avg_value, np.ndarray):
             table_row.extend(avg_value.tolist())
@@ -540,18 +539,18 @@ def main(args):
 
         # interpolate ground truth joints so that they can be compared with the high frequency predictions
         for k_map in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
-            x_interpolation = interpolate.interp1d(ts_gt, np.concatenate(([data[k_map[0]][0, 0]], data[k_map[0]][:, 0], [data[k_map[0]][-1, 0]])), fill_value="extrapolate")
-            y_interpolation = interpolate.interp1d(ts_gt, np.concatenate(([data[k_map[0]][0, 1]], data[k_map[0]][:, 1], [data[k_map[0]][-1, 1]])), fill_value="extrapolate")
+            x_interpolation = interpolate.interp1d(ts_gt, np.concatenate(([data[k_map[0]][0, 0]], data[k_map[0]][:, 0], [data[k_map[0]][-1, 0]])))#, fill_value="extrapolate"
+            y_interpolation = interpolate.interp1d(ts_gt, np.concatenate(([data[k_map[0]][0, 1]], data[k_map[0]][:, 1], [data[k_map[0]][-1, 1]])))
             data[k_map[0]] = dict()
             data[k_map[0]]['x'] = x_interpolation
             data[k_map[0]]['y'] = y_interpolation
 
         # GT contains the size of the torso
         if data['head_sizes'][0] == -1:
-            pck_sizes_gt_interp = interpolate.interp1d(ts_gt, np.concatenate(([data['torso_sizes'][0]], data['torso_sizes'], [data['torso_sizes'][-1]])), fill_value="extrapolate")
+            pck_sizes_gt_interp = interpolate.interp1d(ts_gt, np.concatenate(([data['torso_sizes'][0]], data['torso_sizes'], [data['torso_sizes'][-1]])))
         # GT contains the size of the head
         else:
-            pck_sizes_gt_interp = interpolate.interp1d(ts_gt, np.concatenate(([data['head_sizes'][0]], data['head_sizes'], [data['head_sizes'][-1]])), fill_value="extrapolate")
+            pck_sizes_gt_interp = interpolate.interp1d(ts_gt, np.concatenate(([data['head_sizes'][0]], data['head_sizes'], [data['head_sizes'][-1]])))
 
         output_ds_folder_path = output_folder_path / results_key
         output_ds_folder_path.mkdir(parents=True, exist_ok=True)
@@ -568,8 +567,13 @@ def main(args):
         for pred_path in predictions_file_path:
 
             algo_name = pred_path.stem
-            predictions = np.loadtxt(str(pred_path.resolve()), dtype=float)
+            predictions_old = np.loadtxt(str(pred_path.resolve()), dtype=float)
 
+            # ts_pred = predictions[:, 0]
+            idx = np.where(np.logical_and(predictions_old[:, 0]>0.1*ts_gt[-1],predictions_old[:, 0]<ts_gt[-1]))
+            # idx = np.where(predictions_old[:, 0]<ts_gt[-1])
+            predictions = predictions_old[idx[0], :]
+            # ts_pred = predictions[idx[0], 0]
             ts_pred = predictions[:, 0]
             timestamps.append(ts_pred)
             skeletons_gt = np.zeros((len(ts_pred), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), 2))
@@ -611,7 +615,8 @@ def main(args):
 
                     # update dataset metric
                     pck = metrics_utils.PCK(threshold=th)
-                    pck.update_samples(skeletons_pred, skeletons_gt, pck_sizes_gt_interp(ts_pred))
+                    # pck.update_samples(skeletons_pred, skeletons_gt, pck_sizes_gt_interp(ts_pred))
+                    pck.update_samples(skeletons_pred1K, skeletons_gt1K, pck_sizes_gt_interp(tGT1K))
 
                     if th not in results['datasets'][results_key]['pck'].keys():
                         results['datasets'][results_key]['pck'][th] = dict()
@@ -669,7 +674,7 @@ def main(args):
             plot_predictions(output_ds_folder_path, results_key, tGT1K, skeletons_gt1K, algorithm_names, skeletons_predictions1K)
         if(args.plot_sklt):
             plot_predictions_all_joints(output_ds_folder_path, results_key, tGT1K, skeletons_gt1K, algorithm_names, skeletons_predictions1K)
-        if args.lat:  
+        if(args.lat):  
             plot_latency(output_ds_folder_path, results_key, timestamps, algorithm_names, latency)
 
     # iterate over datasets metrics and print results
@@ -780,7 +785,7 @@ def main(args):
             plot_boxplot(metric_results,
                          descr=f'Global RMSE results',
                          file_path=output_folder_path / f'rmse.png')
-        plt.show()
+    plt.show()
         
 
 

@@ -84,11 +84,12 @@ void kfEstimator::setTimePeriod(double dt)
 
 bool kfEstimator::initialise(std::vector<double> parameters)
 {
-    if (parameters.size() != 2)
+    if (parameters.size() != 3)
         return false;
     procU = parameters[0];
-    measU = parameters[1];
-
+    measUD = parameters[1];
+    measUV = parameters[2];
+ 
     // init(state size, measurement size)
     for (auto &kf : kf_array)
     {
@@ -101,8 +102,8 @@ bool kfEstimator::initialise(std::vector<double> parameters)
 
         kf.processNoiseCov = (cv::Mat_<float>(2, 2) << procU, 0,
                               0, procU);
-        kf.measurementNoiseCov = (cv::Mat_<float>(2, 2) << measU, 0,
-                                  0, measU);
+        kf.measurementNoiseCov = (cv::Mat_<float>(2, 2) << measUD, 0,
+                                  0, measUD);
     }
     return true;
 }
@@ -112,6 +113,8 @@ void kfEstimator::updateFromVelocity(jointName name, jDot velocity, double dt)
     auto &kf = kf_array[name];
     joint j_new = state[name] + velocity * dt;
     setTimePeriod(dt);
+    kf.measurementNoiseCov.at<float>(0, 0) = measUV;
+    kf.measurementNoiseCov.at<float>(1, 1) = measUV;
     kf.predict();
     kf.correct((cv::Mat_<float>(2, 1) << j_new.u, j_new.v));
     state[name] = {kf.statePost.at<float>(0), kf.statePost.at<float>(1)};
@@ -121,6 +124,8 @@ void kfEstimator::updateFromPosition(jointName name, joint position, double dt)
 {
     auto &kf = kf_array[name];
     setTimePeriod(dt);
+    kf.measurementNoiseCov.at<float>(0, 0) = measUD;
+    kf.measurementNoiseCov.at<float>(1, 1) = measUD;
     kf.predict();
     kf.correct((cv::Mat_<float>(2, 1) << position.u, position.v));
     state[name] = {kf.statePost.at<float>(0), kf.statePost.at<float>(1)};
