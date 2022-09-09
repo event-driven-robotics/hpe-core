@@ -251,6 +251,8 @@ def arg_parser(cfg):
                         type=str)
     parser.add_argument('--eval_label_path', help='File (full or relative path) to evaluation annotation file',
                         default=cfg['eval_label_path'], type=str)
+    parser.add_argument('--results_path', help='Path to the location where the resultant .csv files should be stored.',
+                        default=cfg['eval_label_path'], type=str)
 
     args = parser.parse_args()
 

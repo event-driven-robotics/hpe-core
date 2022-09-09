@@ -31,9 +31,9 @@ This will create a Docker image names movenet. Before running docker, instruct t
 Then run a container with the right parameters:
 
 ```shell
-    $ docker run -it --privileged -v /dev/bus/usb:/dev/bus/usb \
+    $ docker run -it --privileged --network host -v /dev/bus/usb:/dev/bus/usb \
     -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY \
-    --name <container_name> eventdrivenrobotics/atis-gen3:latest
+    --name <container_name> movenet:latest
 ```
 
 The meaning of the options are:
@@ -57,4 +57,14 @@ To run the movenet app, run
     $ yarpmanager
   ```
 
-and load the file `/usr/local/hpe-core/examples/movenet/yarpmanagerapplication.xml`. Run all and connect all to dectec pose from the camera input
+and load the file `/usr/local/hpe-core/examples/movenet/yarpmanagerapplication.xml`. Run all and connect all to detect pose from the camera input
+
+To create csv files from a stored dataset of eros frames:
+
+```shell
+  $ python3 evaluate.py --write_output --eval_img_path <<location_of_eros_frames>> \ 
+  --eval_label_path <<location_to_json_file>> \
+  --results_path <<location_to_save_csv_folder>>
+
+
+```
