@@ -61,7 +61,7 @@ class stateEstimator {
 class kfEstimator : public stateEstimator {
    private:
     std::array<cv::KalmanFilter, 13> kf_array;
-    double procU{0.0}, measU{0.0};
+    double procU{0.0}, measUV{0.0}, measUD{0.0};
 
     void setTimePeriod(double dt);
 
