@@ -275,6 +275,17 @@ def get_torso_diameter(keypoints):
     else:
         return 0
 
+def normalize_keypoints(image_size, keypoints):
+    new_keypoints = np.copy(keypoints)
+
+    return new_keypoints
+
+def normalize_center(image_size, center):
+    new_center = np.copy(center)
+
+    return new_center
+
+
 ######## dataloader
 class TensorDataset(Dataset):
     def __init__(self, data_labels, img_dir, img_size, data_aug=None, num_classes=13):
@@ -288,36 +299,51 @@ class TensorDataset(Dataset):
 
     def __getitem__(self, index):
         item = self.data_labels[index]
-
-        if len(item['other_keypoints']) == 0:
-            item['other_keypoints'] = [[] for i in range(13)]
         """
         item = {
-                     "img_name":save_name,
-                     "head_size":head_size,
-                     "head_size_scaled":head_size_scaled,
-                     "keypoints":save_keypoints,
-                     "center":save_center,
-                     "other_centers":other_centers,
-                     "other_keypoints":other_keypoints,
-                    }
+                 "img_name":save_name,
+                 'ts': timestanp
+                 "head_size":head_size, (optional)
+                 "head_size_scaled":head_size_scaled, (optional)
+                 "keypoints":save_keypoints,
+                 "center":save_center,
+                 "other_centers":other_centers, (optional)
+                 "other_keypoints":other_keypoints, (optional)
+           }
         """
         img_path = os.path.join(self.img_dir, item["img_name"])
+
         img = cv2.imread(img_path, cv2.IMREAD_COLOR)
+        # if image is not found
+        if img is None:
+            return 0, 0, 0, 0, 0, 0, 0, 0
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img_size_original = img.shape[0:2]
         img = cv2.resize(img, (self.img_size, self.img_size),
-                         interpolation=random.choice(self.interp_methods))
+                             interpolation=random.choice(self.interp_methods))
+
         #### Data Augmentation
         if self.data_aug is not None:
+            item['other_centers'] = item.get('other_centers', [])
+            item['other_keypoints'] = item.get("other_keypoints", [[] for i in range(self.num_classes)])
+            if item['other_keypoints'] == []:
+                item['other_keypoints'] = [[] for i in range(self.num_classes)]
             img, item = self.data_aug(img, item)
         img = img.astype(np.float32)
         img = np.transpose(img, axes=[2, 0, 1])
-        head_size_scaled = item.get("head_size_scaled", None)
-        keypoints = item["keypoints"]
-        center = item['center']
-        other_centers = item["other_centers"]
-        other_keypoints = item["other_keypoints"]
+        head_size_scaled = item.get("head_size_scaled", 0)
+        keypoints = item.get("keypoints", [[] for i in range(self.num_classes)])
+        center = item.get("center", [])
+        other_centers = item.get("other_centers", [])
+        other_keypoints = item.get("other_keypoints", [[] for i in range(self.num_classes)])
+        ts = item.get('ts', 0)
 
+        # Normalize inputs
+        keypoints = normalize_keypoints(img_size_original, keypoints)
+        center = normalize_center(img_size_original, center)
+
+        if len(other_keypoints) == 0:
+            other_keypoints = [[] for i in range(self.num_classes)]
         kps_mask = np.ones(len(keypoints) // 3)
         for i in range(len(keypoints) // 3):
             if keypoints[i * 3 + 2] == 0:
@@ -331,8 +357,7 @@ class TensorDataset(Dataset):
         n = self.num_classes
         labels = np.concatenate([heatmaps[:n, :, :], centers, regs[:2 * n, :, :], offsets[:2 * n, :, :]], axis=0)
         torso_diameter = get_torso_diameter(keypoints)
-
-        return img, labels, kps_mask, img_path, torso_diameter, head_size_scaled
+        return img, labels, kps_mask, img_path, torso_diameter, head_size_scaled, img_size_original, ts
 
     def __len__(self):
         return len(self.data_labels)
