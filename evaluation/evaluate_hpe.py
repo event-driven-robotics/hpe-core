@@ -3,8 +3,6 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import re
-from scipy.fft import fft, fftfreq
-from numpy import diff
 
 from pathlib import Path
 from scipy import interpolate
