@@ -75,9 +75,6 @@ class kfEstimator : public stateEstimator {
     void updateFromPosition(jointName name, joint position, double ts) override;
     void updateFromPosition(skeleton13 position, double ts) override;
     void set(skeleton13 pose, double ts) override;
-
-    skeleton13 query();
-    joint query(jointName name);
 };
 
 // constant velocity model
@@ -96,8 +93,7 @@ class constVelKalman : public stateEstimator {
     void updateFromPosition(jointName name, joint position, double ts) override;
     void updateFromPosition(skeleton13 position, double ts) override;
     void set(skeleton13 pose, double ts) override;
-    skeleton13 query();
-    joint query(jointName name);
+
 };
 
 // latency compensation constant position model
