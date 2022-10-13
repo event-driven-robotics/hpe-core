@@ -36,28 +36,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 namespace hpecore {
 
+// pure integration
 class stateEstimator {
    protected:
     bool pose_initialised{false};
     skeleton13 state{0};
     skeleton13_vel velocity{0};
     std::deque<hpecore::jDot> error[13];
+    double prev_ts{0.0};
 
    public:
     virtual bool initialise(std::vector<double> parameters = {});
-    virtual void updateFromVelocity(jointName name, jDot velocity, double dt);
-    virtual void updateFromPosition(jointName name, joint position, double dt);
-    virtual void updateFromVelocity(skeleton13 velocity, double dt);
-    virtual void updateFromPosition(skeleton13 position, double dt);
-    virtual void set(skeleton13 pose);
-    bool poseIsInitialised();
-    skeleton13 query();
-    joint query(jointName name);
+    virtual void updateFromVelocity(jointName name, jDot velocity, double ts);
+    virtual void updateFromPosition(jointName name, joint position, double ts);
+    virtual void updateFromVelocity(skeleton13 velocity, double ts);
+    virtual void updateFromPosition(skeleton13 position, double ts);
+    virtual void set(skeleton13 pose, double ts);
+    virtual bool poseIsInitialised();
+    virtual skeleton13 query();
+    virtual joint query(jointName name);
     skeleton13_vel queryVelocity();
     void setVelocity(skeleton13_vel vel);
     std::deque<hpecore::jDot>* queryError();
 };
 
+// constant position model
 class kfEstimator : public stateEstimator {
    private:
     std::array<cv::KalmanFilter, 13> kf_array;
@@ -67,16 +70,17 @@ class kfEstimator : public stateEstimator {
 
    public:
     bool initialise(std::vector<double> parameters) override;
-    void updateFromVelocity(skeleton13 velocity, double dt) override;
-    void updateFromVelocity(jointName name, jDot velocity, double dt) override;
-    void updateFromPosition(jointName name, joint position, double dt) override;
-    void updateFromPosition(skeleton13 position, double dt) override;
-    void set(skeleton13 pose) override;
-    bool poseIsInitialised();
+    void updateFromVelocity(skeleton13 velocity, double ts) override;
+    void updateFromVelocity(jointName name, jDot velocity, double ts) override;
+    void updateFromPosition(jointName name, joint position, double ts) override;
+    void updateFromPosition(skeleton13 position, double ts) override;
+    void set(skeleton13 pose, double ts) override;
+
     skeleton13 query();
     joint query(jointName name);
 };
 
+// constant velocity model
 class constVelKalman : public stateEstimator {
    private:
     std::array<cv::KalmanFilter, 13> kf_array;
@@ -87,14 +91,110 @@ class constVelKalman : public stateEstimator {
 
    public:
     bool initialise(std::vector<double> parameters) override;
-    void updateFromVelocity(skeleton13 velocity, double dt) override;
-    void updateFromVelocity(jointName name, jDot velocity, double dt) override;
-    void updateFromPosition(jointName name, joint position, double dt) override;
-    void updateFromPosition(skeleton13 position, double dt) override;
-    void set(skeleton13 pose) override;
-    bool poseIsInitialised();
+    void updateFromVelocity(skeleton13 velocity, double ts) override;
+    void updateFromVelocity(jointName name, jDot velocity, double ts) override;
+    void updateFromPosition(jointName name, joint position, double ts) override;
+    void updateFromPosition(skeleton13 position, double ts) override;
+    void set(skeleton13 pose, double ts) override;
     skeleton13 query();
     joint query(jointName name);
+};
+
+// latency compensation constant position model
+class singleJointLatComp {
+   private:
+    cv::KalmanFilter kf;
+    joint vel_accum;
+    double measU;
+    double procU;
+    double prev_pts;
+    double prev_vts;
+
+   public:
+    void initialise(double procU, double measU) {
+        this->procU = procU;
+        this->measU = measU;
+
+        // init(state size, measurement size)
+        kf.init(2, 2);
+        kf.transitionMatrix = (cv::Mat_<float>(2, 2) << 1, 0, 0, 1);
+        kf.measurementMatrix = (cv::Mat_<float>(2, 2) << 1, 0, 0, 1);
+        kf.processNoiseCov = (cv::Mat_<float>(2, 2) << procU, 0, 0, procU);
+        kf.measurementNoiseCov = (cv::Mat_<float>(2, 2) << measU, 0, 0, measU);
+    }
+
+    void set(joint position, double ts) {
+        kf.statePost.at<float>(0) = position.u;
+        kf.statePost.at<float>(1) = position.v;
+        prev_pts = ts;
+        prev_vts = ts;
+        vel_accum = {0, 0};
+    }
+
+    void updateFromVelocity(jDot velocity, double ts) {
+        vel_accum = vel_accum + velocity * (ts - prev_vts);
+        prev_vts = ts;
+    }
+
+    void updateFromPosition(joint position, double ts) {
+        // perform an (asynchronous) update of the position from the previous
+        // position estimated (including the previous period velocity accumulation)
+        double dt = ts - prev_pts;
+        kf.processNoiseCov.at<float>(0, 0) = procU * dt;
+        kf.processNoiseCov.at<float>(1, 1) = procU * dt;
+        kf.predict();
+        kf.correct((cv::Mat_<float>(2, 1) << position.u, position.v));
+
+        // add the current period velocity accumulation to the state
+        kf.statePost.at<float>(0) += vel_accum.u;
+        kf.statePost.at<float>(1) += vel_accum.v;
+        vel_accum = {0.0, 0.0};
+    }
+
+    joint query() {
+        return {kf.statePost.at<float>(0) + vel_accum.u,
+                kf.statePost.at<float>(1) + vel_accum.v};
+    }
+};
+
+class multiJointLatComp : public stateEstimator {
+   private:
+    std::array<singleJointLatComp, 13> kf_array;
+
+   public:
+    bool initialise(std::vector<double> parameters) override {
+        if (parameters.size() != 2)
+            return false;
+        for (auto j : kf_array)
+            j.initialise(parameters[0], parameters[1]);
+        pose_initialised = true;
+        return true;
+    }
+
+    void updateFromVelocity(jointName name, jDot velocity, double ts) override {
+        kf_array[name].updateFromVelocity(velocity, ts);
+        state[name] = kf_array[name].query();
+    }
+
+    void updateFromVelocity(skeleton13 velocity, double ts) override {
+        for (auto name : jointNames)
+            kf_array[name].updateFromVelocity(velocity[name], ts);
+    }
+
+    void updateFromPosition(jointName name, joint position, double ts) override {
+        kf_array[name].updateFromPosition(position, ts);
+        state[name] = kf_array[name].query();
+    }
+
+    void updateFromPosition(skeleton13 position, double ts) override {
+        for (auto name : jointNames)
+            kf_array[name].updateFromPosition(position[name], ts);
+    }
+
+    void set(skeleton13 position, double ts) override {
+        for (auto name : jointNames)
+            kf_array[name].set(position[name], ts);
+    }
 };
 
 }  // namespace hpecore
