@@ -132,20 +132,7 @@ class singleJointLatComp {
         prev_vts = ts;
     }
 
-    void updateFromPosition(joint position, double ts) {
-        // perform an (asynchronous) update of the position from the previous
-        // position estimated (including the previous period velocity accumulation)
-        double dt = ts - prev_pts;
-        kf.processNoiseCov.at<float>(0, 0) = procU * dt;
-        kf.processNoiseCov.at<float>(1, 1) = procU * dt;
-        kf.predict();
-        kf.correct((cv::Mat_<float>(2, 1) << position.u, position.v));
-
-        // add the current period velocity accumulation to the state
-        kf.statePost.at<float>(0) += vel_accum.u;
-        kf.statePost.at<float>(1) += vel_accum.v;
-        vel_accum = {0.0, 0.0};
-    }
+    void updateFromPosition(joint position, double ts);
 
     joint query() {
         return {kf.statePost.at<float>(0) + vel_accum.u,
@@ -161,9 +148,8 @@ class multiJointLatComp : public stateEstimator {
     bool initialise(std::vector<double> parameters) override {
         if (parameters.size() != 2)
             return false;
-        for (auto j : kf_array)
+        for (auto &j : kf_array)
             j.initialise(parameters[0], parameters[1]);
-        pose_initialised = true;
         return true;
     }
 
@@ -174,7 +160,7 @@ class multiJointLatComp : public stateEstimator {
 
     void updateFromVelocity(skeleton13 velocity, double ts) override {
         for (auto name : jointNames)
-            kf_array[name].updateFromVelocity(velocity[name], ts);
+            updateFromVelocity(name, velocity[name], ts);
     }
 
     void updateFromPosition(jointName name, joint position, double ts) override {
@@ -184,10 +170,12 @@ class multiJointLatComp : public stateEstimator {
 
     void updateFromPosition(skeleton13 position, double ts) override {
         for (auto name : jointNames)
-            kf_array[name].updateFromPosition(position[name], ts);
+            updateFromPosition(name, position[name], ts);
     }
 
     void set(skeleton13 position, double ts) override {
+        pose_initialised = true;
+        state = position;
         for (auto name : jointNames)
             kf_array[name].set(position[name], ts);
     }

@@ -280,3 +280,24 @@ void constVelKalman::set(skeleton13 pose, double ts)
     }
     pose_initialised = true;
 }
+
+// ========================================================================== //
+
+void singleJointLatComp::updateFromPosition(joint position, double ts)
+{
+    // perform an (asynchronous) update of the position from the previous
+    // position estimated (including the previous period velocity accumulation)
+    double dt = ts - prev_pts;
+    kf.processNoiseCov.at<float>(0, 0) = procU * dt;
+    kf.processNoiseCov.at<float>(1, 1) = procU * dt;
+    kf.predict();
+    kf.correct((cv::Mat_<float>(2, 1) << position.u, position.v));
+
+    // add the current period velocity accumulation to the state
+    //vel_accum.u *= 5; vel_accum.v *= 5;
+    std::cout << vel_accum.u << " " << vel_accum.v << std::endl;
+    std::cout.flush();
+    kf.statePost.at<float>(0) += vel_accum.u;
+    kf.statePost.at<float>(1) += vel_accum.v;
+    vel_accum = {0.0, 0.0};
+}

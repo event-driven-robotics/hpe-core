@@ -103,13 +103,11 @@ class MovenetModule(yarp.RFModule):
     def updateModule(self):
         # synchronous update called every get period seconds.
 
-        t0 = datetime.datetime.now()
         if dev:
             np_input = cv2.imread(self.files[self.file_counter])
             np_input = cv2.cvtColor(np_input, cv2.COLOR_BGR2GRAY)
             stamp_in = 17.34450
         else:
-            
             # Preparing input and output image buffers
             np_input = np.ones((self.image_h, self.image_w), dtype=np.uint8)
             self.yarp_image.resize(self.image_w, self.image_h)
@@ -132,6 +130,7 @@ class MovenetModule(yarp.RFModule):
             # self.counter += 1  # can be used to interrupt the program
             self.yarp_image.copy(read_image)
 
+        t0 = datetime.datetime.now()
         input_image = np.copy(np_input)
 
         # input_image_resized = np.zeros([1, 3, self.image_h_model, self.image_w_model])
@@ -147,7 +146,7 @@ class MovenetModule(yarp.RFModule):
         # Predict the pose
         # pre = self.run_task.predict_online(input_image_resized)
         pre = self.run_task.predict_online(input_image)
-        
+
         # Visualize the result
         # if self.cfg['show_center']:
         #     img = image_show(input_image, pre=pre['joints'], center=pre['center'])
