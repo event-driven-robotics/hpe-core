@@ -149,7 +149,8 @@ class singleJointLatComp {
         kf.processNoiseCov.at<float>(0, 0) = procU * dt;
         kf.processNoiseCov.at<float>(1, 1) = procU * dt;
         kf.predict();
-        kf.correct((cv::Mat_<float>(2, 1) << position.u, position.v));
+        if(position.u > 0 || position.v > 0)
+            kf.correct((cv::Mat_<float>(2, 1) << position.u, position.v));
 
         // add the current period velocity accumulation to the state
         // vel_accum.u *= 5; vel_accum.v *= 5;
