@@ -419,4 +419,82 @@ public:
         this->tos.getSurface().copyTo(TOSout);
     }
 };
+
+class pwvelocity 
+{
+private:
+
+    //parameters
+    double filter_thresh{0.0}; //seconds
+    int eros_k{7};
+    double eros_d{0.3};
+
+    //internal structure/variables
+    cv::Mat eros;
+    cv::Mat sae;
+    cv::Rect roi_full;
+    double ts_prev{0.0}, ts_curr{0.0};
+
+public:
+    void setParameters(cv::Size image_size, int eros_k = 7, double eros_d = 0.3, double filter_threshold = 0) 
+    {
+        eros = cv::Mat(image_size, CV_64F);
+        sae =  cv::Mat(image_size, CV_64F);
+        roi_full = cv::Rect(cv::Point(0, 0), image_size);
+        filter_thresh = filter_threshold;
+        this->eros_k = eros_k % 2 ? eros_k : eros_k + 1;
+        this->eros_d = eros_d >= 1.0 ? 0.99 : eros_d;
+        this->eros_d = eros_d < 0.0 ? 0.01 : eros_d;
+
+    }
+
+    template <typename T>
+    void update(const T &packet, double ts)
+    {
+        //these are static so they get set once and we use the same memory
+        //locations each call
+        static double odecay = pow(eros_d, 1.0 / eros_k);
+        static int half_kernel = eros_k / 2;
+        static cv::Rect roi_raw = cv::Rect(0, 0, eros_k, eros_k);
+
+        for(auto &v : packet) 
+        {
+            //get references to the indexed pixel locations
+            auto &p_sae  =  sae.at<double>(v.y, v.x);
+            auto &p_eros = eros.at<double>(v.y, v.x);
+
+            //we manually implement a filter here
+            if(ts < p_sae + filter_thresh)
+                continue;
+
+            //update the sae
+            p_sae = ts;
+
+            //decay the valid region of the eros
+            roi_raw.x = v.x - half_kernel;
+            roi_raw.y = v.y - half_kernel;
+            eros(roi_raw & roi_full) *= odecay;
+
+            //set the eros position to max
+            p_eros = 1.0;
+        }
+
+        ts_prev = ts_curr;
+        ts_curr = ts;
+    }
+
+    jDot query(int x, int y, int d = 1, jDot pv = {0, 0})
+    {
+
+        return {0, 0};
+    }
+
+    skeleton13_vel query(skeleton13 points, int d = 1, skeleton13_vel pv = {0})
+    {
+
+        return {0};
+    }
+
+};
+
 }
