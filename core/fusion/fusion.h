@@ -177,16 +177,12 @@ class multiJointLatComp : public stateEstimator {
 
    public:
     bool initialise(std::vector<double> parameters) override {
-        if (parameters.size() < 3)
+        if (parameters.size() < 4)
             return false;
         for (auto &j : kf_array)
             j.initialise(parameters[0], parameters[1]);
+        if(parameters[3] > 0.0) use_lc = true;
         return true;
-    }
-
-    void activateLC(bool use_lc=true)
-    {
-        this->use_lc = use_lc;
     }
 
     void updateFromVelocity(jointName name, jDot velocity, double ts) override {
