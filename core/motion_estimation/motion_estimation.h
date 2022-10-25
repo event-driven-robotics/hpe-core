@@ -505,7 +505,7 @@ public:
                 //search neighbouring events to calc: distance / time
                 int nn = 0;
                 double xdot = 0.0, ydot = 0.0;
-                for(auto yj = yi - d2; yj < yi + d2; jy++) {
+                for(auto yj = yi - d2; yj < yi + d2; yj++) {
                     for(auto xj = xi - d2; xj < xi + d2; xj++) {
                         if (eros.at<double>(yj, xi) >= eros_valid) {
                             double inv_dt = 1.0 / (ts - sae.at<double>(yj, xj));
@@ -543,72 +543,73 @@ public:
         return out;
     }
 
-    jDot query_fullroi(int x, int y, int d1 = 20, int d2 = 2, jDot pv = {0, 0})
-    {
-    {
-        static double eros_valid = 1.0 - eros_d;
-        jDot out = {0, 0};
-        int nx = 0, ny = 0;
+    // jDot query_fullroi(int x, int y, int d1 = 20, int d2 = 2, jDot pv = {0, 0})
+    // {
+    
+    //     static double eros_valid = 1.0 - eros_d;
+    //     jDot out = {0, 0};
+    //     int nx = 0, ny = 0;
 
-        int xl = std::max(x - d1, d2);
-        int xh = std::min(x + d1, sae.cols - d2);
-        int yl = std::max(y - d1, d2);
-        int yh = std::min(x + d1, sae.rows - d2);
-        for(int yi = yl; yi < yh; y++) {
-            for(int xi = xl; xi < xh; x++) {
+    //     int xl = std::max(x - d1, d2);
+    //     int xh = std::min(x + d1, sae.cols - d2);
+    //     int yl = std::max(y - d1, d2);
+    //     int yh = std::min(x + d1, sae.rows - d2);
+    //     for(int yi = yl; yi < yh; y++) {
+    //         for(int xi = xl; xi < xh; x++) {
 
-                //keep searching if not a new events
-                auto &ts = sae.at<double>(yi, xi);
-                if(ts <= ts_prev)
-                    continue;
+    //             //keep searching if not a new events
+    //             auto &ts = sae.at<double>(yi, xi);
+    //             if(ts <= ts_prev)
+    //                 continue;
 
-                //search neighbouring events to calc: distance / time
-                int nnx = 0, nny = 0;
-                double dtdx = 0.0, dtdy = 0.0;
-                for(auto yj = yi - d2; yj < yi + d2; jy++) {
-                    for(auto xj = xi - d2; xj < xi + d2; xj++) {
-                        if (eros.at<double>(yj, xi) >= eros_valid) 
-                        {
-                            double dt = ts - sae.at<double>(yj, xj);
-                            int dx = xi - xj;
-                            int dy = yi - yj;
-                            if(dx) {dtdx += dt / dx; nnx++;}
-                            if(dy) {dtdy += dy / dy; nny++;}
-                        }
-                    }
-                }
-                // calculate the average for this event
-                if(nnx) {out.u += 
-                if (nn > 1) {
-                    double inv_nn = 1.0 / nn;
-                    out.u += xdot * inv_nn;
-                    out.v += ydot * inv_nn;
-                    n++;
-                }
-            }
-        }
+    //             //search neighbouring events to calc: distance / time
+    //             int nnx = 0, nny = 0;
+    //             double dtdx = 0.0, dtdy = 0.0;
+    //             for(auto yj = yi - d2; yj < yi + d2; jy++) {
+    //                 for(auto xj = xi - d2; xj < xi + d2; xj++) {
+    //                     if (eros.at<double>(yj, xi) >= eros_valid) 
+    //                     {
+    //                         double dt = ts - sae.at<double>(yj, xj);
+    //                         int dx = xi - xj;
+    //                         int dy = yi - yj;
+    //                         if(dx) {dtdx += dt / dx; nnx++;}
+    //                         if(dy) {dtdy += dy / dy; nny++;}
+    //                     }
+    //                 }
+    //             }
+    //             // calculate the average for this event
+    //             if(nnx) {out.u += 
+    //             if (nn > 1) {
+    //                 double inv_nn = 1.0 / nn;
+    //                 out.u += xdot * inv_nn;
+    //                 out.v += ydot * inv_nn;
+    //                 n++;
+    //             }
+    //         }
+    //     }
 
-        if (n) {
-            double inv_n = 1.0 / n; 
-            out.u *= inv_n;
-            out.v *= inv_n;
-        }
+    //     if (n) {
+    //         double inv_n = 1.0 / n; 
+    //         out.u *= inv_n;
+    //         out.v *= inv_n;
+    //     }
 
-        //deal with inversion
+    //     //deal with inversion
 
-        //add observation model
+    //     //add observation model
 
 
-        ts_prev = ts_curr;
+    //     ts_prev = ts_curr;
 
-        return out;
-    }
-
-    }
+    //     return out;
+    // }
 
     skeleton13_vel query(skeleton13 points, int d = 1, skeleton13_vel pv = {0})
     {
-        return {0};
+        skeleton13_vel out;
+        for(size_t i = 0; i < points.size(); i++)
+            out[i] = query_franco(points[i].u, points[i].v);
+        return out;
     }
 
     const cv::Mat& querySAE()
