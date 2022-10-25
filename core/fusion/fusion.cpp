@@ -6,24 +6,30 @@ bool stateEstimator::initialise(std::vector<double> parameters)
 {
     return true;
 }
-void stateEstimator::updateFromVelocity(jointName name, jDot velocity, double dt)
+void stateEstimator::updateFromVelocity(jointName name, jDot velocity, double ts)
 {
+    double dt = ts - prev_ts;
+    prev_ts = ts;
     state[name] += (velocity * dt);
 }
 
-void stateEstimator::updateFromPosition(jointName name, joint position, double dt)
+void stateEstimator::updateFromPosition(jointName name, joint position, double ts)
 {
+    prev_ts = ts;
     state[name] = position;
 }
 
-void stateEstimator::updateFromVelocity(skeleton13 velocity, double dt)
+void stateEstimator::updateFromVelocity(skeleton13 velocity, double ts)
 {
+    double dt = ts - prev_ts;
+    prev_ts = ts;
     for (int j = 0; j < 13; j++)
         state[j] += (velocity[j] * dt);
 }
 
-void stateEstimator::updateFromPosition(skeleton13 position, double dt)
+void stateEstimator::updateFromPosition(skeleton13 position, double ts)
 {
+    prev_ts = ts;
     skeleton13_b valid = jointTest(position);
     for (auto &name : jointNames)
     {
@@ -35,8 +41,9 @@ void stateEstimator::updateFromPosition(skeleton13 position, double dt)
     // state = position;
 }
 
-void stateEstimator::set(skeleton13 pose)
+void stateEstimator::set(skeleton13 pose, double ts)
 {
+    prev_ts = ts;
     state = pose;
     pose_initialised = true;
 }
@@ -84,7 +91,7 @@ void kfEstimator::setTimePeriod(double dt)
 
 bool kfEstimator::initialise(std::vector<double> parameters)
 {
-    if (parameters.size() != 3)
+    if (parameters.size() < 3)
         return false;
     procU = parameters[0];
     measUD = parameters[1];
@@ -108,8 +115,11 @@ bool kfEstimator::initialise(std::vector<double> parameters)
     return true;
 }
 
-void kfEstimator::updateFromVelocity(jointName name, jDot velocity, double dt)
+void kfEstimator::updateFromVelocity(jointName name, jDot velocity, double ts)
 {
+    double dt = ts - prev_ts;
+    prev_ts = ts;
+
     auto &kf = kf_array[name];
     joint j_new = state[name] + velocity * dt;
     setTimePeriod(dt);
@@ -120,8 +130,11 @@ void kfEstimator::updateFromVelocity(jointName name, jDot velocity, double dt)
     state[name] = {kf.statePost.at<float>(0), kf.statePost.at<float>(1)};
 }
 
-void kfEstimator::updateFromPosition(jointName name, joint position, double dt)
+void kfEstimator::updateFromPosition(jointName name, joint position, double ts)
 {
+    double dt = ts - prev_ts;
+    prev_ts = ts;
+
     auto &kf = kf_array[name];
     setTimePeriod(dt);
     kf.measurementNoiseCov.at<float>(0, 0) = measUD;
@@ -131,22 +144,23 @@ void kfEstimator::updateFromPosition(jointName name, joint position, double dt)
     state[name] = {kf.statePost.at<float>(0), kf.statePost.at<float>(1)};
 }
 
-void kfEstimator::updateFromPosition(skeleton13 position, double dt)
+void kfEstimator::updateFromPosition(skeleton13 position, double ts)
 {
     skeleton13_b valid = jointTest(position);
     for (auto &name : jointNames)
         if(valid[name] && position[name].u && position[name].v)
-            updateFromPosition(name, position[name], dt);
+            updateFromPosition(name, position[name], ts);
 }
 
-void kfEstimator::updateFromVelocity(skeleton13 velocity, double dt)
+void kfEstimator::updateFromVelocity(skeleton13 velocity, double ts)
 {
     for (auto &name : jointNames)
-        updateFromVelocity(name, velocity[name], dt);
+        updateFromVelocity(name, velocity[name], ts);
 }
 
-void kfEstimator::set(skeleton13 pose)
+void kfEstimator::set(skeleton13 pose, double ts)
 {
+    prev_ts = ts;
     state = pose;
     for (jointName name : jointNames)
     {
@@ -155,21 +169,6 @@ void kfEstimator::set(skeleton13 pose)
         kf.statePost.at<float>(1) = state[name].v;
     }
     pose_initialised = true;
-}
-
-bool kfEstimator::poseIsInitialised()
-{
-    return pose_initialised;
-}
-
-skeleton13 kfEstimator::query()
-{
-    return state;
-}
-
-joint kfEstimator::query(jointName name)
-{
-    return state[name];
 }
 
 // ========================================================================== //
@@ -189,7 +188,7 @@ void constVelKalman::setTimePeriod(double dt)
 
 bool constVelKalman::initialise(std::vector<double> parameters)
 {
-    if (parameters.size() != 4)
+    if (parameters.size() < 4)
         return false;
     procU = parameters[0];
     measU = parameters[1];
@@ -229,8 +228,11 @@ bool constVelKalman::initialise(std::vector<double> parameters)
     return true;
 }
 
-void constVelKalman::updateFromVelocity(jointName name, jDot velocity, double dt)
+void constVelKalman::updateFromVelocity(jointName name, jDot velocity, double ts)
 {
+    double dt = ts - prev_ts;
+    prev_ts = ts;
+
     auto &kf = kf_array[name];
     setTimePeriod(dt);
     kf.measurementMatrix = measurement_velocity;
@@ -239,8 +241,11 @@ void constVelKalman::updateFromVelocity(jointName name, jDot velocity, double dt
     state[name] = {kf.statePost.at<float>(0), kf.statePost.at<float>(1)};
 }
 
-void constVelKalman::updateFromPosition(jointName name, joint position, double dt)
+void constVelKalman::updateFromPosition(jointName name, joint position, double ts)
 {
+    double dt = ts - prev_ts;
+    prev_ts = ts;
+
     auto &kf = kf_array[name];
     setTimePeriod(dt);
     kf.measurementMatrix = measurement_position;
@@ -249,20 +254,21 @@ void constVelKalman::updateFromPosition(jointName name, joint position, double d
     state[name] = {kf.statePost.at<float>(0), kf.statePost.at<float>(1)};
 }
 
-void constVelKalman::updateFromPosition(skeleton13 position, double dt)
+void constVelKalman::updateFromPosition(skeleton13 position, double ts)
 {
     for (auto &name : jointNames)
-        updateFromPosition(name, position[name], dt);
+        updateFromPosition(name, position[name], ts);
 }
 
-void constVelKalman::updateFromVelocity(skeleton13 velocity, double dt)
+void constVelKalman::updateFromVelocity(skeleton13 velocity, double ts)
 {
     for (auto &name : jointNames)
-        updateFromVelocity(name, velocity[name], dt);
+        updateFromVelocity(name, velocity[name], ts);
 }
 
-void constVelKalman::set(skeleton13 pose)
+void constVelKalman::set(skeleton13 pose, double ts)
 {
+    prev_ts = ts;
     state = pose;
     for (jointName name : jointNames)
     {
@@ -275,17 +281,4 @@ void constVelKalman::set(skeleton13 pose)
     pose_initialised = true;
 }
 
-bool constVelKalman::poseIsInitialised()
-{
-    return pose_initialised;
-}
-
-skeleton13 constVelKalman::query()
-{
-    return state;
-}
-
-joint constVelKalman::query(jointName name)
-{
-    return state[name];
-}
+// ========================================================================== //
