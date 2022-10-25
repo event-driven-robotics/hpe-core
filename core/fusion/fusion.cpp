@@ -91,7 +91,7 @@ void kfEstimator::setTimePeriod(double dt)
 
 bool kfEstimator::initialise(std::vector<double> parameters)
 {
-    if (parameters.size() != 3)
+    if (parameters.size() < 3)
         return false;
     procU = parameters[0];
     measUD = parameters[1];
@@ -188,7 +188,7 @@ void constVelKalman::setTimePeriod(double dt)
 
 bool constVelKalman::initialise(std::vector<double> parameters)
 {
-    if (parameters.size() != 4)
+    if (parameters.size() < 4)
         return false;
     procU = parameters[0];
     measU = parameters[1];
@@ -280,3 +280,5 @@ void constVelKalman::set(skeleton13 pose, double ts)
     }
     pose_initialised = true;
 }
+
+// ========================================================================== //

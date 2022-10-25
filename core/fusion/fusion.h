@@ -132,19 +132,36 @@ class singleJointLatComp {
         prev_vts = ts;
     }
 
-    void updateFromPosition(joint position, double ts) {
+    void updateFromPosition(joint position, double ts, bool use_comp = true)
+    {
+        //if not using latency compensation we want to integrate before doing
+        //the position update.
+        if(!use_comp) 
+        {
+            kf.statePost.at<float>(0) += vel_accum.u;
+            kf.statePost.at<float>(1) += vel_accum.v;
+            vel_accum = {0.0, 0.0};
+        }
+
         // perform an (asynchronous) update of the position from the previous
-        // position estimated (including the previous period velocity accumulation)
+        // position estimated
         double dt = ts - prev_pts;
         kf.processNoiseCov.at<float>(0, 0) = procU * dt;
         kf.processNoiseCov.at<float>(1, 1) = procU * dt;
         kf.predict();
-        kf.correct((cv::Mat_<float>(2, 1) << position.u, position.v));
+        if(position.u > 0 || position.v > 0)
+            kf.correct((cv::Mat_<float>(2, 1) << position.u, position.v));
 
         // add the current period velocity accumulation to the state
-        kf.statePost.at<float>(0) += vel_accum.u;
-        kf.statePost.at<float>(1) += vel_accum.v;
-        vel_accum = {0.0, 0.0};
+        // vel_accum.u *= 5; vel_accum.v *= 5;
+        // std::cout << vel_accum.u << " " << vel_accum.v << std::endl;
+        //std::cout.flush();
+        if (use_comp)
+        {
+            kf.statePost.at<float>(0) += vel_accum.u;
+            kf.statePost.at<float>(1) += vel_accum.v;
+            vel_accum = {0.0, 0.0};
+        }
     }
 
     joint query() {
@@ -156,14 +173,15 @@ class singleJointLatComp {
 class multiJointLatComp : public stateEstimator {
    private:
     std::array<singleJointLatComp, 13> kf_array;
+    bool use_lc{true};
 
    public:
     bool initialise(std::vector<double> parameters) override {
-        if (parameters.size() != 2)
+        if (parameters.size() < 4)
             return false;
-        for (auto j : kf_array)
+        for (auto &j : kf_array)
             j.initialise(parameters[0], parameters[1]);
-        pose_initialised = true;
+        if(parameters[3] > 0.0) use_lc = true;
         return true;
     }
 
@@ -174,20 +192,22 @@ class multiJointLatComp : public stateEstimator {
 
     void updateFromVelocity(skeleton13 velocity, double ts) override {
         for (auto name : jointNames)
-            kf_array[name].updateFromVelocity(velocity[name], ts);
+            updateFromVelocity(name, velocity[name], ts);
     }
 
     void updateFromPosition(jointName name, joint position, double ts) override {
-        kf_array[name].updateFromPosition(position, ts);
+        kf_array[name].updateFromPosition(position, ts, use_lc);
         state[name] = kf_array[name].query();
     }
 
     void updateFromPosition(skeleton13 position, double ts) override {
         for (auto name : jointNames)
-            kf_array[name].updateFromPosition(position[name], ts);
+            updateFromPosition(name, position[name], ts);
     }
 
     void set(skeleton13 position, double ts) override {
+        pose_initialised = true;
+        state = position;
         for (auto name : jointNames)
             kf_array[name].set(position[name], ts);
     }
