@@ -48,11 +48,8 @@ def export_to_eventFrame(data_dvs_file, data_vicon_file, output_path, skip=None,
             frame = event_frame.get_normed()
             if args.write_video:
                 video_out.write(frame)
-        if fi % args.fps == 0:
-            cv2.imshow('', frame)
-            cv2.waitKey(10)
-            if args.dev:
-                print('frame: ', fi, 'timestamp: ', skeleton['ts'])
+        if args.dev and fi % args.fps == 0:
+            print('frame: ', fi, 'timestamp: ', skeleton['ts'])
         sample_name = action_name + '_' + str(fi) + '.jpg'
         if args.dev:
             pose = get_movenet_keypoints(skeleton, args.frame_height, args.frame_width)
@@ -100,10 +97,9 @@ def main(args):
     ensure_location(output_path_images)
     ensure_location(output_path_anno)
 
-    input_data_dir = args.data_home + "/yarp/"
     input_data_dir = os.path.abspath(input_data_dir)
 
-    log_file = output_path_images+'log.txt'
+    log_file = output_path_images+'/log.txt'
     already_done = setup_testing_list(log_file)
 
     for i in tqdm(range(len(dir_list))):
