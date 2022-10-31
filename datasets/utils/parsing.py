@@ -53,7 +53,7 @@ def import_yarp_skeleton_data(yarp_file_path: pathlib.Path) -> Dict:
     return data_dict
 
 class batchIterator:
-    def __init__(self, events: Dict, gt_skel: Dict):
+    def __init__(self, events: Dict, gt_skel: Dict, n = 0, offset = 0):
 
         self._index = 0
         self._events = events
@@ -61,6 +61,8 @@ class batchIterator:
         self._samples_count = len(gt_skel['ts'])
         self._events_count = len(events['ts'])
         self._skel_sample = [[0,0]] * len(gt_skel)
+        self.n = n
+        self.offset= offset
 
         self._batch_indices = [0] * (self._samples_count+1)
 
@@ -85,7 +87,9 @@ class batchIterator:
             raise StopIteration
 
         i1 = self._batch_indices[self._index]
-        i2 = self._batch_indices[self._index+1]
+        if self.n !=0:
+            i1 = self._batch_indices[self._index+1]-self.n +self.offset
+        i2 = self._batch_indices[self._index+1]+self.offset
 
         retv = dict()
         retv['ts'] = self._events['ts'][i1:i2]
@@ -99,6 +103,7 @@ class batchIterator:
 
         self._index += 1
         return retv, rets, len(retv['ts'])
+
 
 
 class YarpHPEIterator:
