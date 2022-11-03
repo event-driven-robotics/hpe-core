@@ -254,6 +254,21 @@ inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 
     if(jb[kneeR] && jb[footR]) cv::line(image, jv[kneeR], jv[footR], colorS, th);
 }
 
+
+inline void drawVel(cv::Mat &image, const skeleton13 pose, const skeleton13_vel vel, std::array<int, 3> color = {0, 0, 200}, int th =1) 
+{
+    skeleton13_b jb = jointTest(pose);
+    skeleton13_v jv = jointConvert(pose);
+    skeleton13_v jvel = jointConvert(vel);
+    auto colorS = CV_RGB(color[0], color[1], color[2]);
+
+    // plot detected joints
+    for (size_t i = 1; i < pose.size(); i++)
+        if (jb[i])
+            cv::arrowedLine(image, jv[i], jv[i]+jvel[i], colorS, th);
+
+}
+
 template <typename T>
 inline skeleton13 extractSkeletonFromYARP(const T &gt_container)
 {

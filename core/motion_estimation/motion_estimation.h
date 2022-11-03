@@ -493,9 +493,11 @@ public:
         int xl = std::max(x - d1, d2);
         int xh = std::min(x + d1, sae.cols - d2);
         int yl = std::max(y - d1, d2);
-        int yh = std::min(x + d1, sae.rows - d2);
-        for(int yi = yl; yi < yh; y++) {
-            for(int xi = xl; xi < xh; x++) {
+        int yh = std::min(y + d1, sae.rows - d2);
+        for (int yi = yl; yi < yh; yi++)
+        {
+            for (int xi = xl; xi < xh; xi++)
+            {
 
                 //keep searching if not a new events
                 auto &ts = sae.at<double>(yi, xi);
@@ -505,10 +507,14 @@ public:
                 //search neighbouring events to calc: distance / time
                 int nn = 0;
                 double xdot = 0.0, ydot = 0.0;
-                for(auto yj = yi - d2; yj < yi + d2; yj++) {
-                    for(auto xj = xi - d2; xj < xi + d2; xj++) {
-                        if (eros.at<double>(yj, xi) >= eros_valid) {
-                            double inv_dt = 1.0 / (ts - sae.at<double>(yj, xj));
+                for (auto yj = yi - d2; yj < yi + d2; yj++)
+                {
+                    for (auto xj = xi - d2; xj < xi + d2; xj++)
+                    {
+                        // if (eros.at<double>(yj, xi) >= eros_valid) {
+                        if (eros.at<double>(yj, xj) >= eros_valid && sae.at<double>(yj, xj) != ts)
+                        {
+                            double inv_dt = 1.0 / fabs(ts - sae.at<double>(yj, xj));
                             int dx = xi - xj;
                             int dy = yi - yj;
                             xdot += dx * inv_dt;
@@ -518,7 +524,8 @@ public:
                     }
                 }
                 // calculate the average for this event
-                if (nn > 1) {
+                if (nn > 1)
+                {
                     double inv_nn = 1.0 / nn;
                     out.u += xdot * inv_nn;
                     out.v += ydot * inv_nn;
@@ -527,8 +534,9 @@ public:
             }
         }
 
-        if (n) {
-            double inv_n = 1.0 / n; 
+        if (n)
+        {
+            double inv_n = 1.0 / n;
             out.u *= inv_n;
             out.v *= inv_n;
         }
@@ -538,7 +546,6 @@ public:
         //add observation model
 
 
-        ts_prev = ts_curr;
 
         return out;
     }
@@ -609,6 +616,7 @@ public:
         skeleton13_vel out;
         for(size_t i = 0; i < points.size(); i++)
             out[i] = query_franco(points[i].u, points[i].v);
+	    ts_prev = ts_curr;
         return out;
     }
 
