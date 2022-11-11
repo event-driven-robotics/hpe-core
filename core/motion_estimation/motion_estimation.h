@@ -484,37 +484,37 @@ public:
         }
     }
 
-    jDot query_franco(int x, int y, int d1 = 20, int d2 = 2, jDot pv = {0, 0})
+    jDot query_franco(int x, int y, int dRoi = 20, int dNei = 2, jDot pv = {0, 0})
     {
         static double eros_valid = 1.0 - eros_d;
         jDot out = {0, 0};
         int n = 0;
 
-        int xl = std::max(x - d1, d2);
-        int xh = std::min(x + d1, sae.cols - d2);
-        int yl = std::max(y - d1, d2);
-        int yh = std::min(y + d1, sae.rows - d2);
-        for (int yi = yl; yi < yh; yi++)
+        int xl = std::max(x - dRoi, dNei); 
+        int xh = std::min(x + dRoi, sae.cols - dNei);
+        int yl = std::max(y - dRoi, dNei);
+        int yh = std::min(y + dRoi, sae.rows - dNei);
+        for (int yi = yl; yi <= yh; yi++)
         {
-            for (int xi = xl; xi < xh; xi++)
+            for (int xi = xl; xi <= xh; xi++)
             {
 
                 //keep searching if not a new events
                 auto &ts = sae.at<double>(yi, xi);
-                if(ts <= ts_prev)
-                    continue;
+                // if(ts <= ts_prev)
+                //     continue;
 
                 //search neighbouring events to calc: distance / time
                 int nn = 0;
                 double xdot = 0.0, ydot = 0.0;
-                for (auto yj = yi - d2; yj < yi + d2; yj++)
+                for (auto yj = yi - dNei; yj <= yi + dNei; yj++)
                 {
-                    for (auto xj = xi - d2; xj < xi + d2; xj++)
+                    for (auto xj = xi - dNei; xj <= xi + dNei; xj++)
                     {
                         // if (eros.at<double>(yj, xi) >= eros_valid) {
                         if (eros.at<double>(yj, xj) >= eros_valid && sae.at<double>(yj, xj) != ts)
                         {
-                            double inv_dt = 1.0 / fabs(ts - sae.at<double>(yj, xj));
+                            double inv_dt = 1.0 / (ts - sae.at<double>(yj, xj));
                             int dx = xi - xj;
                             int dy = yi - yj;
                             xdot += dx * inv_dt;

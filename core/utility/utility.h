@@ -236,7 +236,7 @@ inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 
     // if(jb[head] && jb[shoulderL] && jb[shoulderR]) cv::line(image, (jv[shoulderL] + jv[shoulderR])/2, jv[head] + cv::Point(0, 20), colorS, th);
     if(jb[head] && jb[shoulderL] && jb[shoulderR])
     {
-        int dist = cv::norm(jv[shoulderL]-jv[shoulderR])/3;
+        int dist = cv::norm(jv[shoulderL]-jv[hipR])/6;
         cv::circle(image, jv[head] + cv::Point(0, 0.0), dist, colorS, th);
         cv::line(image, (jv[shoulderL] + jv[shoulderR])/2, jv[head] + cv::Point(0, dist), colorS, th);
     } 
@@ -263,7 +263,7 @@ inline void drawVel(cv::Mat &image, const skeleton13 pose, const skeleton13_vel 
     auto colorS = CV_RGB(color[0], color[1], color[2]);
 
     // plot detected joints
-    for (size_t i = 1; i < pose.size(); i++)
+    for (size_t i = 0; i < pose.size(); i++)
         if (jb[i])
             cv::arrowedLine(image, jv[i], jv[i]+jvel[i], colorS, th);
 
