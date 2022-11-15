@@ -310,8 +310,8 @@ private:
                 // write the full_buffer and clear it
                 for(auto &i : c_buf) 
                 {
-                    fileio << std::setprecision(5);
-                    fileio << i.timestamp << " " << i.delay;
+                    fileio << std::setprecision(5) << std::fixed;
+                    fileio << i.timestamp << " " << std::scientific << i.delay << std::fixed;
                     for(auto &j : i.pose)
                         fileio << std::setprecision(2) << " " << j.u << " " << j.v;
                     fileio << std::endl;
