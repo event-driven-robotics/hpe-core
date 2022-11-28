@@ -484,7 +484,7 @@ public:
         }
     }
 
-    jDot query_franco(int x, int y, int dRoi = 20, int dNei = 2, jDot pv = {0, 0})
+    jDot query_franco(int x, int y, int dRoi = 20, int dNei = 2, jDot pv = {0, 0}, bool circle = false)
     {
         static double eros_valid = 1.0 - eros_d;
         jDot out = {0, 0};
@@ -501,8 +501,8 @@ public:
 
                 //keep searching if not a new events
                 auto &ts = sae.at<double>(yi, xi);
-                // if(ts <= ts_prev)
-                //     continue;
+                if(ts < ts_prev)
+                    continue;
 
                 //search neighbouring events to calc: distance / time
                 int nn = 0;
@@ -611,12 +611,12 @@ public:
     //     return out;
     // }
 
-    skeleton13_vel query(skeleton13 points, int d = 1, skeleton13_vel pv = {0})
+    skeleton13_vel query(skeleton13 points, int dRoi = 20, int dNei = 2, skeleton13_vel pv = {0}, bool circle = false)
     {
         skeleton13_vel out;
         for(size_t i = 0; i < points.size(); i++)
-            out[i] = query_franco(points[i].u, points[i].v);
-	    ts_prev = ts_curr;
+            out[i] = query_franco(points[i].u, points[i].v, dRoi, dNei, pv[i], circle);
+	    // ts_prev = ts_curr;
         return out;
     }
 
