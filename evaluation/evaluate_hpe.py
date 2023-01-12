@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import re
 import os
+import math
 from tqdm import tqdm
 
 from pathlib import Path
@@ -12,6 +13,7 @@ from typing import Optional
 
 from datasets.utils import constants as ds_constants, parsing as ds_parsing
 from evaluation.utils import metrics as metrics_utils, plots as plots_utils
+from evaluation.utils.plots import plot_poses
 
 
 # TODO:
@@ -86,9 +88,10 @@ def plot_pck_over_thresholds(pck_thresholds_results, output_folder_path, ds_name
     # sort thresholds
     thresholds = list(pck_thresholds_results.keys())
     thresholds.sort()
-
     # group results by algorithm
     algos = dict()
+    colors = dict()
+    extra_colors = plots_utils.OTHER_COLORS
     for th in thresholds:
 
         algo_metrics = pck_thresholds_results[th]
@@ -103,6 +106,13 @@ def plot_pck_over_thresholds(pck_thresholds_results, output_folder_path, ds_name
 
             algos[algo_name].append(avg_value * 100)
 
+    for algo_name in algos.keys():
+        try:
+            colors[algo_name] = plots_utils.ALGO_COLORS[algo_name]
+        except KeyError:
+            colors[algo_name] = extra_colors.pop()
+
+
     # setup the figure
     my_dpi = 96
     if ds_name:
@@ -113,13 +123,13 @@ def plot_pck_over_thresholds(pck_thresholds_results, output_folder_path, ds_name
                      figsize=(2048 / my_dpi, 900 / my_dpi),
                      dpi=96)
     ax = fig.add_subplot(111)
-    fig.tight_layout(pad=5)
+    fig.tight_layout(pad=10)
 
     # plot pcks
     for algo_name, pcks in algos.items():
         # ax.plot(thresholds, pcks, color=np.random.rand(3, ), marker="o", label=f'{algo_name}',
         #         linestyle='-', alpha=1.0)
-        ax.plot(thresholds, pcks, marker="o", label=f'{algo_name}',
+        ax.plot(thresholds, pcks, marker="o", label=f'{algo_name}',linewidth=2, color = colors[algo_name],
                 linestyle='-', alpha=1.0)
 
     # set axis limits
@@ -127,11 +137,11 @@ def plot_pck_over_thresholds(pck_thresholds_results, output_folder_path, ds_name
     ax.set_ylim([0, 100])
 
     # labels and title
-    plt.xlabel('PCK thresholds', fontsize=22, labelpad=5)
+    plt.xlabel('PCK thresholds', fontsize=22, labelpad=None)
     plt.ylabel(f'Average PCK %', fontsize=22, labelpad=5)
-    fig.suptitle(figure_name, fontsize=28, y=0.97)
-    plt.tick_params(axis='both', which='major', labelsize=18)
-    ax.legend(fontsize=16, loc='lower right')
+    fig.suptitle(figure_name, fontsize=30, y=0.97)
+    plt.tick_params(axis='both', which='major', labelsize=24)
+    ax.legend(fontsize=24, loc='lower right')
 
     # save plot
     if ds_name:
@@ -588,6 +598,8 @@ def main(args):
         for pred_path in predictions_file_path:
 
             algo_name = pred_path.stem
+            if algo_name in args.exclude: # exclude algos as requested in command line.
+                continue
             try:
                 predictions_old = np.loadtxt(str(pred_path.resolve()), dtype=float)
             except ValueError:
@@ -613,8 +625,8 @@ def main(args):
             except ValueError:
                 print(sample)
                 print(pred_path)
-                print("FATAL ERROR. Just kidding. Looks like a prediction file is mostly empty.")
-                exit()
+                print(f"Looks like prediction file {pred_path} is mostly empty.")
+                continue
 
             # resample GT at 1 KHz for rmse
             fHz = args.frequency
@@ -634,10 +646,17 @@ def main(args):
                                                         len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), -1)
             skeletons_pred1K = pred1K[:, 2:].reshape(len(pred1K), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), -1)
 
+            if args.multi_channel: ############################################ This is only done in case of DHP19
+                # todo: Figure out the source of this error.
+                skeletons_pred[:, :, [1, 0]] = skeletons_pred[:, :, [0, 1]]
+                skeletons_pred1K[:, :, [1, 0]] = skeletons_pred1K[:, :, [0, 1]]
+
             algorithm_names.append(algo_name)
             skeletons_predictions.append(skeletons_pred)
             skeletons_predictions1K.append(skeletons_pred1K)
 
+            # for i in range(len(skeletons_pred)):
+            #     plot_poses(np.zeros((400,400,3)),(skeletons_pred[i,:,:].squeeze().astype(int)),(skeletons_gt[i,:,:].squeeze().astype(int)))
             # compute PCK
             if len(args.pck) != 0:
 
@@ -854,6 +873,8 @@ if __name__ == '__main__':
     parser.add_argument('-mul', help='flag specifying the input has multichannel nomenclature (Use for DHP19) ',
                         dest='multi_channel', action='store_true')
     parser.set_defaults(multi_channel=False)
+    parser.add_argument('-e', '--exclude', action='append', default=[],
+                        help='Exclude specific algorithms from results. Add a new -e for each algo.', required=False)
 
     args, unknown = parser.parse_known_args()
     if (unknown):
