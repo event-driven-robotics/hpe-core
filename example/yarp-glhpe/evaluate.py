@@ -145,25 +145,37 @@ class GlHpeModule():
             # Predict the pose
             torch_image = torch.from_numpy(input_image)
             preds, outs = self.model(torch_image.permute(0, -1, 1, 2))
-            pred_sk = Skeleton(preds[0].detach().numpy()).denormalize(260, 346,
+            pred_sk = Skeleton(preds[0].detach().numpy()).denormalize(self.image_h, self.image_w,
                                                                       camera=torch.tensor(self.camera_matrix[cam])). \
                 reproject_onto_world(torch.tensor(self.extrinsics_matrix[cam]))
-            pred_joints = pred_sk.get_2d_points(260, 346, p_mat=torch.tensor(self.P_mat_cam[cam]))
+            pred_joints = pred_sk.get_2d_points(self.image_h, self.image_w, p_mat=torch.tensor(self.P_mat_cam[cam]))
             if dev:
                 if np.max(pred_joints[:,0])>260 or np.max(pred_joints[:,1])>346:
                     print('\n',np.max(pred_joints[:,0]),np.max(pred_joints[:,1]))
 
-            h, _, _ = image.shape
+            h, w, _ = image.shape
             pred_corrected = pred_joints[:]
             pred_corrected[:,1] = h - pred_joints[:, 1]
 
             if dev:
-                out_image = image
-                for joint in range(len(pred_joints[:,0])):
-                    cv2.circle(out_image,(int(pred_corrected[joint,0]),int(pred_corrected[joint,1])),3,(0,0,255),1)
+                # Obtain the 2D prediction as an image
+                fig2D = plot_skeleton_2d(input_image[0].squeeze(), pred_joints, return_figure=True, lines=True)
+                fig2D.canvas.draw()
+                img = np.fromstring(fig2D.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+                img = img.reshape(fig2D.canvas.get_width_height()[::-1] + (3,))
+                img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
                 # Visualize the result
-                cv2.imshow("output", out_image)
-                k = cv2.waitKey(1)
+                cv2.imshow("output", img)
+                print(img.shape)
+                k = cv2.waitKey(10)
+
+                # out_image = image
+                # for joint in range(len(pred_joints[:,0])):
+                #     cv2.circle(out_image,(int(pred_corrected[joint,0]),int(pred_corrected[joint,1])),3,(0,0,255),1)
+                # # Visualize the result
+                # cv2.imshow("output", out_image)
+                # k = cv2.waitKey(10)
                 if k == 32:
                     exit()
 
