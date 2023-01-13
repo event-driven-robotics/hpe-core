@@ -15,11 +15,11 @@ import csv
 # import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
-from lib.task.task_tools import getSchedu, getOptimizer, movenetDecode, clipGradient, restore_sizes, image_show
-from lib.loss.movenet_loss import MovenetLoss
-from lib.utils.utils import printDash, ensure_loc
-# from lib.visualization.visualization import superimpose_pose
-from lib.utils.metrics import myAcc, pck
+from pycore.moveenet.task.task_tools import getSchedu, getOptimizer, movenetDecode, clipGradient, restore_sizes, image_show
+from pycore.moveenet.loss.movenet_loss import MovenetLoss
+from pycore.moveenet.utils.utils import printDash, ensure_loc
+# from pycore.moveenet.visualization.visualization import superimpose_pose
+from pycore.moveenet.utils.metrics import myAcc, pck
 from datasets.h36m.utils.parsing import movenet_to_hpecore
 
 
@@ -126,7 +126,7 @@ class Task():
 
             if self.cfg['show_center']:
                 centers = output[1].cpu().numpy()[0]
-                from lib.utils.utils import maxPoint
+                from pycore.moveenet.utils.utils import maxPoint
                 cx, cy = maxPoint(centers)
                 instant['center'] = np.array([cx[0][0],cy[0][0]])/centers.shape[1]
 

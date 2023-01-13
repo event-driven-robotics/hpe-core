@@ -16,8 +16,8 @@ import json
 import platform
 import math
 
-from lib.data.data_augment import DataAug
-from lib.utils.utils import maxPoint, extract_keypoints
+from pycore.moveenet.data.data_augment import DataAug
+from pycore.moveenet.utils.utils import maxPoint, extract_keypoints
 
 
 def getFileNames(file_dir, tail_list=['.png', '.jpg', '.JPG', '.PNG']):

@@ -1,8 +1,8 @@
 from lib import init, MoveNet, Task
 
 from config import cfg
-from lib.utils.utils import arg_parser
-from lib.task.task_tools import image_show, write_output, superimpose
+from pycore.moveenet.utils.utils import arg_parser
+from pycore.moveenet.task.task_tools import image_show, write_output, superimpose
 
 import sys
 import yarp

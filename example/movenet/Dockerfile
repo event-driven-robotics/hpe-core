@@ -92,7 +92,7 @@ RUN apt install -y \
   cmake \
   && apt-get autoremove \
   && apt-get clean \
-  && rm -rf /tmp/* /var/lib/apt/lists/* /var/tmp/*
+  && rm -rf /tmp/* /var/moveenet/apt/lists/* /var/tmp/*
 
 RUN pip3 install \
   scikit-build
