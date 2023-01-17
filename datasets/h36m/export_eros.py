@@ -56,7 +56,7 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path, skip=None, args=
 
         frame = eros.get_frame()
         sample_anno = {}
-        sample_anno['img_name'] = action_name + '_' + str(fi) + '.jpg'
+        sample_anno['img_name'] = action_name + '_' + str(fi).zfill(5) + '.jpg'
         sample_anno['ts'] = pose['ts']
         sample_anno['keypoints'] = get_movenet_keypoints(pose, args.frame_height, args.frame_width)
         sample_anno['center'] = get_center(pose, args.frame_height, args.frame_width)
@@ -66,6 +66,8 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path, skip=None, args=
 
         # print(sample_anno)
         frame = cv2.GaussianBlur(frame, (args.gauss_kernel, args.gauss_kernel), 0)
+        if args.write_images:
+            cv2.imwrite(os.path.join(output_path, sample_anno['img_name']), frame)
         if args.dev:
             keypoints = np.reshape(sample_anno['keypoints'], [-1, 3])
             h, w = frame.shape
@@ -75,8 +77,6 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path, skip=None, args=
                                (255, 0, 0), 4)
             cv2.imshow('', frame)
             cv2.waitKey(1)
-        if args.write_images:
-            cv2.imwrite(os.path.join(output_path, sample_anno['img_name']), frame)
         if args.write_video:
             video_out.write(frame)
             print('writing')
