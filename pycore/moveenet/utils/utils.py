@@ -85,7 +85,7 @@ def printDash(num=50):
 #     return res
 
 
-_center_weight = np.load('/usr/local/src/hpe-core/example/movenet/moveenet/data/center_weight_origin.npy').reshape(48, 48)
+_center_weight = os.path.abspath(np.load(os.path.join(os.path.dirname(__file__),'../data/center_weight_origin.npy'))).reshape(48, 48)
 
 
 # _center_weight = np.load("moveenet/data/my_weight_center.npy")

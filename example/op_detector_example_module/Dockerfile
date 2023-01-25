@@ -235,7 +235,7 @@ RUN python3 -m pip install --upgrade pip && \
     python3 -m pip install torch==1.9.1 torchvision==0.10.1 pandas scipy opencv-python
 
 #ENV PYTHONHOME=/root/anaconda/bin
-#ENV PYTHONPATH=/root/anaconda/moveenet:/root/anaconda/moveenet/python3.8:/root/anaconda/moveenet/python3.8/site-packages
+#ENV PYTHONPATH=/root/anaconda/lib:/root/anaconda/lib/python3.8:/root/anaconda/lib/python3.8/site-packages
 #ENV PATH=$PYTHONHOME:$PATH
 
 # download hpe-core
@@ -244,7 +244,7 @@ RUN cd $SOURCE_FOLDER && \
     cd hpe-core && \
     git checkout $HPE_BRANCH
 
-# add /usr/local/moveenet to the library path, so that libcaffe.so compiled with openpose will be used
+# add /usr/local/lib to the library path, so that libcaffe.so compiled with openpose will be used
 # instead of the one provided by the nvidia/cuda docker image
 ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
 

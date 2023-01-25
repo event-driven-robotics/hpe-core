@@ -1,4 +1,4 @@
-from lib import init, MoveNet, Task
+from pycore.moveenet import init, MoveNet, Task
 
 from config import cfg
 from pycore.moveenet.utils.utils import arg_parser
