@@ -85,7 +85,7 @@ def printDash(num=50):
 #     return res
 
 
-_center_weight = os.path.abspath(np.load(os.path.join(os.path.dirname(__file__),'../data/center_weight_origin.npy'))).reshape(48, 48)
+_center_weight = np.load(os.path.abspath(os.path.join(os.path.dirname(__file__),'../data/center_weight_origin.npy'))).reshape(48, 48)
 
 
 # _center_weight = np.load("moveenet/data/my_weight_center.npy")
@@ -210,6 +210,7 @@ def arg_parser(cfg):
                         default=cfg['training_data_split'], type=int)
     parser.add_argument('--newest_ckpt', help='File containing the name of the latest model checkpoints',
                         default=cfg['newest_ckpt'], type=str)
+    parser.add_argument('--ckpt', help='Filename with location to the checkpoints', default=cfg['ckpt'], type=str)
     parser.add_argument('--balance_data', help='Set true for data balancing', default=cfg['balance_data'], type=str)
     parser.add_argument('--log_interval', help='How frequently to log output', default=cfg['log_interval'], type=int)
     parser.add_argument('--save_best_only', help='Save only the best or improved model checkpoints',
