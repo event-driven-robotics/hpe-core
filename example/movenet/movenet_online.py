@@ -176,7 +176,7 @@ class MovenetModule(yarp.RFModule):
             self.last_timestamp = stamp_in
             print(stamp_in)
             if self.cfg['write_output']:
-                write_output('file.csv', pre['joints'], stamp_in)
+                write_output('file.csv', pre['joints'], timestamp=stamp_in)
 
         # Export output skeleton
 

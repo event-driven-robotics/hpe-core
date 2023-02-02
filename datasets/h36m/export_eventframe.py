@@ -50,7 +50,9 @@ def export_to_eventFrame(data_dvs_file, data_vicon_file, output_path, skip=None,
                 video_out.write(frame)
         if args.dev and fi % args.fps == 0:
             print('frame: ', fi, 'timestamp: ', skeleton['ts'])
-        sample_name = action_name + '_' + str(fi) + '.jpg'
+        sample_name = action_name + '_' + str(fi).zfill(5) + '.jpg'
+        if args.write_images:
+            cv2.imwrite(os.path.join(output_path, sample_name), frame)
         if args.dev:
             pose = get_movenet_keypoints(skeleton, args.frame_height, args.frame_width)
             keypoints = np.reshape(pose, [-1, 3])
@@ -59,8 +61,7 @@ def export_to_eventFrame(data_dvs_file, data_vicon_file, output_path, skip=None,
                 frame = cv2.circle(frame, [int(keypoints[i, 0] * w), int(keypoints[i, 1] * h)], 1, (255, 0, 0), 2)
             cv2.imshow('', frame)
             cv2.waitKey(1)
-        if args.write_images:
-            cv2.imwrite(os.path.join(output_path, sample_name), frame)
+
 
     if args.write_video:
         video_out.release()

@@ -194,16 +194,23 @@ def image_show(img,pre=None,center=None):
 
     return img
 
-def write_output(path,skl,ts):
+def write_output(path,skl, sklt_format = 'movenet',timestamp = 0, delay = 0):
 
     #     Ensure the skeleton is a np array.
     skl = np.asarray(skl)
     #     Convert into the dhp19 sequence.
-    skl = movenet_to_hpecore(skl)
+    if sklt_format == 'movenet':
+        skl = movenet_to_hpecore(skl)
+    elif sklt_format == 'dhp19' or sklt_format == 'hpre-core':
+        pass
+    else:
+        print('unknown skeleton format. Write operation aborted')
+        return 0
+
     #     flatten the input.
     skl = skl.flatten()
     #     Create a row [ts xxx x1 y1 x2 y2 x3 y3 ... x13 y13]
-    skl_list = list([ts,0])
+    skl_list = list([timestamp,delay])
     skl_list.extend(list(skl))
     with open(path, 'a') as f_object:
         # Pass this file object to csv.writer()
