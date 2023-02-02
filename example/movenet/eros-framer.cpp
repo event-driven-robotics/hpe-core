@@ -4,7 +4,6 @@
 #include <event-driven/all.h>
 #include <mutex>
 #include <hpe-core/representations.h>
-#include <hpe-core/motion_estimation.h>
 
 using namespace ev;
 using namespace yarp::os;
@@ -19,7 +18,6 @@ private:
     vReadPort<vector<AE> > input_port;
     BufferedPort<ImageOf<PixelMono> > output_port;
     std::mutex m;
-    hpecore::pwvelocity pw_velocity;
 
     resolution res;
     Stamp yarpstamp;
@@ -53,12 +51,10 @@ public:
         }
 
         //read flags and parameters
-        res.height = rf.check("height", Value(480)).asInt32();
-        res.width = rf.check("width", Value(640)).asInt32();
+        res.height = rf.check("height", Value(480)).asInt();
+        res.width = rf.check("width", Value(640)).asInt();
 
-        // eros.init(res.width, res.height, 7, 0.3);
-        cv::Size image_size = cv::Size(res.width, res.height);
-        pw_velocity.setParameters(image_size, 7, 0.3, 0.01);
+        eros.init(res.width, res.height, 7, 0.3);
 
         freq = rf.check("f", Value(50)).asInt32();
 
@@ -93,9 +89,7 @@ public:
         static cv::Mat eros_copy;
 
         m.lock();
-        // eros.getSurface().copyTo(eros_copy);
-        auto aux = pw_velocity.queryEROS().clone();
-        aux.convertTo(eros_copy, CV_8U,255,0);
+        eros.getSurface().copyTo(eros_copy);
         m.unlock();
 
         cv::GaussianBlur(eros_copy, cv_image, cv::Size(5, 5), 0, 0);
@@ -109,30 +103,13 @@ public:
     //asynchronous thread run forever
     void run() {
 
-        const vector<AE> *q;
-        Stamp ystamp;
-        double t0 = Time::now(), // initial time
-            tnow = t0;
+        while (true) {
+            const vector<AE>* q = input_port.read(yarpstamp);
+            if(!q || Thread::isStopping()) return;
 
-        while (!Thread::isStopping()) {
-            // const vector<AE>* q = input_port.read(yarpstamp);
-            // if(!q || Thread::isStopping()) return;
-
-            // m.lock();
-            // for (auto& qi : *q)
-            //     eros.update(qi.x, qi.y);
-            // m.unlock();
-            tnow = Time::now() - t0;
-            int nqs = input_port.queryunprocessed();
             m.lock();
-            for (auto i = 0; i < nqs; i++)
-            {
-                auto q = input_port.read(ystamp);
-                if (!q)
-                    return;
-                
-                pw_velocity.update<vector<AE>>(*q, tnow);
-            }
+            for (auto& qi : *q)
+                eros.update(qi.x, qi.y);
             m.unlock();
         }
     }
