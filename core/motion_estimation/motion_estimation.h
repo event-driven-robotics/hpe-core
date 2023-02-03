@@ -419,4 +419,217 @@ public:
         this->tos.getSurface().copyTo(TOSout);
     }
 };
+
+class pwvelocity 
+{
+private:
+
+    //parameters
+    double filter_thresh{0.0}; //seconds
+    int eros_k{7};
+    double eros_d{0.3};
+
+    //internal structure/variables
+    cv::Mat eros;
+    cv::Mat sae;
+    cv::Rect roi_full;
+    double ts_prev{0.0}, ts_curr{0.0};
+    bool use_norm{false}; //invert vector magnitude
+    bool use_om{false};   //observation model
+
+public:
+    void setParameters(cv::Size image_size, int eros_k = 7, double eros_d = 0.3, double filter_threshold = 0) 
+    {
+        eros = cv::Mat(image_size, CV_64F);
+        sae =  cv::Mat(image_size, CV_64F);
+        roi_full = cv::Rect(cv::Point(0, 0), image_size);
+        filter_thresh = filter_threshold;
+        this->eros_k = eros_k % 2 ? eros_k : eros_k + 1;
+        this->eros_d = eros_d >= 1.0 ? 0.99 : eros_d;
+        this->eros_d = eros_d < 0.0 ? 0.01 : eros_d;
+
+    }
+
+    template <typename T>
+    void update(const T &packet, double ts)
+    {
+        //these are static so they get set once and we use the same memory
+        //locations each call
+        static double odecay = pow(eros_d, 1.0 / eros_k);
+        static int half_kernel = eros_k / 2;
+        static cv::Rect roi_raw = cv::Rect(0, 0, eros_k, eros_k);
+
+        ts_curr = ts;
+
+        for(auto &v : packet) 
+        {
+            //get references to the indexed pixel locations
+            auto &p_sae  =  sae.at<double>(v.y, v.x);
+            auto &p_eros = eros.at<double>(v.y, v.x);
+
+            //we manually implement a filter here
+            if(ts < p_sae + filter_thresh)
+                continue;
+
+            //update the sae
+            p_sae = ts;
+
+            //decay the valid region of the eros
+            roi_raw.x = v.x - half_kernel;
+            roi_raw.y = v.y - half_kernel;
+            eros(roi_raw & roi_full) *= odecay;
+
+            //set the eros position to max
+            p_eros = 1.0;
+        }
+    }
+
+    jDot query_franco(int x, int y, int dRoi = 20, int dNei = 2, jDot pv = {0, 0}, bool circle = false)
+    {
+        static double eros_valid = 1.0 - eros_d;
+        jDot out = {0, 0};
+        int n = 0;
+
+        int xl = std::max(x - dRoi, dNei); 
+        int xh = std::min(x + dRoi, sae.cols - dNei);
+        int yl = std::max(y - dRoi, dNei);
+        int yh = std::min(y + dRoi, sae.rows - dNei);
+        for (int yi = yl; yi <= yh; yi++)
+        {
+            for (int xi = xl; xi <= xh; xi++)
+            {
+
+                //keep searching if not a new events
+                auto &ts = sae.at<double>(yi, xi);
+                if(ts < ts_prev)
+                    continue;
+
+                //search neighbouring events to calc: distance / time
+                int nn = 0;
+                double xdot = 0.0, ydot = 0.0;
+                for (auto yj = yi - dNei; yj <= yi + dNei; yj++)
+                {
+                    for (auto xj = xi - dNei; xj <= xi + dNei; xj++)
+                    {
+                        // if (eros.at<double>(yj, xi) >= eros_valid) {
+                        if (eros.at<double>(yj, xj) >= eros_valid && sae.at<double>(yj, xj) != ts)
+                        {
+                            double inv_dt = 1.0 / (ts - sae.at<double>(yj, xj));
+                            int dx = xi - xj;
+                            int dy = yi - yj;
+                            xdot += dx * inv_dt;
+                            ydot += dy * inv_dt;
+                            nn++;
+                        }
+                    }
+                }
+                // calculate the average for this event
+                if (nn > 1)
+                {
+                    double inv_nn = 1.0 / nn;
+                    out.u += xdot * inv_nn;
+                    out.v += ydot * inv_nn;
+                    n++;
+                }
+            }
+        }
+
+        if (n)
+        {
+            double inv_n = 1.0 / n;
+            out.u *= inv_n;
+            out.v *= inv_n;
+        }
+
+        //deal with inversion
+
+        //add observation model
+
+
+
+        return out;
+    }
+
+    // jDot query_fullroi(int x, int y, int d1 = 20, int d2 = 2, jDot pv = {0, 0})
+    // {
+    
+    //     static double eros_valid = 1.0 - eros_d;
+    //     jDot out = {0, 0};
+    //     int nx = 0, ny = 0;
+
+    //     int xl = std::max(x - d1, d2);
+    //     int xh = std::min(x + d1, sae.cols - d2);
+    //     int yl = std::max(y - d1, d2);
+    //     int yh = std::min(x + d1, sae.rows - d2);
+    //     for(int yi = yl; yi < yh; y++) {
+    //         for(int xi = xl; xi < xh; x++) {
+
+    //             //keep searching if not a new events
+    //             auto &ts = sae.at<double>(yi, xi);
+    //             if(ts <= ts_prev)
+    //                 continue;
+
+    //             //search neighbouring events to calc: distance / time
+    //             int nnx = 0, nny = 0;
+    //             double dtdx = 0.0, dtdy = 0.0;
+    //             for(auto yj = yi - d2; yj < yi + d2; jy++) {
+    //                 for(auto xj = xi - d2; xj < xi + d2; xj++) {
+    //                     if (eros.at<double>(yj, xi) >= eros_valid) 
+    //                     {
+    //                         double dt = ts - sae.at<double>(yj, xj);
+    //                         int dx = xi - xj;
+    //                         int dy = yi - yj;
+    //                         if(dx) {dtdx += dt / dx; nnx++;}
+    //                         if(dy) {dtdy += dy / dy; nny++;}
+    //                     }
+    //                 }
+    //             }
+    //             // calculate the average for this event
+    //             if(nnx) {out.u += 
+    //             if (nn > 1) {
+    //                 double inv_nn = 1.0 / nn;
+    //                 out.u += xdot * inv_nn;
+    //                 out.v += ydot * inv_nn;
+    //                 n++;
+    //             }
+    //         }
+    //     }
+
+    //     if (n) {
+    //         double inv_n = 1.0 / n; 
+    //         out.u *= inv_n;
+    //         out.v *= inv_n;
+    //     }
+
+    //     //deal with inversion
+
+    //     //add observation model
+
+
+    //     ts_prev = ts_curr;
+
+    //     return out;
+    // }
+
+    skeleton13_vel query(skeleton13 points, int dRoi = 20, int dNei = 2, skeleton13_vel pv = {0}, bool circle = false)
+    {
+        skeleton13_vel out;
+        for(size_t i = 0; i < points.size(); i++)
+            out[i] = query_franco(points[i].u, points[i].v, dRoi, dNei, pv[i], circle);
+	    // ts_prev = ts_curr;
+        return out;
+    }
+
+    const cv::Mat& querySAE()
+    {
+        return sae;
+    } 
+
+    const cv::Mat& queryEROS()
+    {
+        return eros;
+    }
+
+};
+
 }

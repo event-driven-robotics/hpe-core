@@ -236,7 +236,7 @@ inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 
     // if(jb[head] && jb[shoulderL] && jb[shoulderR]) cv::line(image, (jv[shoulderL] + jv[shoulderR])/2, jv[head] + cv::Point(0, 20), colorS, th);
     if(jb[head] && jb[shoulderL] && jb[shoulderR])
     {
-        int dist = cv::norm(jv[shoulderL]-jv[shoulderR])/3;
+        int dist = cv::norm(jv[shoulderL]-jv[hipR])/6;
         cv::circle(image, jv[head] + cv::Point(0, 0.0), dist, colorS, th);
         cv::line(image, (jv[shoulderL] + jv[shoulderR])/2, jv[head] + cv::Point(0, dist), colorS, th);
     } 
@@ -252,6 +252,21 @@ inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 
     if(jb[hipR] && jb[kneeR]) cv::line(image, jv[hipR], jv[kneeR], colorS, th);
     if(jb[kneeL] && jb[footL]) cv::line(image, jv[kneeL], jv[footL], colorS, th);
     if(jb[kneeR] && jb[footR]) cv::line(image, jv[kneeR], jv[footR], colorS, th);
+}
+
+
+inline void drawVel(cv::Mat &image, const skeleton13 pose, const skeleton13_vel vel, std::array<int, 3> color = {0, 0, 200}, int th =1) 
+{
+    skeleton13_b jb = jointTest(pose);
+    skeleton13_v jv = jointConvert(pose);
+    skeleton13_v jvel = jointConvert(vel);
+    auto colorS = CV_RGB(color[0], color[1], color[2]);
+
+    // plot detected joints
+    for (size_t i = 0; i < pose.size(); i++)
+        if (jb[i])
+            cv::arrowedLine(image, jv[i], jv[i]+jvel[i], colorS, th);
+
 }
 
 template <typename T>
@@ -295,8 +310,8 @@ private:
                 // write the full_buffer and clear it
                 for(auto &i : c_buf) 
                 {
-                    fileio << std::setprecision(5);
-                    fileio << i.timestamp << " " << i.delay;
+                    fileio << std::setprecision(5) << std::fixed;
+                    fileio << i.timestamp << " " << std::scientific << i.delay << std::fixed;
                     for(auto &j : i.pose)
                         fileio << std::setprecision(2) << " " << j.u << " " << j.v;
                     fileio << std::endl;
