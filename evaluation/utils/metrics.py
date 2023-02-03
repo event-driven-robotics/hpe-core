@@ -107,7 +107,7 @@ class RMSE:
         """
 
         rmse = np.sqrt(np.sum(np.square(self.predicted_joints - self.gt_joints), axis=0) / len(self.gt_joints))
-        normalized_rmse = (rmse / np.mean(self.predicted_joints, axis=0)) * 100
+        # normalized_rmse = (rmse / abs(np.mean(self.predicted_joints, axis=0))) * 100
         normalized_rmse_avg = np.mean(normalized_rmse, axis=0)
         max_normalized_rmse = np.max(normalized_rmse, axis=1)
 
