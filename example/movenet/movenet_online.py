@@ -92,11 +92,13 @@ class MovenetModule(yarp.RFModule):
     def interruptModule(self):
         # interrupting all the ports
         self.input_port.interrupt()
+        self.output_port.interrupt()
         return True
 
     def close(self):
         # closing ports
         self.input_port.close()
+        self.output_port.close()
         cv2.destroyAllWindows()
         return True
 
@@ -130,8 +132,8 @@ class MovenetModule(yarp.RFModule):
             # self.counter += 1  # can be used to interrupt the program
             self.yarp_image.copy(read_image)
 
-        t0 = datetime.datetime.now()
         input_image = np.copy(np_input)
+        t0 = datetime.datetime.now()
 
         # input_image_resized = np.zeros([1, 3, self.image_h_model, self.image_w_model])
         # # print(input_image_resized.shape)

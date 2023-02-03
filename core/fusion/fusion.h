@@ -162,6 +162,7 @@ class singleJointLatComp {
             kf.statePost.at<float>(1) += vel_accum.v;
             vel_accum = {0.0, 0.0};
         }
+        prev_pts = ts;
     }
 
     joint query() {
@@ -173,7 +174,7 @@ class singleJointLatComp {
 class multiJointLatComp : public stateEstimator {
    private:
     std::array<singleJointLatComp, 13> kf_array;
-    bool use_lc{true};
+    bool use_lc{false};
 
    public:
     bool initialise(std::vector<double> parameters) override {
