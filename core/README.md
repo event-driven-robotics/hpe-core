@@ -10,6 +10,8 @@ C++ src for compiling a library of functions useful for HPE:
 
 # Build the library
 
+The library is designed to use CMake to configure and build.
+
 * Clone the repository: e.g. `git clone https://github.com/event-driven-robotics/hpe-core.git`
 * `cd hpe-core/core`
 * `mkdir build && cd build`
