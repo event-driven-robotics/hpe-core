@@ -47,3 +47,4 @@ Scripts to convert datasets into common formats to easily facilitate valid compa
 > [@gaurvigoyal](https://www.linkedin.com/in/gaurvigoyal/)
 > [@francodipietro](https://www.linkedin.com/in/francodipietrophd/)
 
+[Event-driven Perception for Robotics](https://www.edpr.iit.it/research)
