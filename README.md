@@ -23,8 +23,6 @@ Compile and link the core C++ library in your application to use the event-based
 * asynchronous pose fusion of joint velocity and detection
 * event representation methods to be compatible with convolutional neural networks.
 
-[installation](https://github.com/event-driven-robotics/hpe-core/tree/main/core)
-
 ### PyCore
 
 Importable python libraries for joint detection
