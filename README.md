@@ -13,6 +13,8 @@ Please contribute your event-driven HPE application and datasets to enable compa
   doi={10.1109/EBCCSP56922.2022.9845526}}
 ```
 
+![demo](https://user-images.githubusercontent.com/9265237/216939617-703fc4ef-b4b9-4cbc-aab8-a87c04822be2.gif)
+
 ### [Core (C++)](https://github.com/event-driven-robotics/hpe-core/tree/main/core)
 
 Compile and link the core C++ library in your application to use the event-based human pose estimation functions including:
