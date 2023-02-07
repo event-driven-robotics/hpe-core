@@ -52,8 +52,6 @@ if(OpenCV_FOUND)
 endif()
 
 set( folder_source
-  detection_wrappers/detection.cpp
-  motion_estimation/jointMotionEstimator.cpp
   event_representations/representations.cpp
   motion_estimation/motion_estimation.cpp
   fusion/fusion.cpp
@@ -61,9 +59,7 @@ set( folder_source
 
 set( folder_header
   utility/utility.h
-  detection_wrappers/detection.h
   motion_estimation/motion_estimation.h
-  motion_estimation/jointMotionEstimator.h
   event_representations/representations.h
   fusion/fusion.h
 )
