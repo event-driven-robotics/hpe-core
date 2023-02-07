@@ -5,7 +5,7 @@ C++ src for compiling a library of functions useful for HPE:
 * human pose estimation from events
 * joint tracking
 * skeleton tracking
-* fusion
+* position and velocity fusion
 * on-line visualisation
 
 # Build the library
