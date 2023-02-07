@@ -13,13 +13,9 @@ The software was tested on Ubuntu 20.04.2 LTS without GPU support.
     $ cd <workspace>
     $ git clone git@github.com:event-driven-robotics/hpe-core.git
     $ cd hpe-core/example/yarp_glhpe
-    $ docker build -t gl_hpe:yarp --ssh default --build-arg ssh_pub_key="$(cat ~/.ssh/<publicKeyFile>.pub)" --build-arg ssh_prv_key="$(cat ~/.ssh/<privateKeyFile>)" - < Dockerfile
+    $ docker build -t gl_hpe:yarp < Dockerfile
     ```
 :bulb: `<workspace>` is the parent directory in which the repository is cloned
-
-:bulb: The ssh keys are required to access hpe-core as it is currently private. [Create a new ssh key](https://docs.github.com/en/github/authenticating-to-github/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent) if required.
-
-:warning: Ensure your ssh key is built without a passphrase.
 
 ## Usage
 - Download the pre-trained model from [here](https://drive.google.com/drive/folders/1AgsQl6sTJBygPvgbdR1e9IfVAYxupMGI) and store it into folder `/path/to/pre/trained/model/folder`
