@@ -1,5 +1,14 @@
 # Human 3.6 million
 
-link to dataset
+[Human 3.6m million](http://vision.imar.ro/human3.6m/description.php) is an image-based dataset recorded at 50Hz. Event-based dataset can be created using [v2e](https://github.com/SensorsINI/v2e).
 
-how to use file to produce events from H3.6m
+### Usage
+
+Make events from frames
+
+Convert H5 to YARP
+
+Convert GT to YARP
+
+Convert YARP to training formats.
+
