@@ -1,50 +1,10 @@
 # Evaluating HPE and Joints Tracking Algorithms
 
-This folder contains scripts for evaluating HPE and joints tracking algorithms.
-
-
-## Metrics
-
-The following metrics are computed for every algorithm
-
-* Percentage of Correct Keypoints (PCK)
-* Root Mean Square Error (RMSE).
-
-### PCK
-PCK is computed
-* for every single body joint
-* as an average on all body joints
-
-and
-
-* for each single input dataset
-* for all datasets
-* for every specified classification threshold.
-
-The classification uses the body's head or torso size, depending on the available ground truth.
-
-Metric output
-* tables with all computed PCK values for every input algorithm's predictions
-* plots showing average PCK for every algorithm over the selected classification thresholds.
-
-### RMSE
-RMSE is computed
-* for every body joint coordinate
-* as an average on all joints for each coordinate
-
-and
-
-* for each single input dataset
-* for all datasets.
-
-Metric output
-* tables with all computed RMSE values for every input algorithm's predictions
-* plots for each joint showing ground truth and predicted x and y coordinates over time.
-
+This folder contains scripts for evaluating HPE and joints tracking algorithms. In particular, each algorithm to be compared should process each dataset to produce a `.csv` file and stored in a particular folder structure as outlined below. The scripts can be run to evaluate joint position comparisons, or joint velocity comparisons.
 
 ## Usage
 
-The evaluation script can be run with
+The pose evaluation script can be run with
 ```shell
 $ python3 evaluate_hpe.py
 $   -d path/to/datasets/folder
@@ -99,3 +59,38 @@ $   -latex
 - `-latex` flag specifying that tables must be saved to latex format.
 
 The output folder will contain files with metric tables and prediction plots.
+
+## Metrics
+
+The following metrics are computed for every algorithm
+
+### Percentage of Correct Keypoints (PCK)
+PCK is computed
+* for every single body joint
+* as an average on all body joints
+
+and
+
+* for each single input dataset
+* for all datasets
+* for every specified classification threshold.
+
+The classification uses the body's head or torso size, depending on the available ground truth.
+
+Metric output
+* tables with all computed PCK values for every input algorithm's predictions
+* plots showing average PCK for every algorithm over the selected classification thresholds.
+
+### Root Mean Square Error (RMSE)
+RMSE is computed
+* for every body joint coordinate
+* as an average on all joints for each coordinate
+
+and
+
+* for each single input dataset
+* for all datasets.
+
+Metric output
+* tables with all computed RMSE values for every input algorithm's predictions
+* plots for each joint showing ground truth and predicted x and y coordinates over time.
