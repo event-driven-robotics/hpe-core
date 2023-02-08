@@ -55,6 +55,7 @@ cfg = {
     "eval_outputs": home + '/dhp-outputs/',
     "eval_label_path": home + "/dhp19_eros/poses.json",
     'train_label_path': '',
-    'val_label_path': ''
+    'val_label_path': '',
+    'ckpt': ''
 }
 
