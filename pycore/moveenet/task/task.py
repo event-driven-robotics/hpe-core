@@ -15,11 +15,11 @@ import csv
 # import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
-from lib.task.task_tools import getSchedu, getOptimizer, movenetDecode, clipGradient, restore_sizes, image_show
-from lib.loss.movenet_loss import MovenetLoss
-from lib.utils.utils import printDash, ensure_loc
-# from lib.visualization.visualization import superimpose_pose
-from lib.utils.metrics import myAcc, pck
+from pycore.moveenet.task.task_tools import getSchedu, getOptimizer, movenetDecode, clipGradient, restore_sizes, image_show
+from pycore.moveenet.loss.movenet_loss import MovenetLoss
+from pycore.moveenet.utils.utils import printDash, ensure_loc
+# from pycore.moveenet.visualization.visualization import superimpose_pose
+from pycore.moveenet.utils.metrics import myAcc, pck
 from datasets.h36m.utils.parsing import movenet_to_hpecore
 
 
@@ -99,7 +99,7 @@ class Task():
                 cv2.imwrite(os.path.join(save_dir, basename[:-4] + "_regs0.jpg"),
                             cv2.resize(regs[0] * 255, (size, size)))
 
-    def predict_online(self, img_in):
+    def predict_online(self, img_in, write_csv=None, ts = None):
 
         self.model.eval()
         correct = 0
@@ -121,32 +121,38 @@ class Task():
 
             # img_size_original = img.shape
             img = img.to(self.device)
+            start_sample = time.time()
             output = self.model(img)
             instant = {}
 
-            if self.cfg['show_center']:
-                centers = output[1].cpu().numpy()[0]
-                from lib.utils.utils import maxPoint
-                cx, cy = maxPoint(centers)
-                instant['center'] = np.array([cx[0][0],cy[0][0]])/centers.shape[1]
+            try:
 
+                if self.cfg['show_center']:
+                    centers = output[1].cpu().numpy()[0]
+                    from pycore.moveenet.utils.utils import maxPoint
+                    cx, cy = maxPoint(centers)
+                    instant['center'] = np.array([cx[0][0],cy[0][0]])/centers.shape[1]
+            except KeyError:
+                pass
             pre = movenetDecode(output, None, mode='output', num_joints=self.cfg["num_classes"])
 
             img = np.transpose(img[0].cpu().numpy(), axes=[1, 2, 0])
             img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             _, pose_pre = restore_sizes(img, pre, (int(img_size_original[0]), int(img_size_original[1])))
-            if self.cfg['show_center']:
-                instant['center_heatmap'] = centers[0]
-
+            try:
+                if self.cfg['show_center']:
+                    instant['center_heatmap'] = centers[0]
+            except KeyError:
+                pass
             kps_2d = np.reshape(pose_pre, [-1, 2])
             kps_hpecore = movenet_to_hpecore(kps_2d)
             kps_pre_hpecore = np.reshape(kps_hpecore, [-1])
             # print(kps_pre_hpecore)
-            # row = self.create_row(ts,kps_pre_hpecore, delay=time.time()-start_sample)
-            # sample = '_'.join(os.path.basename(img_names[0]).split('_')[:-1])
-            # write_path = os.path.join(self.cfg['results_path'],self.cfg['dataset'],sample,'movenet_cam2.csv')
-            # ensure_loc(os.path.dirname(write_path))
-            # self.write_results(write_path, row)
+            if write_csv is not None:
+                # print('writing')
+                row = self.create_row(ts,kps_pre_hpecore, delay=time.time()-start_sample)
+                ensure_loc(os.path.dirname(write_csv))
+                self.write_results(write_csv, row)
 
             instant['joints'] = kps_pre_hpecore
             return instant
@@ -315,7 +321,10 @@ class Task():
             init_epoch = int(str1.join(os.path.basename(model_path).split('_')[0][1:]))
             self.init_epoch = init_epoch
         print(model_path)
-        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+        try:
+            self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+        except FileNotFoundError:
+            print('The checkpoint expected does not exist. Please check the path and filename.')
 
         if data_parallel:
             self.model = torch.nn.DataParallel(self.model)

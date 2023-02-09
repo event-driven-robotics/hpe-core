@@ -7,7 +7,7 @@ import torch.optim as optim
 import numpy as np
 import cv2
 
-from lib.utils.utils import maxPoint, extract_keypoints
+from pycore.moveenet.utils.utils import maxPoint, extract_keypoints
 from datasets.h36m.utils.parsing import movenet_to_hpecore
 from csv import writer
 
@@ -15,7 +15,7 @@ _range_weight_x = np.array([[x for x in range(48)] for _ in range(48)])
 _range_weight_y = _range_weight_x.T
 
 
-# _reg_weight = np.load("lib/data/my_weight_reg.npy") # 99x99
+# _reg_weight = np.load("../data/my_weight_reg.npy") # 99x99
 
 
 def getSchedu(schedu, optimizer):

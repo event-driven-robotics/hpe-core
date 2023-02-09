@@ -2,7 +2,7 @@
 @Fire
 https://github.com/fire717
 """
-import sys
+import os.path
 
 import torch
 import math
@@ -14,7 +14,8 @@ import cv2
 _img_size = 192
 _feature_map_size = _img_size // 4
 
-_center_weight_path = '/usr/local/src/hpe-core/example/movenet/lib/data/center_weight_origin.npy'
+
+_center_weight_path = os.path.abspath(os.path.join(os.path.dirname(__file__),'../data/center_weight_origin.npy'))
 
 
 class JointBoneLoss(torch.nn.Module):

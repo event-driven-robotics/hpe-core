@@ -3,15 +3,13 @@
 https://github.com/fire717
 """
 
-dataset = 'dhp19'
-home = '/data'
 cfg = {
     ##### Global Setting
-    'GPU_ID': '',
+    'GPU_ID': '0,1',
     "num_workers": 4,
     "random_seed": 42,
     "cfg_verbose": True,
-    "save_dir": home ,
+    "save_dir": '',
     "num_classes": 13,
     "width_mult": 1.0,
     "img_size": 192,
@@ -20,13 +18,13 @@ cfg = {
     ##### Train Setting
     'pre-separated_data': True,
     'training_data_split': 80,
-    "dataset": dataset,
+    "dataset": '',
     'balance_data': False,
     'log_interval': 10,
     'save_best_only': False,
 
     'pin_memory': True,
-    'newest_ckpt': home + '/output/newest.json',
+    'newest_ckpt': '',
     'th': 50,  # percentage of headsize
     'from_scratch': True,
 
@@ -47,13 +45,13 @@ cfg = {
     'w_offset': 1,
 
     ##### File paths
-    'predict_output_path': home + "/predict/",
-    'results_path': home + "/results/",
-    "img_path": home + "/dhp19_eros/",
-    "test_img_path": home + '/dhp19_eros/',
-    "eval_img_path": home + '/dhp19_eros/',
-    "eval_outputs": home + '/dhp-outputs/',
-    "eval_label_path": home + "/dhp19_eros/poses.json",
+    'predict_output_path': '',
+    'results_path': '',
+    "img_path": '',
+    "test_img_path": '',
+    "eval_img_path": '',
+    "eval_outputs": '',
+    "eval_label_path": '',
     'train_label_path': '',
     'val_label_path': '',
     'ckpt': ''
