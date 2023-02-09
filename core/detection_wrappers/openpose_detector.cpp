@@ -38,10 +38,11 @@ bool OpenPoseDetector::init(std::string models_path, std::string pose_model, std
         // description of detector's parameters can be found at
         // https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/include/openpose/flags.hpp
         const auto poseMode = op::flagsToPoseMode(1);  // body keypoints detection
-        const auto poseModel = op::flagsToPoseModel(op::String(pose_model));  // 'BODY_25', 25 keypoints, fastest with CUDA, most accurate, includes foot keypoints
-                                                                             // 'COCO', 18 keypoints
-                                                                             // 'MPI', 15 keypoints, least accurate model but fastest on CPU
-                                                                             // 'MPI_4_layers', 15 keypoints, even faster but less accurate
+        const auto poseModel = op::flagsToPoseModel(op::String(pose_model));  
+        // 'BODY_25', 25 keypoints, fastest with CUDA, most accurate, includes foot keypoints
+        // 'COCO', 18 keypoints
+        // 'MPI', 15 keypoints, least accurate model but fastest on CPU
+        // 'MPI_4_layers', 15 keypoints, even faster but less accurate
 
         // TODO: set poseJointsNum (get number of joints from openpose mapping)
 
@@ -148,4 +149,83 @@ skeleton13 OpenPoseDetector::detect(cv::Mat &input)
 
     pose13 = hpecore::coco18_to_dhp19(pose);
     return pose13;
+}
+
+
+void openposethread::run()
+{
+    while (true)
+    {
+        m.lock();
+        if (stop)
+            return;
+        auto t0 = std::chrono::high_resolution_clock::now();
+        pose.pose = detop.detect(image);
+        auto t1 = std::chrono::high_resolution_clock::now();
+        std::chrono::microseconds ms = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0);
+        latency = std::chrono::duration<double>(ms).count() * 1e3;
+        data_ready = true;
+    }
+}
+
+
+bool openposethread::init(std::string model_path, std::string model_name, std::string model_size)
+{
+    // initialise open pose
+    if (!detop.init(model_path, model_name, model_size))
+        return false;
+
+    // make sure the thread won't start until an image is provided
+    m.lock();
+
+    // make sure that providing an image will start things for the first go
+    data_ready = true;
+
+    // start the thread
+    th = std::thread([this]
+                        { this->run(); });
+
+    return true;
+}
+
+void openposethread::close()
+{
+    stop = true;
+    m.try_lock();
+    m.unlock();
+}
+
+bool openposethread::update(cv::Mat next_image, double image_timestamp, hpecore::stampedPose &previous_result)
+{
+    // if no data is ready (still processing) do nothing
+    if (!data_ready)
+        return false;
+
+    // else set the result to the provided stampedPose
+    previous_result = pose;
+
+    // set the timestamp
+    pose.timestamp = image_timestamp;
+
+    // and the image for the next detection
+    static cv::Mat img_u8, img_float;
+    next_image.copyTo(img_float);
+    double min_val, max_val;
+    cv::minMaxLoc(img_float, &min_val, &max_val);
+    max_val = std::max(fabs(max_val), fabs(min_val));
+    img_float /= (2 * max_val);
+    img_float += 0.5;
+    img_float.convertTo(img_u8, CV_8U, 255, 0);
+    cv::cvtColor(img_u8, image, cv::COLOR_GRAY2BGR);
+
+    // and unlock the procesing thread
+    m.try_lock();
+    m.unlock();
+    data_ready = false;
+    return true;
+}
+
+double openposethread::getLatency()
+{
+    return latency;
 }
