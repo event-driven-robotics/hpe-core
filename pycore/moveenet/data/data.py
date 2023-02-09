@@ -8,8 +8,8 @@ import numpy as np
 import json
 import copy
 
-from lib.data.data_tools import getDataLoader, getFileNames
-from lib.task.task_tools import movenetDecode
+from pycore.moveenet.data.data_tools import getDataLoader, getFileNames
+from pycore.moveenet.task.task_tools import movenetDecode
 
 
 class Data():

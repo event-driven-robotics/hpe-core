@@ -7,10 +7,11 @@ import random
 import sys
 
 sys.path.append('.')
-from lib import init, Data, MoveNet, Task
+sys.path.append('../../../hpe-core')
+from pycore.moveenet import init, Data, MoveNet, Task
 
 from config import cfg
-from lib.utils.utils import arg_parser
+from pycore.moveenet.utils.utils import arg_parser
 
 
 def main(cfg):
