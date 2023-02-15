@@ -450,8 +450,8 @@ public:
 
     }
 
-    template <typename T>
-    void update(const T &packet, double ts)
+    template<typename T>
+    void update(const T &begin, const T &end, double ts)
     {
         //these are static so they get set once and we use the same memory
         //locations each call
@@ -461,11 +461,11 @@ public:
 
         ts_curr = ts;
 
-        for(auto &v : packet) 
+        for(auto v = begin; v != end; v++)
         {
             //get references to the indexed pixel locations
-            auto &p_sae  =  sae.at<double>(v.y, v.x);
-            auto &p_eros = eros.at<double>(v.y, v.x);
+            auto &p_sae  =  sae.at<double>(v->y, v->x);
+            auto &p_eros = eros.at<double>(v->y, v->x);
 
             //we manually implement a filter here
             if(ts < p_sae + filter_thresh)
@@ -475,13 +475,20 @@ public:
             p_sae = ts;
 
             //decay the valid region of the eros
-            roi_raw.x = v.x - half_kernel;
-            roi_raw.y = v.y - half_kernel;
+            roi_raw.x = v->x - half_kernel;
+            roi_raw.y = v->y - half_kernel;
             eros(roi_raw & roi_full) *= odecay;
 
             //set the eros position to max
             p_eros = 1.0;
         }
+
+    }
+
+    template <typename T>
+    void update(const T &packet, double ts)
+    {
+        update<T::iterator>(packet.begin(), packet.end(), ts);
     }
 
     jDot query_franco(int x, int y, int dRoi = 20, int dNei = 2, jDot pv = {0, 0}, bool circle = false)
@@ -613,7 +620,7 @@ public:
 
     skeleton13_vel query(skeleton13 points, int dRoi = 20, int dNei = 2, skeleton13_vel pv = {0}, bool circle = false)
     {
-        skeleton13_vel out;
+        skeleton13_vel out = {0};
         for(size_t i = 0; i < points.size(); i++)
             out[i] = query_franco(points[i].u, points[i].v, dRoi, dNei, pv[i], circle);
 	    // ts_prev = ts_curr;
