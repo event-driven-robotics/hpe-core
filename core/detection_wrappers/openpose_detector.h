@@ -53,7 +53,6 @@ private:
     hpecore::OpenPoseDetector detop;
     hpecore::stampedPose pose{0.0, -1.0, 0.0};
     cv::Mat image;
-    double latency = 0;
 
     bool stop{false};
     bool data_ready{true};
@@ -67,7 +66,6 @@ public:
     void close();
     bool update(cv::Mat next_image, double image_timestamp, 
                 hpecore::stampedPose &previous_result);
-    double getLatency();
 };
 
 }
