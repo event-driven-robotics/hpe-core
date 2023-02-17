@@ -159,11 +159,7 @@ void openposethread::run()
         m.lock();
         if (stop)
             return;
-        auto t0 = std::chrono::high_resolution_clock::now();
         pose.pose = detop.detect(image);
-        auto t1 = std::chrono::high_resolution_clock::now();
-        std::chrono::microseconds ms = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0);
-        latency = std::chrono::duration<double>(ms).count() * 1e3;
         data_ready = true;
     }
 }
@@ -203,6 +199,7 @@ bool openposethread::update(cv::Mat next_image, double image_timestamp, hpecore:
 
     // else set the result to the provided stampedPose
     previous_result = pose;
+    previous_result.delay = image_timestamp - pose.timestamp;
 
     // set the timestamp
     pose.timestamp = image_timestamp;
@@ -223,9 +220,4 @@ bool openposethread::update(cv::Mat next_image, double image_timestamp, hpecore:
     m.unlock();
     data_ready = false;
     return true;
-}
-
-double openposethread::getLatency()
-{
-    return latency;
 }

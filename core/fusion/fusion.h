@@ -101,6 +101,8 @@ class singleJointLatComp {
    private:
     cv::KalmanFilter kf;
     joint vel_accum;
+    std::deque<joint> history_v;
+    std::deque<double> history_ts;
     double measU;
     double procU;
     double prev_pts;
@@ -128,19 +130,32 @@ class singleJointLatComp {
     }
 
     void updateFromVelocity(jDot velocity, double ts) {
-        vel_accum = vel_accum + velocity * (ts - prev_vts);
+        history_v.push_back(velocity * (ts - prev_vts));
+        history_ts.push_back(ts);
+        vel_accum = vel_accum + history_v.back();
         prev_vts = ts;
     }
 
     void updateFromPosition(joint position, double ts, bool use_comp = true)
     {
+        size_t i = 0; //position in history
         //if not using latency compensation we want to integrate before doing
         //the position update.
-        if(!use_comp) 
+        if(!use_comp)
         {
             kf.statePost.at<float>(0) += vel_accum.u;
             kf.statePost.at<float>(1) += vel_accum.v;
-            vel_accum = {0.0, 0.0};
+        }
+        //if we use latency compensation we want to integrate only up to the
+        //point the detection was made
+        else
+        {
+            for(;i < history_ts.size(); i++)
+            {
+                if(history_ts[i] > ts) break;
+                kf.statePost.at<float>(0) += history_v[i].u;
+                kf.statePost.at<float>(1) += history_v[i].v;
+            }
         }
 
         // perform an (asynchronous) update of the position from the previous
@@ -152,17 +167,20 @@ class singleJointLatComp {
         if(position.u > 0 || position.v > 0)
             kf.correct((cv::Mat_<float>(2, 1) << position.u, position.v));
 
-        // add the current period velocity accumulation to the state
-        // vel_accum.u *= 5; vel_accum.v *= 5;
-        // std::cout << vel_accum.u << " " << vel_accum.v << std::endl;
-        //std::cout.flush();
+        // add the remaining current period velocity accumulation to the state
         if (use_comp)
         {
-            kf.statePost.at<float>(0) += vel_accum.u;
-            kf.statePost.at<float>(1) += vel_accum.v;
-            vel_accum = {0.0, 0.0};
+            for(;i < history_ts.size(); i++)
+            {
+                kf.statePost.at<float>(0) += history_v[i].u;
+                kf.statePost.at<float>(1) += history_v[i].v;
+            }
         }
+        vel_accum = {0.0, 0.0};
+        history_v.clear();
+        history_ts.clear();
         prev_pts = ts;
+        
     }
 
     joint query() {
