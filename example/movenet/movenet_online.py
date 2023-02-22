@@ -195,7 +195,7 @@ class MovenetModule(yarp.RFModule):
         # self.yarp_sklt_out.addList()
         temp_list = self.yarp_sklt_out.addList()
         for i in out_sklt:
-            temp_list.addInt(int(i))
+            temp_list.addInt32(int(i))
 
         self.output_port.write(self.yarp_sklt_out)
 
