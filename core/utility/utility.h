@@ -277,8 +277,8 @@ inline skeleton13 extractSkeletonFromYARP(const T &gt_container)
     if(!gt || gt->size() != result.size()*2) return result;
     for (auto i = 0; i < result.size(); i++) {
         joint &j = result[i];
-        j.u = gt->get(i*2).asDouble();
-        j.v = gt->get(i*2+1).asDouble();
+        j.u = gt->get(i*2).asFloat64();
+        j.v = gt->get(i*2+1).asFloat64();
     }
     return result;
 }
