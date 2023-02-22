@@ -64,14 +64,6 @@ class MovenetModule(yarp.RFModule):
         self.fname = rf.check("write_sk", yarp.Value("pred_2D.npy")).asString()
         self.fname_ts = rf.check("write_ts", yarp.Value("pred_ts.npy")).asString()
 
-        # open io ports
-        if not self.input_port.open(self.getName() + "/img:i"):
-            print("Could not open input port")
-            return False
-        if not self.output_port.open(self.getName() + "/sklt:o"):
-            print("Could not open output port")
-            return False
-
         # read flags and parameters
 
         self.model = MoveNet(num_classes=self.cfg["num_classes"],
@@ -84,6 +76,14 @@ class MovenetModule(yarp.RFModule):
             self.files = glob.glob(self.tester_path + "/*.jpg")
             self.file_counter = 0
 
+        # open io ports
+        if not self.input_port.open(self.getName() + "/img:i"):
+            print("Could not open input port")
+            return False
+        if not self.output_port.open(self.getName() + "/sklt:o"):
+            print("Could not open output port")
+            return False
+        
         return True
 
     def getPeriod(self):
