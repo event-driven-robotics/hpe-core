@@ -189,6 +189,7 @@ def arg_parser(cfg):
     ##### Global Setting
     parser.add_argument('--show_center', help='Show center of the detected human', action='store_true')
     parser.add_argument('--write_output', help='Write output pose to a .csv file', action='store_true')
+    parser.add_argument('--gpu', help='Use dedicated GPU', default=cfg['gpu'], action='store_true')
     parser.add_argument('--GPU_ID', help='GPUs to use. Example: 0,1,2', default=cfg['GPU_ID'])
     parser.add_argument('--dataset', help='Training dataset.', default=cfg['dataset'],
                         choices=["mpii", "coco", 'h36m', 'dhp19'], type=str)
