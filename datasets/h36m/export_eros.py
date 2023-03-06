@@ -58,7 +58,7 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path, skip=None, args=
         sample_anno = {}
         sample_anno['img_name'] = action_name + '_' + str(fi).zfill(5) + '.jpg'
         sample_anno['ts'] = pose['ts']
-        sample_anno['keypoints'] = get_movenet_keypoints(pose, args.frame_height, args.frame_width)
+        sample_anno['keypoints'] = get_movenet_keypoints(pose, args.frame_height, args.frame_width,args.upperbody)
         sample_anno['center'] = get_center(pose, args.frame_height, args.frame_width)
         # sample_anno['torso_size'] = get_torso_length(pose, frame_height, frame_width)
         sample_anno['keypoints_prev'] = kps_old
@@ -169,15 +169,16 @@ if __name__ == '__main__':
     parser.add_argument('-gauss_kernel', help='', default=7, type=int)
     parser.add_argument('-skip_image', help='', default=None)
     parser.add_argument('-data_home', help='Path to dataset folder', default='/home/ggoyal/data/h36m_cropped/', type=str)
-    parser.add_argument("-from_scratch", type=str2bool, nargs='?', const=True, default=True,
+    parser.add_argument("-from_scratch", type=str2bool, nargs='?', const=True, default=False,
                         help="Write annotation file from scratch.")
-    parser.add_argument("-write_annotation", type=str2bool, nargs='?', const=True, default=True,
+    parser.add_argument("-write_annotation", type=str2bool, nargs='?', const=True, default=False,
                         help="Write annotation file.")
-    parser.add_argument("-write_images", type=str2bool, nargs='?', const=True, default=True, help="Save images.")
+    parser.add_argument("-write_images", type=str2bool, nargs='?', const=True, default=False, help="Save images.")
     parser.add_argument("-write_video", type=str2bool, nargs='?', const=True, default=False, help="Save video.")
     parser.add_argument('-fps', help='', default=50, type=int)
     parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=False, help="Run in dev mode.")
     parser.add_argument("-ts_scaler", help='', default=12.50, type=float)
+    parser.add_argument("-upperbody", type=str2bool, nargs='?', const=True, default=False, help="Create annotation for upperbody only.")
 
     args = parser.parse_args()
     try:

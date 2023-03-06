@@ -131,7 +131,7 @@ def checkframecount(video_file_name, gt_file_name):
     return True
 
 
-def get_movenet_keypoints(pose: Dict, h_frame=1, w_frame=1, add_visibility=True):
+def get_movenet_keypoints(pose: Dict, h_frame=1, w_frame=1, add_visibility=True, upperbody=False):
 
     keypoints = []
     pose_hpecore = numpy.zeros([len(HPECoreSkeleton.KEYPOINTS_MAP),2], float)
