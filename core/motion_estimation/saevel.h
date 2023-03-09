@@ -1,6 +1,7 @@
 #include <opencv2/opencv.hpp>
 #include "utility.h"
 
+namespace hpecore {
 class saevel
 {
 public:
@@ -120,3 +121,5 @@ void conlude_update()
 }
 
 };
+
+}

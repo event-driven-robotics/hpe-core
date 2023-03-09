@@ -54,6 +54,7 @@ endif()
 set( folder_source
   event_representations/representations.cpp
   motion_estimation/motion_estimation.cpp
+  motion_estimation/saevel.cpp
   fusion/fusion.cpp
 )
 
