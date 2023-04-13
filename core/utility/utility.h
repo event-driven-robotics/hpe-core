@@ -334,7 +334,7 @@ inline void drawGrid(cv::Mat &image, std::vector<joint> &grid, int rows, int col
                 // HSVtoRGB(ang,mag,(255 * mag / 100),R, G, B);
                 // cv::arrowedLine(image, c, c+v, {B, G, R}, th);
                 // * draw noralized arrows of different colors
-                /*
+                
                 double mag = sqrt(v.x*v.x + v.y*v.y);
                 double ang = (atan2(v.y, v.x) + M_PI) * 180.0 / M_PI_2;
                 int R,G,B;
@@ -343,10 +343,28 @@ inline void drawGrid(cv::Mat &image, std::vector<joint> &grid, int rows, int col
                 v.x *= 10;
                 v.y *= 10;
                 // HSVtoRGB(ang,mag,(255 * mag / 100),R, G, B);
-                HSVtoRGB(ang,255,(255 * mag / 100),R, G, B);
-                cv::arrowedLine(image, c, c+v, cv::Scalar{B, G, R}, th);
+                HSVtoRGB(ang,(255 * mag / 100),(255 * mag / 100),R, G, B);
+                // HSVtoRGB(ang,250,250,R, G, B);
+                // HSVtoRGB(ang,255,(255 * mag / 100),R, G, B);
+                // cv::arrowedLine(image, c, c+v, cv::Scalar{B, G, R}, th);
+                
+
+                // Top Left Corner
+                cv::Point p1(j*width, i*height);
+            
+                // Bottom Right Corner
+                cv::Point p2(j*width+width, i*height+height);
+            
+                int thickness = -1;
+            
+                // Drawing the Rectangle
+                cv::rectangle(image, p1, p2,
+                        cv::Scalar{B, G, R},
+                        thickness, cv::LINE_8);
+            
+            
                 // cv::arrowedLine(image, c, c+v, colorS, th);
-                */
+                
                 // * color RoI according to vector
                 // define the region
                 // cv::Rect rect {j*width, j*width+width, i*height, i*height+height };
@@ -365,19 +383,19 @@ inline void drawGrid(cv::Mat &image, std::vector<joint> &grid, int rows, int col
 
                 // // here the img object is called with the rectangle
                 // cv::Mat roi { img(rect) };
-                // * set dot colro accoring to vector
-                double mag = sqrt(v.x*v.x + v.y*v.y);
-                double ang = (atan2(v.y, v.x) + M_PI) * 180.0 / M_PI_2;
-                int R,G,B;
-                double vx = v.x, vy=v.y;
-                v.x /= mag;
-                v.y /= mag;
-                v.x *= 10;
-                v.y *= 10;
-                // HSVtoRGB(ang,mag,(255 * mag / 100),R, G, B);
-                HSVtoRGB(ang,255,(255 * mag / 100),R, G, B);
-                // cv::arrowedLine(image, c, c+v, cv::Scalar{B, G, R}, th);
-                image.at<cv::Vec3b>(c) = cv::Vec3b(B, G, R);
+                // // * set dot colro accoring to vector
+                // double mag = sqrt(v.x*v.x + v.y*v.y);
+                // double ang = (atan2(v.y, v.x) + M_PI) * 180.0 / M_PI_2;
+                // int R,G,B;
+                // double vx = v.x, vy=v.y;
+                // v.x /= mag;
+                // v.y /= mag;
+                // v.x *= 10;
+                // v.y *= 10;
+                // // HSVtoRGB(ang,mag,(255 * mag / 100),R, G, B);
+                // HSVtoRGB(ang,255,(255 * mag / 100),R, G, B);
+                // // cv::arrowedLine(image, c, c+v, cv::Scalar{B, G, R}, th);
+                // image.at<cv::Vec3b>(c) = cv::Vec3b(B, G, R);
             }
         }
     }

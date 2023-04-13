@@ -774,7 +774,7 @@ class tripletVelocity
 private:
     int roi_width{40};
     int minor_width{1};
-    cv::Mat SAE, SAE_vis;
+    cv::Mat SAE, SAE_vis, SAE_out;
     cv::Mat SAEP, SAEN;
 
 public:
@@ -813,15 +813,14 @@ public:
                                 if(v_new->p)
                                     dt12 = (evTs - this->SAEP.at<float>(j, i));
                                 else
-                                    dt12 = (evTs - this->SAEN.at<float>(j, i)); 
+                                    dt12 = (evTs - this->SAEN.at<float>(j, i));
                                 // search for 3rd ev (same polarity and similar dt)
                                 for(int m = i-minor_width; m <= i+minor_width; m++)
                                 {
                                     for(int n = j-minor_width; n <= j+minor_width; n++)
                                     {
-                                        if((v_new->x!=m || v_new->y!=n)&& (m!=i || n!=j)) //  3rd != 2nd != 1st
+                                        if((v_new->x!=m || v_new->y!=n) && (m!=i || n!=j)) //  3rd != 2nd != 1st
                                         {
-                                            
                                             double dt23;
                                             if(v_new->p)
                                                 dt23 = this->SAEP.at<float>(j, i) - this->SAEP.at<float>(n, m);
@@ -877,12 +876,20 @@ public:
 
     const cv::Mat& querySAEP()
     {
-        return SAEP;
+        // return SAEP;
+        
+        cv::normalize(this->SAEP, SAE_vis, 0, 1, cv::NORM_MINMAX);
+        return SAE_vis;
+        // cv::Mat SAEout;
+        // SAE_vis.convertTo(SAE_out, CV_8U);
+        // cv::cvtColor(this->SAEP, SAE_out, cv::COLOR_BGRA2GRAY);
+        // return SAE_out;
     } 
 
     const cv::Mat& querySAEN()
     {
-        return SAEN;
+        cv::normalize(this->SAEN, SAE_vis, 0, 1, cv::NORM_MINMAX);
+        return SAE_vis;
     } 
 };
 }
