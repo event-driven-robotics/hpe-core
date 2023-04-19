@@ -7,7 +7,8 @@ dataset = 'dhp19'
 home = '/data'
 cfg = {
     ##### Global Setting
-    'GPU_ID': '',
+    'gpu' : False,
+    'GPU_ID': '0,1',
     "num_workers": 4,
     "random_seed": 42,
     "cfg_verbose": True,

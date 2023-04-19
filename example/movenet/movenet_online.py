@@ -32,7 +32,6 @@ class MovenetModule(yarp.RFModule):
         # self.np_input = None
         self.yarp_image = yarp.ImageMono()
         self.yarp_sklt_out = yarp.Bottle()
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # self.checkpoint_path = "/home/ggoyal/data/models/h36m_cropped_cam2-4_iter2_from-pretrained_/e12_valacc0.77841.pth"
         self.checkpoint_path = "/usr/local/src/hpe-core/example/movenet/models/e97_valacc0.81209.pth"
         # self.checkpoint_path = "/usr/local/src/hpe-core/example/movenet/models/hp19_frontcams_e88_valacc0.97142.pth"
