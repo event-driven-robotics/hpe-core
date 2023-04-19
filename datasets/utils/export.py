@@ -147,6 +147,21 @@ def get_movenet_keypoints(pose: Dict, h_frame=1, w_frame=1, add_visibility=True)
     return keypoints
 
 
+def get_hpecore_keypoints(pose: Dict, h_frame=1, w_frame=1, add_visibility=True):
+
+    keypoints = []
+    pose_hpecore = numpy.zeros([len(HPECoreSkeleton.KEYPOINTS_MAP),2], float)
+    for key, value in HPECoreSkeleton.KEYPOINTS_MAP.items():
+        pose_hpecore[value,:] = pose[key][:]
+    for k in pose_hpecore:
+        if add_visibility:
+            k_scaled = [k[0] / w_frame, k[1] / h_frame, 2]
+        else:
+            k_scaled = [k[0] / w_frame, k[1] / h_frame]
+        keypoints.extend(k_scaled)
+    return keypoints
+
+
 def get_torso_length(pose, h_frame=1, w_frame=1):
     k = {}
     # k['left_shoulder']=pose[1,:]
