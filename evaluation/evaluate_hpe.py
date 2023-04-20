@@ -126,20 +126,32 @@ def plot_pck_over_thresholds(pck_thresholds_results, output_folder_path, ds_name
     fig.tight_layout(pad=10)
 
     # plot pcks
+    linestyles = ['--',':','-.','dashed','dashdot']
     for algo_name, pcks in algos.items():
         # ax.plot(thresholds, pcks, color=np.random.rand(3, ), marker="o", label=f'{algo_name}',
         #         linestyle='-', alpha=1.0)
-        ax.plot(thresholds, pcks, marker="o", label=f'{algo_name}',linewidth=2, color = colors[algo_name],
-                linestyle='-', alpha=1.0)
+        if algo_name in plots_utils.RENAMING.keys():
+            name = plots_utils.RENAMING[algo_name]
+        else:
+            name = algo_name
+        if name == 'moveEnet': linestyle = '-'
+        else:
+            try: linestyle = linestyles.pop(0)
+            except: linestyle = '--'
+
+        ax.plot(thresholds, pcks, marker="o", label=f'{name}',linewidth=4, color = colors[algo_name],
+                linestyle=linestyle, alpha=1.0)
 
     # set axis limits
-    ax.set_xlim([0, 1])
+    # ax.set_xlim([0, 1])
     ax.set_ylim([0, 100])
 
+    plt.grid()
+
     # labels and title
-    plt.xlabel('PCK thresholds', fontsize=22, labelpad=None)
-    plt.ylabel(f'Average PCK %', fontsize=22, labelpad=5)
-    fig.suptitle(figure_name, fontsize=30, y=0.97)
+    plt.xlabel('PCK thresholds', fontsize=32, labelpad=None)
+    plt.ylabel(f'Average PCK %', fontsize=32, labelpad=5)
+    # fig.suptitle(figure_name, fontsize=30, y=0.97)
     plt.tick_params(axis='both', which='major', labelsize=24)
     ax.legend(fontsize=24, loc='lower right')
 

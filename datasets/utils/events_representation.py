@@ -78,7 +78,8 @@ class EROS:
         self._image[vy, vx] = 255
 
         return roi_raw != roi_valid
-
+    def reset_frame(self):
+        pass
 
 class TOS:
 
@@ -200,7 +201,7 @@ class eventFrame:
         self.threshold = 0.1 / 255
 
     def get_frame(self):
-        return self._image
+        return self.get_normed()
     def reset_frame(self):
         self._image = np.zeros((self.frame_height, self.frame_width), dtype=float)
 

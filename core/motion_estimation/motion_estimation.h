@@ -478,7 +478,7 @@ public:
     }
 
     template<typename T>
-    void update(const T &begin, const T &end, double ts)
+    void update(const T &begin, const T &end)
     {
         //these are static so they get set once and we use the same memory
         //locations each call
@@ -486,10 +486,10 @@ public:
         static int half_kernel = eros_k / 2;
         static cv::Rect roi_raw = cv::Rect(0, 0, eros_k, eros_k);
 
-        ts_curr = ts;
-
         for(auto v = begin; v != end; v++)
         {
+            double ts = v.timestamp();
+            
             //get references to the indexed pixel locations
             auto &p_sae  =  sae.at<double>(v->y, v->x);
             auto &p_eros = eros.at<double>(v->y, v->x);
@@ -508,14 +508,17 @@ public:
 
             //set the eros position to max
             p_eros = 1.0;
+
+            ts_curr = ts;
         }
+        
 
     }
 
     template <typename T>
-    void update(const T &packet, double ts)
+    void update(const T &packet)
     {
-        update<T::iterator>(packet.begin(), packet.end(), ts);
+        update<T::iterator>(packet.begin(), packet.end());
     }
 
     jDot query_franco(int x, int y, int dRoi = 20, int dNei = 2, jDot pv = {0, 0}, bool circle = false)
