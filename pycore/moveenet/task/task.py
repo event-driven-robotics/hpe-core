@@ -28,7 +28,7 @@ class Task():
 
         self.cfg = cfg
         self.init_epoch = 0
-        if(self.cfg["gpu"]):
+        if(self.cfg["GPU_ID"]):
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
             self.device = torch.device("cpu")
