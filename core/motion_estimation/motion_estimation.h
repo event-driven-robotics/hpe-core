@@ -814,9 +814,11 @@ public:
                                 // found the 2nd ev
                                 double dt12;
                                 if(v_new->p)
-                                    dt12 = (evTs - this->SAEP.at<float>(j, i));
+                                    dt12 = (v_new.timestamp() - this->SAEP.at<float>(j, i));
+                                    // dt12 = (evTs - this->SAEP.at<float>(j, i));
                                 else
-                                    dt12 = (evTs - this->SAEN.at<float>(j, i));
+                                    dt12 = (v_new.timestamp() - this->SAEN.at<float>(j, i));
+                                    // dt12 = (evTs - this->SAEN.at<float>(j, i));
                                 // search for 3rd ev (same polarity and similar dt)
                                 for(int m = i-minor_width; m <= i+minor_width; m++)
                                 {
@@ -844,10 +846,14 @@ public:
                         }
                     }
                     // update positve and negative SAE
+                    // if(v_new->p)
+                    //     this->SAEP.at<float>(v_new->y, v_new->x) = float(evTs);
+                    // else   
+                    //     this->SAEN.at<float>(v_new->y, v_new->x) = float(evTs);
                     if(v_new->p)
-                        this->SAEP.at<float>(v_new->y, v_new->x) = float(evTs);
+                        this->SAEP.at<float>(v_new->y, v_new->x) = float(v_new.timestamp());
                     else   
-                        this->SAEN.at<float>(v_new->y, v_new->x) = float(evTs);
+                        this->SAEN.at<float>(v_new->y, v_new->x) = float(v_new.timestamp());
 
                     // calculate the average for this event
                     if (n_neighbours > 0)
@@ -894,5 +900,143 @@ public:
         cv::normalize(this->SAEN, SAE_vis, 0, 1, cv::NORM_MINMAX);
         return SAE_vis;
     } 
+};
+
+class pwTripletVelocity
+{
+private:
+    int roi_width{40};
+    int minor_width{1};
+    cv::Mat SAE, SAE_vis, SAE_out;
+    cv::Mat SAEP, SAEN;
+
+public:
+    void setParameters(int roi_width, int minor_width, cv::Size image_size)
+    {
+        this->roi_width = roi_width;
+        this->minor_width = minor_width;
+        this->SAEP = cv::Mat::zeros(image_size, CV_64F);
+        this->SAEN = cv::Mat::zeros(image_size, CV_64F);
+    }
+
+    template <typename T>
+    void updateSAE(const T &begin, const T &end)
+    {
+        for(auto v_new = begin; v_new != end; v_new++) // each event
+        {
+            double ts = v_new.timestamp();
+            // std::cout << ts << std::endl;
+            //update positve and negative SAEs
+            if(v_new->p)
+                this->SAEP.at<float>(v_new->y, v_new->x) = ts;
+            else   
+                this->SAEN.at<float>(v_new->y, v_new->x) = ts;
+        }
+    }
+
+    jDot query_franco(int x, int y, double evTs, int dRoi = 20, int dNei = 2, jDot pv = {0, 0}, bool circle = false)
+    {
+        jDot out = {0, 0};
+        int n = 0;
+
+        int xl = std::max(x - dRoi, dNei); 
+        int xh = std::min(x + dRoi, SAEP.cols - dNei);
+        int yl = std::max(y - dRoi, dNei);
+        int yh = std::min(y + dRoi, SAEP.rows - dNei);
+        for (int yi = yl; yi <= yh; yi++)
+        {
+            for (int xi = xl; xi <= xh; xi++)
+            {
+                //keep searching if not a new events
+                auto &tsP = this->SAEP.at<double>(yi, xi);
+                auto &tsN = this->SAEN.at<double>(yi, xi);
+                if(tsP  >= evTs || tsN  >= evTs)
+                    std::cout << tsP << "\t" << tsN <<std::endl;
+                else
+                    continue;
+                // if(tsP < evTs && tsN < evTs)
+                //     continue;
+
+                //search neighbouring events to calc: distance / time
+                int nn = 0;
+                double xdot = 0.0, ydot = 0.0;
+                for (auto yj = yi - dNei; yj <= yi + dNei; yj++)
+                {
+                    for (auto xj = xi - dNei; xj <= xi + dNei; xj++)
+                    {
+                        if((xi!=xj || yi!=yj)) // 2nd != 1st
+                        {
+                            // found the 2nd ev
+                            double dt12;
+                            if(tsP >= evTs) // ev1 = postive event
+                            {
+                                dt12 = (evTs - this->SAEP.at<float>(yi, xi));
+                                std::cout << "p\n";
+                            }
+                            else if(tsN >= evTs)           // ev1 = negative event
+                            {
+                                dt12 = (evTs - this->SAEN.at<float>(yi, yi));
+                                std::cout << "n\n";
+                            }
+                            // search for 3rd ev (same polarity and similar dt)
+                            for (auto yk = yj - dNei; yk <= yj + dNei; yk++)
+                            {
+                                for (auto xk = xj - dNei; xk <= xj + dNei; xk++)
+                                {
+                                    if((xi!=xk || yi!=yk) && (xk!=xj || yk!=yj)) //  3rd != 2nd != 1st
+                                    {
+                                        double dt23;
+                                        if(tsP == evTs) // ev1 = postive event
+                                            dt23 = this->SAEP.at<float>(yj, xj) - this->SAEP.at<float>(yk, xk);
+                                        else if(tsN == evTs)           // ev1 = negative event
+                                            dt23 = this->SAEN.at<float>(yj, xj) - this->SAEP.at<float>(yk, xk);
+                                        // std::cout << dt12 << "\t" << dt23 << std::endl;
+                                        if(fabs(dt12-dt23) < fabs(dt12)/4)
+                                        {
+                                            
+                                            int dx = xi - xj;
+                                            int dy = yi - yj;
+                                            xdot += dx / dt12;
+                                            ydot += dy / dt12;
+                                            nn++;
+                                        }    
+
+                                    }       
+                                }
+                            }
+
+                        }
+                    }
+                }
+                // calculate the average for this event
+                if (nn > 0)
+                {
+                    double inv_nn = 1.0 / nn;
+                    out.u += xdot * inv_nn;
+                    out.v += ydot * inv_nn;
+                    n++;
+                }
+            }
+        }
+
+        if (n)
+        {
+            double inv_n = 1.0 / n;
+            out.u *= inv_n;
+            out.v *= inv_n;
+        }
+
+        return out;
+    }
+
+    skeleton13_vel query(skeleton13 points, double evTs, int dRoi = 20, int dNei = 2, skeleton13_vel pv = {0}, bool circle = false)
+    {
+        skeleton13_vel out = {0};
+        for(size_t i = 0; i < points.size(); i++)
+            out[i] = query_franco(points[i].u, points[i].v, evTs, dRoi, dNei, pv[i], circle);
+	    // ts_prev = ts_curr;
+        return out;
+    }
+
 };
 }
