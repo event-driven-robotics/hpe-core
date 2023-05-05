@@ -779,13 +779,24 @@ private:
     int minor_width{1};
     cv::Mat SAE, SAE_vis, SAE_out;
     cv::Mat SAEP, SAEN;
-
+    // parameters for eros (used only for movenet)
+    cv::Mat eros;
+    cv::Rect roi_full;
+    int eros_k{7};
+    double eros_d{0.3};
+    
 public:
     void setParameters(int roi_width, int minor_width, cv::Size image_size) {
         this->roi_width = roi_width;
         this->minor_width = minor_width;
         this->SAEP = cv::Mat::zeros(image_size, CV_64F);
         this->SAEN = cv::Mat::zeros(image_size, CV_64F);
+        // eros
+        this->eros = cv::Mat(image_size, CV_64F);
+        roi_full = cv::Rect(cv::Point(0, 0), image_size);
+        this->eros_k = eros_k % 2 ? eros_k : eros_k + 1;
+        this->eros_d = eros_d >= 1.0 ? 0.99 : eros_d;
+        this->eros_d = eros_d < 0.0 ? 0.01 : eros_d;
     }
 
     template <typename T>
@@ -793,6 +804,12 @@ public:
     {
         int n_used[13] = {0};
         skeleton13_vel velocity = {0};
+        // eros
+        //these are static so they get set once and we use the same memory
+        //locations each call
+        static double odecay = pow(eros_d, 1.0 / eros_k);
+        static int half_kernel = eros_k / 2;
+        static cv::Rect roi_raw = cv::Rect(0, 0, eros_k, eros_k);
         
         for(auto v_new = begin; v_new != end; v_new++) // each event
         {
@@ -850,10 +867,10 @@ public:
                     //     this->SAEP.at<float>(v_new->y, v_new->x) = float(evTs);
                     // else   
                     //     this->SAEN.at<float>(v_new->y, v_new->x) = float(evTs);
-                    if(v_new->p)
-                        this->SAEP.at<float>(v_new->y, v_new->x) = float(v_new.timestamp());
-                    else   
-                        this->SAEN.at<float>(v_new->y, v_new->x) = float(v_new.timestamp());
+                    // if(v_new->p)
+                    //     this->SAEP.at<float>(v_new->y, v_new->x) = float(v_new.timestamp());
+                    // else   
+                    //     this->SAEN.at<float>(v_new->y, v_new->x) = float(v_new.timestamp());
 
                     // calculate the average for this event
                     if (n_neighbours > 0)
@@ -864,9 +881,25 @@ public:
                         velocity[k].v += (ydot * inv_neighbours);
                         n_used[k]++;
                     }
+
                     
                 }
-            }                      
+            }
+            // update positve and negative SAE
+            if(v_new->p)
+                this->SAEP.at<float>(v_new->y, v_new->x) = float(v_new.timestamp());
+            else   
+                this->SAEN.at<float>(v_new->y, v_new->x) = float(v_new.timestamp());
+            // eros update
+            double ts = v_new.timestamp();
+            auto &p_eros = eros.at<double>(v_new->y, v_new->x);
+            //decay the valid region of the eros
+            roi_raw.x = v_new->x - half_kernel;
+            roi_raw.y = v_new->y - half_kernel;
+            eros(roi_raw & roi_full) *= odecay;
+
+            //set the eros position to max
+            p_eros = 1.0;            
         }
 
         for (int k = 0; k < 13; k++)
@@ -899,6 +932,11 @@ public:
     {
         cv::normalize(this->SAEN, SAE_vis, 0, 1, cv::NORM_MINMAX);
         return SAE_vis;
+    }
+
+    const cv::Mat& queryEROS()
+    {
+        return eros;
     } 
 };
 
@@ -909,6 +947,11 @@ private:
     int minor_width{1};
     cv::Mat SAE, SAE_vis, SAE_out;
     cv::Mat SAEP, SAEN;
+    // parameters for eros (used only for movenet)
+    cv::Mat eros;
+    cv::Rect roi_full;
+    int eros_k{7};
+    double eros_d{0.3};
 
 public:
     void setParameters(int roi_width, int minor_width, cv::Size image_size)
@@ -917,11 +960,23 @@ public:
         this->minor_width = minor_width;
         this->SAEP = cv::Mat::zeros(image_size, CV_64F);
         this->SAEN = cv::Mat::zeros(image_size, CV_64F);
+        // eros
+        this->eros = cv::Mat(image_size, CV_64F);
+        roi_full = cv::Rect(cv::Point(0, 0), image_size);
+        this->eros_k = eros_k % 2 ? eros_k : eros_k + 1;
+        this->eros_d = eros_d >= 1.0 ? 0.99 : eros_d;
+        this->eros_d = eros_d < 0.0 ? 0.01 : eros_d;
     }
 
     template <typename T>
     void updateSAE(const T &begin, const T &end)
     {
+        // eros
+        //these are static so they get set once and we use the same memory
+        //locations each call
+        static double odecay = pow(eros_d, 1.0 / eros_k);
+        static int half_kernel = eros_k / 2;
+        static cv::Rect roi_raw = cv::Rect(0, 0, eros_k, eros_k);
         for(auto v_new = begin; v_new != end; v_new++) // each event
         {
             float ts = v_new.timestamp();
@@ -931,6 +986,16 @@ public:
                 this->SAEP.at<float>(v_new->y, v_new->x) = ts;
             else   
                 this->SAEN.at<float>(v_new->y, v_new->x) = ts;
+
+            // eros update
+            auto &p_eros = eros.at<double>(v_new->y, v_new->x);
+            //decay the valid region of the eros
+            roi_raw.x = v_new->x - half_kernel;
+            roi_raw.y = v_new->y - half_kernel;
+            eros(roi_raw & roi_full) *= odecay;
+
+            //set the eros position to max
+            p_eros = 1.0;           
         }
     }
 
@@ -982,7 +1047,7 @@ public:
                                         else if(tsN >= evTs)           // ev1 = negative event
                                             dt23 = this->SAEN.at<float>(yj, xj) - this->SAEP.at<float>(yk, xk);
                                         // std::cout << dt12 << "\t" << dt23 << std::endl;
-                                        if(fabs(dt12-dt23) < fabs(dt12)/4)
+                                        if(fabs(dt12-dt23) < fabs(dt12)/2)
                                         {
                                             int dx = xi - xj;
                                             int dy = yi - yj;
@@ -1028,5 +1093,9 @@ public:
         return out;
     }
 
+    const cv::Mat& queryEROS()
+    {
+        return eros;
+    } 
 };
 }
