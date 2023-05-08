@@ -958,8 +958,8 @@ public:
     {
         this->roi_width = roi_width;
         this->minor_width = minor_width;
-        this->SAEP = cv::Mat::zeros(image_size, CV_64F);
-        this->SAEN = cv::Mat::zeros(image_size, CV_64F);
+        this->SAEP = cv::Mat::zeros(image_size, CV_32F);
+        this->SAEN = cv::Mat::zeros(image_size, CV_32F);
         // eros
         this->eros = cv::Mat(image_size, CV_64F);
         roi_full = cv::Rect(cv::Point(0, 0), image_size);
@@ -1096,6 +1096,24 @@ public:
     const cv::Mat& queryEROS()
     {
         return eros;
+    } 
+
+    const cv::Mat& querySAEP()
+    {
+        return SAEP;
+        // cv::Mat SAE_vis, SAEout;
+        // cv::normalize(this->SAEP, SAE_vis, 0, 1, cv::NORM_MINMAX);
+        // SAE_vis.convertTo(SAEout, CV_8U, 255);
+        // return SAE_vis;
+    } 
+
+    const cv::Mat& querySAEN()
+    {
+        return SAEN;
+        // cv::Mat SAE_vis, SAEout;
+        // cv::normalize(this->SAEN, SAE_vis, 0, 1, cv::NORM_MINMAX);
+        // SAE_vis.convertTo(SAEout, CV_8U, 255);
+        // return SAE_vis;
     } 
 };
 }
