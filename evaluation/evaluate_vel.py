@@ -165,6 +165,12 @@ def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
 
             tick_labels.extend([f'{algo_name}'])
             ax.set_xlabel('Joints RMSE')
+        
+        elif isinstance(metric, metrics_utils.MPJPE):
+            all_values.append(joints_metric_values)
+
+            tick_labels.extend([f'{algo_name}'])
+            ax.set_xlabel('Joints MPJPE')
 
     # plot values
     y_ticks = np.arange(len(tick_labels))
@@ -758,8 +764,30 @@ def main(args):
                 latency.append(predictions[:, 1])
                 results['datasets'][results_key]['latency'][algo_name] = np.mean(predictions[:, 1])
                 # latency = np.mean(predictions[:, 1])
-                # results['datasets'][results_key]['latency'][algo_name] = np.arange(1)
+                # results['datasets'][results_key]['latency']rt[algo_name] = np.arange(1)
                 # results['datasets'][results_key]['latency'][algo_name][0] = np.mean(latency)
+            
+            # compute MPJPE
+            if args.mpjpe:
+
+                if 'mpjpe' not in results['datasets'][results_key].keys():
+                    results['datasets'][results_key]['mpjpe'] = dict()
+
+                mpjpe = metrics_utils.MPJPE()
+                mpjpe.update_samples(vel_pred1K, vel_gt1K)
+
+                algo_name = pred_path.stem
+                results['datasets'][results_key]['mpjpe'][algo_name] = mpjpe
+
+                # update algo metric
+                if 'mpjpe' not in results['global'].keys():
+                    results['global']['mpjpe'] = dict()
+
+                if algo_name not in results['global']['mpjpe'].keys():
+                    results['global']['mpjpe'][algo_name] = metrics_utils.MPJPE()
+
+                mpjpe = results['global']['mpjpe'][algo_name]
+                mpjpe.update_samples(vel_pred1K, vel_gt1K)
             
 
         if(args.plot_traj):
@@ -828,6 +856,21 @@ def main(args):
                                             to_latex=to_latex,
                                             file_path=output_ds_folder_path,
                                             file_stem=f'latency_{ds_name}')
+            
+            if metric_name == 'mpjpe':
+                    print("\n-= MPJPE G=-")
+                    header = [header_str for key in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.keys() for header_str in
+                              [f'{key}']]
+                    header.append('MPJPE')
+
+                    tabulate_metric_over_algorithms(metric_results, header,
+                                                    descr=f'MPJPE results for dataset {ds_name}',
+                                                    to_latex=to_latex,
+                                                    file_path=output_ds_folder_path,
+                                                    file_stem=f'mpjpe_{ds_name}')
+                    plot_boxplot(metric_results,
+                                 descr=f'MPJPE results for dataset {ds_name}',
+                                 file_path=output_ds_folder_path / f'mpjpe_{ds_name}.png')
                 
                 
                     
@@ -877,6 +920,24 @@ def main(args):
             plot_boxplot(metric_results,
                          descr=f'Global RMSE results',
                          file_path=output_folder_path / f'rmse.png')
+            
+        elif metric_name == 'mpjpe':
+            if (not (to_latex)):
+                print("\n-= MPJPE =-")
+            header = [header_str for key in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.keys() for header_str in
+                      [f'{key}']]
+            header.append('avg MPJPE')
+
+            tabulate_metric_over_algorithms(metric_results, header,
+                                            descr=f'Global MPJPE results',
+                                            to_latex=to_latex,
+                                            file_path=output_folder_path,
+                                            file_stem='mpjpe')
+
+            plot_boxplot(metric_results,
+                         descr=f'Global MPJPE results',
+                         file_path=output_folder_path / f'mpjpe.png')
+            
     plt.show()
         
 
@@ -898,6 +959,9 @@ if __name__ == '__main__':
     parser.set_defaults(plot_traj=False)
     parser.add_argument('-ps', help='flag specifying to plot full skeleton trajectories in a single figure', dest='plot_sklt', action='store_true')
     parser.set_defaults(plot_sklt=False)
+    parser.add_argument('-mpjpe', help='flag specifying that the metric MPJPE must be computed', dest='mpjpe',
+                        action='store_true')
+    parser.set_defaults(mpjpe=False)
 
     args, unknown = parser.parse_known_args()
     if(unknown):
