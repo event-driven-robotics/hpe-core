@@ -60,6 +60,7 @@ set( folder_source
 set( folder_header
   utility/utility.h
   motion_estimation/motion_estimation.h
+  motion_estimation/reprojection.h
   event_representations/representations.h
   fusion/fusion.h
 )
