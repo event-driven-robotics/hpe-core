@@ -53,7 +53,6 @@ private:
 
       cv::Mat T;
 
-
 public:
 
    void setCam1Parameters(std::array<int, 4> res, std::array<double, 4> dis)
@@ -73,10 +72,47 @@ public:
       T = cv::Mat(4, 4, CV_32F, E.data());
    }
 
+   joint cft(joint in, double depth)
+   {
+      //undistort point
+      joint und1;
+      double r2 = (in.u - cam1.u0)*(in.u - cam1.u0) + (in.v - cam1.v0)*(in.v - cam1.v0);
+      double r4 = r2*r2;
+      double den = 1 + cam1.k1 * r2 + cam1.k2 * r4;
+      und1.u = cam1.u0 + (in.u - cam1.u0) / den;
+      und1.v = cam1.v0 + (in.v - cam1.v0) / den;
+
+      //project to 3D
+      cv::Mat X1 = (cv::Mat_<double>(4,1) << depth * und1.u / cam1.fu, depth * und1.v / cam1.fv, depth, 1.0);
+
+      //transform point to second camera reference
+      cv::Mat X2 = T * X1;
+
+      //project to 2D
+      joint und2;
+      und2.u = cam2.fu * X2.at<double>(0, 0) / X2.at<double>(0, 2) + cam2.u0;
+      und2.v = cam2.fv * X2.at<double>(0, 1) / X2.at<double>(0, 2) + cam2.v0;
+
+      //distort point
+      double ru2 = (und2.u - cam2.u0)*(und2.u - cam2.u0) + (und2.v - cam2.v0)*(und2.v - cam2.v0);
+      double F = (1 - sqrt(1 - 4*cam2.k1*ru2)) / (2 * cam2.k1 * ru2);
+      joint out;
+      out.u = cam2.u0 + (und2.u - cam2.u0) * F;
+      out.v = cam2.v0 + (und2.v - cam2.v0) * F;
+
+      return out;
+   }
+
    skeleton13 cft(skeleton13 in, double depth)
    {
-      return {0};
+      skeleton13 out = {0};
+      int i = 0;
+      for(auto &j : in)
+         out[i++] = cft(j);
+      return out;
    }
+
+
 
 
 };
