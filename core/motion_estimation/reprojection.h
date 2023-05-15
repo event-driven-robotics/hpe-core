@@ -31,8 +31,55 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include "utility.h"
 #include <opencv2/opencv.hpp>
+#include <array>
+namespace hpecore {
 
-skeleton_13 reproject_skeleton(skeleton_13 ref1, double depth, std::vector<double> params)
-{
-    return {0};
+class skeletonCFT {
+private:
+
+      typedef struct intrinsic {
+         int w;
+         int h;
+         int u0;
+         int v0;
+         double fu;
+         double fv;
+         double k1;
+         double k2;
+      } intrinsic;
+
+      intrinsic cam1;
+      intrinsic cam2;
+
+      cv::Mat T;
+
+
+public:
+
+   void setCam1Parameters(std::array<int, 4> res, std::array<double, 4> dis)
+   {
+      cam1.w = res[0]; cam1.h = res[1]; cam1.u0 = res[2]; cam1.v0 = res[3];
+      cam1.fu = dis[0]; cam1.fv = dis[1]; cam1.k1 = dis[2]; cam1.k2 = res[3];
+   }
+
+   void setCam2Parameters(std::array<int, 4> res, std::array<double, 4> dis)
+   {
+      cam2.w = res[0]; cam2.h = res[1]; cam2.u0 = res[2]; cam2.v0 = res[3];
+      cam2.fu = dis[0]; cam2.fv = dis[1]; cam2.k1 = dis[2]; cam2.k2 = res[3];
+   }
+
+   void setExtrinsicTransform(std::array<double, 16> E) 
+   {
+      T = cv::Mat(4, 4, CV_32F, E.data());
+   }
+
+   skeleton13 cft(skeleton13 in, double depth)
+   {
+      return {0};
+   }
+
+
+};
+
 }
+
