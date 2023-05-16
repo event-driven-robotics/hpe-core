@@ -51,6 +51,8 @@ private:
       intrinsic cam1;
       intrinsic cam2;
 
+      cv::Mat mapx1, mapy1;
+
       cv::Mat T;
 
 public:
@@ -58,47 +60,65 @@ public:
    void setCam1Parameters(std::array<int, 4> res, std::array<double, 4> dis)
    {
       cam1.w = res[0]; cam1.h = res[1]; cam1.u0 = res[2]; cam1.v0 = res[3];
-      cam1.fu = dis[0]; cam1.fv = dis[1]; cam1.k1 = dis[2]; cam1.k2 = res[3];
+      cam1.fu = dis[0]; cam1.fv = dis[1]; cam1.k1 = dis[2]; cam1.k2 = dis[3];
+      // cv::Mat cam_matrix = (cv::Mat_<double>(3, 3) << cam1.fu, 0, cam1.u0, 0, cam1.fv, cam1.v0, 0, 0, 1);
+      // cv::Mat dst_matrix = (cv::Mat_<double>(4, 1) << cam1.k1, cam1.k2, 0, 0);
+      // cv::Mat ocm1 = cv::getOptimalNewCameraMatrix(cam_matrix, dst_matrix, {cam1.w, cam1.h}, 1.0);
+      // cv::initUndistortRectifyMap(cam_matrix, dst_matrix, cv::noArray(), ocm1, {cam1.w, cam1.h}, CV_32F, mapx, mapy);
    }
 
    void setCam2Parameters(std::array<int, 4> res, std::array<double, 4> dis)
    {
       cam2.w = res[0]; cam2.h = res[1]; cam2.u0 = res[2]; cam2.v0 = res[3];
-      cam2.fu = dis[0]; cam2.fv = dis[1]; cam2.k1 = dis[2]; cam2.k2 = res[3];
+      cam2.fu = dis[0]; cam2.fv = dis[1]; cam2.k1 = dis[2]; cam2.k2 = dis[3];
+      // cv::Mat cam_matrix = (cv::Mat_<double>(3, 3) << cam2.fu, 0, cam2.u0, 0, cam2.fv, cam2.v0, 0, 0, 1);
+      // cv::Mat dst_matrix = (cv::Mat_<double>(4, 1) << cam2.k1, cam2.k2, 0, 0);
+      // cv::Mat ocm2 = cv::getOptimalNewCameraMatrix(cam_matrix, dst_matrix, {cam2.w, cam2.h}, 1.0);
    }
 
    void setExtrinsicTransform(std::array<double, 16> E) 
    {
-      T = cv::Mat(4, 4, CV_32F, E.data());
+      cv::Mat(4, 4, CV_64F, E.data()).copyTo(T);
+      
    }
 
    joint cft(joint in, double depth)
    {
       //undistort point
       joint und1;
-      double r2 = (in.u - cam1.u0)*(in.u - cam1.u0) + (in.v - cam1.v0)*(in.v - cam1.v0);
-      double r4 = r2*r2;
-      double den = 1 + cam1.k1 * r2 + cam1.k2 * r4;
-      und1.u = cam1.u0 + (in.u - cam1.u0) / den;
-      und1.v = cam1.v0 + (in.v - cam1.v0) / den;
+      // double r2 = (in.u - cam1.u0)*(in.u - cam1.u0) + (in.v - cam1.v0)*(in.v - cam1.v0);
+      // double F = 1.0 / (1 + cam1.k1 * r2);
+      // und1.u = cam1.u0 + (in.u - cam1.u0) * F;
+      // und1.v = cam1.v0 + (in.v - cam1.v0) * F;
+      // std::cout << "DEBUG" << std::endl;
+      // std::cout << und1.u << " " << und1.v << std::endl;
+      und1 = in;
 
       //project to 3D
-      cv::Mat X1 = (cv::Mat_<double>(4,1) << depth * und1.u / cam1.fu, depth * und1.v / cam1.fv, depth, 1.0);
-
+      cv::Mat X1 = (cv::Mat_<double>(4,1) << depth * (und1.u-cam1.u0) / cam1.fu, depth * (und1.v-cam1.v0) / cam1.fv, depth, 1.0);
+      std::cout << X1.at<double>(0, 0) << " " << X1.at<double>(0, 1) << " " << X1.at<double>(0, 3)<< std::endl;
+      
       //transform point to second camera reference
       cv::Mat X2 = T * X1;
+      // std::cout << "====";
+      // std::cout << X1 << std::endl << T << std::endl << X2 << std::endl;
+      // std::cout << "====";
+      std::cout << X2.at<double>(0, 0) << " " << X2.at<double>(0, 1) << " " << X2.at<double>(0, 2)<< std::endl;
 
       //project to 2D
       joint und2;
       und2.u = cam2.fu * X2.at<double>(0, 0) / X2.at<double>(0, 2) + cam2.u0;
       und2.v = cam2.fv * X2.at<double>(0, 1) / X2.at<double>(0, 2) + cam2.v0;
+      //std::cout << und2.u << " "  << und2.v << std::endl;
+      std::cout << std::endl;
 
       //distort point
-      double ru2 = (und2.u - cam2.u0)*(und2.u - cam2.u0) + (und2.v - cam2.v0)*(und2.v - cam2.v0);
-      double F = (1 - sqrt(1 - 4*cam2.k1*ru2)) / (2 * cam2.k1 * ru2);
       joint out;
-      out.u = cam2.u0 + (und2.u - cam2.u0) * F;
-      out.v = cam2.v0 + (und2.v - cam2.v0) * F;
+      // r2 = (und2.u - cam2.u0)*(und2.u - cam2.u0) + (und2.v - cam2.v0)*(und2.v - cam2.v0);
+      // F = cam1.k1 == 0 ? 1 : (1 - sqrt(1 - 4*cam2.k1*r2)) / (2 * cam2.k1 * r2);
+      // out.u = cam2.u0 + (und2.u - cam2.u0) * F;
+      // out.v = cam2.v0 + (und2.v - cam2.v0) * F;
+      out = und2;
 
       return out;
    }
@@ -108,7 +128,7 @@ public:
       skeleton13 out = {0};
       int i = 0;
       for(auto &j : in)
-         out[i++] = cft(j);
+         out[i++] = cft(j, depth);
       return out;
    }
 
