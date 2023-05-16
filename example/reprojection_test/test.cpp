@@ -39,7 +39,7 @@ int main(int argc, char * argv[])
    static const int w2 = 960;
    static const int h2 = 540;
 
-   static constexpr double theta = 1 * M_PI / 180.0;
+   static constexpr double theta = 45 * M_PI / 180.0;
 
 
    
@@ -47,14 +47,14 @@ int main(int argc, char * argv[])
 
    
 
-   mycft.setCam1Parameters({w, h, w/2, h/2}, {320, 320, -0.016, 0});
-   mycft.setCam2Parameters({w2, h2, w2/2, h2/2}, {500, 500, -0.016, 0});
-   // mycft.setExtrinsicTransform({cos(theta), -sin(theta), 0, 1, 
-   //                                  sin(theta), cos(theta), 0, 0.2, 
-   //                                  0, 0, 1, 0, 
-   //                                  0, 0, 0, 1});
+   mycft.setCam1Parameters({w, h, w/2, h/2}, {320, 320, -0.2, 0});
+   mycft.setCam2Parameters({w2, h2, w2/2, h2/2}, {400, 400, -0.2, 0});
+   mycft.setExtrinsicTransform({cos(theta), 0, -sin(theta), 2, 
+                                    0, 1, 0, 0.2, 
+                                    sin(theta), 0, cos(theta), 1, 
+                                    0, 0, 0, 1});
 
-   mycft.setExtrinsicTransform({0.999946, 0.0046135, 0.00935247, 0.019063, -0.0047823, 0.999825, 0.0181072, 0.0977093, -0.00926729, -0.0181509, 0.999792, 0.114073, 0, 0, 0, 1});
+   //mycft.setExtrinsicTransform({0.999946, 0.0046135, 0.00935247, 0.019063, -0.0047823, 0.999825, 0.0181072, 0.0977093, -0.00926729, -0.0181509, 0.999792, 0.114073, 0, 0, 0, 1});
 
    cv::Mat img  = cv::Mat::zeros(h, w, CV_8UC3);
    cv::Mat img2 = cv::Mat::zeros(h2, w2, CV_8UC3);
