@@ -969,7 +969,7 @@ public:
     }
 
     template <typename T>
-    void updateSAE(const T &begin, const T &end)
+    void updateSAE(const T &begin, const T &end, float evTs)
     {
         // eros
         //these are static so they get set once and we use the same memory
@@ -979,7 +979,8 @@ public:
         static cv::Rect roi_raw = cv::Rect(0, 0, eros_k, eros_k);
         for(auto v_new = begin; v_new != end; v_new++) // each event
         {
-            float ts = v_new.timestamp();
+            // float ts = v_new.timestamp();
+            float ts = evTs;
             // std::cout << ts << std::endl;
             //update positve and negative SAEs
             if(v_new->p)
