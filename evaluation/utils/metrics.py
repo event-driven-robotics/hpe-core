@@ -107,44 +107,61 @@ class RMSE:
         """
 
         rmse = np.sqrt(np.sum(np.square(self.predicted_joints - self.gt_joints), axis=0) / len(self.gt_joints))
-        # normalized_rmse = (rmse / abs(np.mean(self.predicted_joints, axis=0))) * 100
+        normalized_rmse = (rmse / abs(np.mean(self.predicted_joints, axis=0))) * 100
         normalized_rmse_avg = np.mean(normalized_rmse, axis=0)
         max_normalized_rmse = np.max(normalized_rmse, axis=1)
 
         return normalized_rmse.flatten(), normalized_rmse_avg.flatten(), max_normalized_rmse
 
+class MPJPE:
+    def __init__(self):
+        self.predicted_joints = None
+        self.gt_joints = None
+        
+    def update_samples(self, predicted_joints: np.array, gt_joints: np.array) -> None:
+        """
+        Accumulates data that will be used for computing MPJPE (with function get_value()).
+        It expects predicted_joints and gt_joints with shape [batch_size, joints_num, 2 or 3] and
+        not annotated joints as [-1, -1] or [-1, -1, -1]
+        Parameters:
+            predicted_joints (numpy.array): predicted joints as a numpy array with shape [batch_size, joints_num, 2 or 3]
+            gt_joints (numpy.array): ground truth joints as a numpy array with shape [batch_size, joints_num, 2 or 3]
+        """
+        if self.predicted_joints is None:
+            self.predicted_joints = predicted_joints
+            self.gt_joints = gt_joints
 
-def compute_mpjpe(predicted_joints, gt_joints):
-    """
-    Computes MPJPE (Mean Per Joint Position Error)
-    """
+        else:
+            self.predicted_joints = np.append(self.predicted_joints, predicted_joints, axis=0)
+            self.gt_joints = np.append(self.gt_joints, gt_joints, axis=0)
 
-    # # compute euclidean distances between joints
-    distances = np.linalg.norm(predicted_joints - gt_joints, axis=2)
+        
+    def get_value(self):
+        """
+        Computes MPJPE (Mean Per Joint Position Error)
+        """
     
-    # TODO: what if a gt joint is not present in a frame? get the number of gt joints by
-    # gt_num = np.sum(gt_joints == 0)
-    mpje = np.sum(distances, axis=0) / len(distances)
+        # # compute euclidean distances between joints
+        distances = np.linalg.norm(self.predicted_joints - self.gt_joints, axis=2)
+        
+        # TODO: what if a gt joint is not present in a frame? get the number of gt joints by
+        # gt_num = np.sum(gt_joints == 0)
+        mpje = np.sum(distances, axis=0) / len(distances)
+        
+        # compute errors wihtout considering non detected joints    
+        dist = np.zeros((len(self.gt_joints),13))
+        count = np.zeros((13))
+        for i in range(13):
+            for j in range(len(self.gt_joints)):
+                if(self.predicted_joints[j,i,0]!=0 and self.predicted_joints[j,i,1]!=0):
+                    dist[j,i] = np.linalg.norm(self.predicted_joints[j,i,:] - self.gt_joints[j,i,:], axis=0)
+                    count[i] = count[i] + 1
+        res = np.sum(dist, axis=0) / count
     
+        mpje_avg = np.mean(res)
     
-    # compute errors wihtout considering non detected joints    
-    dist = np.zeros((len(gt_joints),13))
-    count = np.zeros((13))
-    for i in range(13):
-        for j in range(len(gt_joints)):
-            if(predicted_joints[j,i,0]!=0 and predicted_joints[j,i,1]!=0):
-                dist[j,i] = np.linalg.norm(predicted_joints[j,i,:] - gt_joints[j,i,:], axis=0)
-                count[i] = count[i] + 1
-    res = np.sum(dist, axis=0) / count
-
-    # print('distances = ')
-    # print(distances[1:4,:])
-    # print('dist = ')
-    # print(dist[1:4,:])
-
-    # return mpje
-    return res
-
-def print_mpjpe(mpjpe, keypoints_str):
-    for ei, error in enumerate(mpjpe):
-        print(f'{keypoints_str[ei]}: {error}')
+        return res.flatten(), mpje_avg
+    
+    # def print_mpjpe(mpjpe, keypoints_str):
+    #     for ei, error in enumerate(mpjpe):
+    #         print(f'{keypoints_str[ei]}: {error}')
