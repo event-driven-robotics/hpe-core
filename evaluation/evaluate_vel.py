@@ -262,12 +262,12 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
                           figsize=(2048 / my_dpi, 900 / my_dpi),
                           dpi=96)
         ax1 = plt.subplot(211)
-        plt.xlabel('time [sec]', fontsize=22, labelpad=5)
-        plt.ylabel('vx [px/sex]', fontsize=22, labelpad=5)
+        plt.xlabel('time [sec]', fontsize=24, labelpad=5)
+        plt.ylabel('vx [px/sex]', fontsize=24, labelpad=5)
         plt.tick_params(axis='both', which='major', labelsize=18)
         ax2 = plt.subplot(212)
-        plt.xlabel('time [sec]', fontsize=22, labelpad=5)
-        plt.ylabel('vx [px/sex]', fontsize=22, labelpad=5)
+        plt.xlabel('time [sec]', fontsize=24, labelpad=5)
+        plt.ylabel('vx [px/sex]', fontsize=24, labelpad=5)
         plt.tick_params(axis='both', which='major', labelsize=18)
         fig.tight_layout(pad=5)
         
@@ -284,7 +284,7 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
                 ax1.plot(timestamps, coord_gt, color='tab:blue', alpha=0.5, label=f'GT {lbl_coord}')
             if coord_ind == 1:
                 lbl_coord = 'y'
-                ax2.plot(timestamps, coord_gt, color='tab:orange', alpha=0.5, label=f'GT {lbl_coord}')
+                ax2.plot(timestamps, coord_gt, color='tab:purple', alpha=0.5, label=f'GT {lbl_coord}')
             # if coord_ind == 2:
             #     lbl_coord = 'z'
             #     ax.plot(timestamps, coord_gt, color='tab:green', alpha=0.5, label=f'GT {lbl_coord}')
@@ -298,9 +298,9 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
                 # plot predictions
                 coord_pred = predictions_algo[:, joint_ind, coord_ind]
                 if coord_ind == 0:
-                   ax1.plot(timestamps, coord_pred, color=algo_colors[pi][coord_ind], marker="None", label=f'{algo_names[pi][0:]} {lbl_coord}', linestyle='-', alpha=1.0, markersize = 12)
+                   ax1.plot(timestamps, coord_pred, color=algo_colors[pi][coord_ind], marker="None", label=f'{algo_names[pi][0:]} {lbl_coord}', linestyle='-', alpha=1.0, markersize = 16)
                 if coord_ind == 1:  
-                    ax2.plot(timestamps, coord_pred, color=algo_colors[pi][coord_ind], marker="None", label=f'{algo_names[pi][0:]} {lbl_coord}', linestyle='-', alpha=1.0, markersize = 12)
+                    ax2.plot(timestamps, coord_pred, color=algo_colors[pi][coord_ind], marker="None", label=f'{algo_names[pi][0:]} {lbl_coord}', linestyle='-', alpha=1.0, markersize = 16)
                 y_lim_min = min(y_lim_min, min(coord_pred))
                 y_lim_max = max(y_lim_max, max(coord_pred))
     
@@ -318,8 +318,8 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
     
             fig.suptitle(f'dataset {ds_name}, joint \'{joint_key}\' coordinates', fontsize=28, y=0.97)
             
-            ax1.legend(fontsize=16, loc='upper right')
-            ax2.legend(fontsize=16, loc='upper right')
+            ax1.legend(fontsize=20, loc='upper right')
+            ax2.legend(fontsize=20, loc='upper right')
     
             # save plot
             fig_path = output_folder_path / f'{ds_name}_{joint_key}_predictions.png'
