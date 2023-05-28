@@ -156,7 +156,7 @@ def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
             all_values.append(joints_metric_values)
 
             tick_labels.append(algo_name)
-            ax.set_xlabel('Joints PCK')
+            ax.set_xlabel('Joints PCK', fontsize = 22)
 
         elif isinstance(metric, metrics_utils.RMSE):
             #all_values.append(joints_metric_values[::2])  # add metric values for x coordinates
@@ -164,22 +164,22 @@ def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
             all_values.append(np.maximum(joints_metric_values[::2], joints_metric_values[1::2]))
 
             tick_labels.extend([f'{algo_name}'])
-            ax.set_xlabel('Joints RMSE')
+            ax.set_xlabel('Joints RMSE', fontsize = 22)
         
         elif isinstance(metric, metrics_utils.MPJPE):
             all_values.append(joints_metric_values)
 
             tick_labels.extend([f'{algo_name}'])
-            ax.set_xlabel('Joints MPJPE')
+            ax.set_xlabel('Joints MPJPE', fontsize = 22)
 
     # plot values
     y_ticks = np.arange(len(tick_labels))
     meanlineprops = dict(linestyle='-', linewidth=2.0, color='tab:blue')
     ax.boxplot(all_values, vert=False, showfliers=False, showmeans=True, meanline=True, meanprops=meanlineprops)
     ax.set_yticks(y_ticks)
-    ax.set_yticklabels(tick_labels)
-    ax.set_title(descr)
-
+    ax.set_yticklabels(tick_labels, fontsize = 18)
+    ax.set_title(descr, fontsize = 24)
+    plt.xticks(fontsize=18, rotation=0)
     # Save the figure and show
     plt.tight_layout()
     plt.savefig(str(file_path.resolve()))
@@ -306,10 +306,12 @@ def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_na
     
             # set axis limits
             ax1.set_xlim([timestamps[0], timestamps[-1]])
-            ax1.set_ylim([y_lim_min * 0.6, y_lim_max * 1.4])
+            # ax1.set_ylim([y_lim_min * 0.6, y_lim_max * 1.4])
+            ax1.set_ylim([-100, 100])
             
             ax2.set_xlim([timestamps[0], timestamps[-1]])
-            ax2.set_ylim([y_lim_min * 0.6, y_lim_max * 1.4])
+            # ax2.set_ylim([y_lim_min * 0.6, y_lim_max * 1.4])
+            ax2.set_ylim([-100, 100])
        
     
             # labels and title
@@ -689,7 +691,7 @@ def main(args):
             vel_gt1K_noF = np.gradient(skeletons_gt1K, axis=0)*fHz
             # vx = np.gradient(skeletons_gt1K[:,:,0], axis=1) 
             # vel_pred1K_noF = np.gradient(skeletons_pred1K, axis=0)*fHz
-            vel_pred1K_noF = skeletons_pred1K * 10
+            vel_pred1K_noF = skeletons_pred1K * 1
             
             # filter velocity estimations
             from scipy.signal import savgol_filter

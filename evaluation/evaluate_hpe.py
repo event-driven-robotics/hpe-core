@@ -165,7 +165,7 @@ def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
             all_values.append(joints_metric_values)
 
             tick_labels.append(algo_name)
-            ax.set_xlabel('Joints PCK')
+            ax.set_xlabel('Joints PCK', fontsize = 22)
 
         elif isinstance(metric, metrics_utils.RMSE):
             # all_values.append(joints_metric_values[::2])  # add metric values for x coordinates
@@ -173,22 +173,22 @@ def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
             all_values.append(np.maximum(joints_metric_values[::2], joints_metric_values[1::2]))
 
             tick_labels.extend([f'{algo_name}'])
-            ax.set_xlabel('Joints RMSE')
+            ax.set_xlabel('Joints RMSE', fontsize = 22)
 
         elif isinstance(metric, metrics_utils.MPJPE):
             all_values.append(joints_metric_values)
 
             tick_labels.extend([f'{algo_name}'])
-            ax.set_xlabel('Joints MPJPE')
+            ax.set_xlabel('Joints MPJPE', fontsize = 22)
             
     # plot values
     y_ticks = np.arange(len(tick_labels))
     meanlineprops = dict(linestyle='-', linewidth=2.0, color='tab:blue')
     ax.boxplot(all_values, vert=False, showfliers=False, showmeans=True, meanline=True, meanprops=meanlineprops)
     ax.set_yticks(y_ticks)
-    ax.set_yticklabels(tick_labels)
-    ax.set_title(descr)
-
+    ax.set_yticklabels(tick_labels, fontsize = 18)
+    ax.set_title(descr, fontsize = 24)
+    plt.xticks(fontsize=18, rotation=0)
     # Save the figure and show
     plt.tight_layout()
     plt.savefig(str(file_path.resolve()))
