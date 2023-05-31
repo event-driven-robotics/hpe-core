@@ -43,6 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 #include <mutex>
 #include <string>
 #include <opencv2/opencv.hpp>
+#include <fstream>
 
 namespace hpecore {
 
@@ -306,15 +307,15 @@ inline void drawGrid(cv::Mat &image, std::vector<joint> &grid, int rows, int col
 {
     int width = image.cols/cols;
     int height = image.rows/rows;
-    auto colorS = CV_RGB(color[0], color[1], color[2]);
+    //auto colorS = CV_RGB(color[0], color[1], color[2]);
 
     if(showGrid)
     {
         for(int i=0; i<=image.rows; i+=height)// draw horizontal lines
-            cv::line(image, cv::Point2d{0, i}, cv::Point2d{image.cols, i}, {50, 50, 50}, th);
+            cv::line(image, cv::Point{0, i}, cv::Point{image.cols, i}, {50, 50, 50}, th);
         
         for(int j=0; j<=image.cols; j+=width)// draw vertical lines
-            cv::line(image, cv::Point2d{j, 0}, cv::Point2d{j, image.rows}, {50, 50, 50}, th);
+            cv::line(image, cv::Point{j, 0}, cv::Point{j, image.rows}, {50, 50, 50}, th);
     }
     // draw velocity arrows
     for(int j=0; j<cols; j++)
@@ -323,7 +324,7 @@ inline void drawGrid(cv::Mat &image, std::vector<joint> &grid, int rows, int col
         {
             if(fabs(grid[i*cols+j].u)>delta && fabs(grid[i*cols+j].v)>delta)
             {
-                cv::Point2d c = cv::Point2d{j*width+width/2, i*height+height/2};
+                //cv::Point2d c = cv::Point2d{j*width+width/2, i*height+height/2};
                 cv::Point2d v = cv::Point2d{grid[i*cols+j].v, grid[i*cols+j].u};
                 // * draw arrows of the same color
                 // cv::arrowedLine(image, c, c+v, colorS, th);
@@ -337,7 +338,7 @@ inline void drawGrid(cv::Mat &image, std::vector<joint> &grid, int rows, int col
                 
                 double mag = sqrt(v.x*v.x + v.y*v.y);
                 double ang = (atan2(v.y, v.x) + M_PI) * 180.0 / M_PI_2;
-                int R,G,B;
+                int R=0,G=0,B=0;
                 v.x /= mag;
                 v.y /= mag;
                 v.x *= 10;
@@ -359,7 +360,7 @@ inline void drawGrid(cv::Mat &image, std::vector<joint> &grid, int rows, int col
             
                 // Drawing the Rectangle
                 cv::rectangle(image, p1, p2,
-                        cv::Scalar{B, G, R},
+                        cv::Scalar{(double)B, (double)G,(double)R},
                         thickness, cv::LINE_8);
             
             
