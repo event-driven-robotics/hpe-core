@@ -133,10 +133,7 @@ class singleJointLatComp {
         jDot auxHistory = velocity * (ts - prev_vts);
         history_v.push_back(auxHistory);
         history_ts.push_back(ts);
-        if (!history_v.empty())
-            vel_accum = vel_accum + history_v.back();
-        else
-            vel_accum = vel_accum + auxHistory;
+        vel_accum = vel_accum + auxHistory;
         prev_vts = ts;
     }
 
