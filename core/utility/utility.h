@@ -268,6 +268,164 @@ inline void drawVel(cv::Mat &image, const skeleton13 pose, const skeleton13_vel 
             cv::arrowedLine(image, jv[i], jv[i]+jvel[i], colorS, th);
 
 }
+inline void HSVtoRGB(float H, float S,float V, int &R, int &G, int &B){
+    // if(H>360 || H<0 || S>100 || S<0 || V>100 || V<0){
+    //     cout<<"The givem HSV values are not in valid range"<<endl;
+    //     return;
+    // }
+    float s = S/100;
+    float v = V/100;
+    float C = s*v;
+    float X = C*(1-abs(fmod(H/60.0, 2)-1));
+    float m = v-C;
+    float r,g,b;
+    if(H >= 0 && H < 60){
+        r = C,g = X,b = 0;
+    }
+    else if(H >= 60 && H < 120){
+        r = X,g = C,b = 0;
+    }
+    else if(H >= 120 && H < 180){
+        r = 0,g = C,b = X;
+    }
+    else if(H >= 180 && H < 240){
+        r = 0,g = X,b = C;
+    }
+    else if(H >= 240 && H < 300){
+        r = X,g = 0,b = C;
+    }
+    else{
+        r = C,g = 0,b = X;
+    }
+    R = (r+m)*255;
+    G = (g+m)*255;
+    B = (b+m)*255;
+}
+
+inline void drawGrid(cv::Mat &image, std::vector<joint> &grid, int rows, int cols, std::array<int, 3> color = {0, 0, 200}, int th =1, bool showGrid = false, double delta = 1.0) 
+{
+    int width = image.cols/cols;
+    int height = image.rows/rows;
+    auto colorS = CV_RGB(color[0], color[1], color[2]);
+
+    if(showGrid)
+    {
+        for(int i=0; i<=image.rows; i+=height)// draw horizontal lines
+            cv::line(image, cv::Point2d{0, i}, cv::Point2d{image.cols, i}, {50, 50, 50}, th);
+        
+        for(int j=0; j<=image.cols; j+=width)// draw vertical lines
+            cv::line(image, cv::Point2d{j, 0}, cv::Point2d{j, image.rows}, {50, 50, 50}, th);
+    }
+    // draw velocity arrows
+    for(int j=0; j<cols; j++)
+    {
+        for(int i=0; i<rows; i++)
+        {
+            if(fabs(grid[i*cols+j].u)>delta && fabs(grid[i*cols+j].v)>delta)
+            {
+                cv::Point2d c = cv::Point2d{j*width+width/2, i*height+height/2};
+                cv::Point2d v = cv::Point2d{grid[i*cols+j].v, grid[i*cols+j].u};
+                // * draw arrows of the same color
+                // cv::arrowedLine(image, c, c+v, colorS, th);
+                // * draw arrows of different colors
+                // double mag = sqrt(v.x*v.x + v.y*v.y);
+                // double ang = (atan2(v.y, v.x) + M_PI) * 180.0 / M_PI_2;
+                // int R,G,B;
+                // HSVtoRGB(ang,mag,(255 * mag / 100),R, G, B);
+                // cv::arrowedLine(image, c, c+v, {B, G, R}, th);
+                // * draw noralized arrows of different colors
+                
+                double mag = sqrt(v.x*v.x + v.y*v.y);
+                double ang = (atan2(v.y, v.x) + M_PI) * 180.0 / M_PI_2;
+                int R,G,B;
+                v.x /= mag;
+                v.y /= mag;
+                v.x *= 10;
+                v.y *= 10;
+                // HSVtoRGB(ang,mag,(255 * mag / 100),R, G, B);
+                HSVtoRGB(ang,(255 * mag / 100),(255 * mag / 100),R, G, B);
+                // HSVtoRGB(ang,250,250,R, G, B);
+                // HSVtoRGB(ang,255,(255 * mag / 100),R, G, B);
+                // cv::arrowedLine(image, c, c+v, cv::Scalar{B, G, R}, th);
+                
+
+                // Top Left Corner
+                cv::Point p1(j*width, i*height);
+            
+                // Bottom Right Corner
+                cv::Point p2(j*width+width, i*height+height);
+            
+                int thickness = -1;
+            
+                // Drawing the Rectangle
+                cv::rectangle(image, p1, p2,
+                        cv::Scalar{B, G, R},
+                        thickness, cv::LINE_8);
+            
+            
+                // cv::arrowedLine(image, c, c+v, colorS, th);
+                
+                // * color RoI according to vector
+                // define the region
+                // cv::Rect rect {j*width, j*width+width, i*height, i*height+height };
+                // cv::Mat roi { image(rect) };
+                // cv::Rect roi_full = cv::Rect(cv::Point(0, 0), image.size());
+                // roi.setTo(cv::Scalar{B, G, R});
+                // // image(cv::Rect(j*width, j*width+width, i*height, i*height+height)).setTo(cv::Scalar(B, G, R));
+
+                // image =  image(roi & roi_full);
+
+                // // define the region
+                // cv::Rect rect { 100, 50, 200, 100 };
+
+                // // here the img object is called with the rectangle
+                // cv::Mat roi { img(rect) };
+
+                // // here the img object is called with the rectangle
+                // cv::Mat roi { img(rect) };
+                // // * set dot colro accoring to vector
+                // double mag = sqrt(v.x*v.x + v.y*v.y);
+                // double ang = (atan2(v.y, v.x) + M_PI) * 180.0 / M_PI_2;
+                // int R,G,B;
+                // double vx = v.x, vy=v.y;
+                // v.x /= mag;
+                // v.y /= mag;
+                // v.x *= 10;
+                // v.y *= 10;
+                // // HSVtoRGB(ang,mag,(255 * mag / 100),R, G, B);
+                // HSVtoRGB(ang,255,(255 * mag / 100),R, G, B);
+                // // cv::arrowedLine(image, c, c+v, cv::Scalar{B, G, R}, th);
+                // image.at<cv::Vec3b>(c) = cv::Vec3b(B, G, R);
+
+                /* from E-RAFT paper
+                def visualize_optical_flow(flow, savepath=None, return_image=False, text=None, scaling=None):
+                    # flow -> numpy array 2 x height x width
+                    # 2,h,w -> h,w,2
+                    flow = flow.transpose(1,2,0)
+                    flow[numpy.isinf(flow)]=0
+                    # Use Hue, Saturation, Value colour model
+                    hsv = numpy.zeros((flow.shape[0], flow.shape[1], 3), dtype=float)
+
+                    # The additional **0.5 is a scaling factor
+                    mag = numpy.sqrt(flow[...,0]**2+flow[...,1]**2)**0.5
+
+                    ang = numpy.arctan2(flow[...,1], flow[...,0])
+                    ang[ang<0]+=numpy.pi*2
+                    hsv[..., 0] = ang/numpy.pi/2.0 # Scale from 0..1
+                    hsv[..., 1] = 1
+                    if scaling is None:
+                        hsv[..., 2] = (mag-mag.min())/(mag-mag.min()).max() # Scale from 0..1
+                    else:
+                        mag[mag>scaling]=scaling
+                        hsv[...,2] = mag/scaling
+                    rgb = colors.hsv_to_rgb(hsv)
+                    # This all seems like an overkill, but it's just to exactly match the cv2 implementation
+                    bgr = numpy.stack([rgb[...,2],rgb[...,1],rgb[...,0]], axis=2)
+                */
+            }
+        }
+    }
+}
 
 template <typename T>
 inline skeleton13 extractSkeletonFromYARP(const T &gt_container)
