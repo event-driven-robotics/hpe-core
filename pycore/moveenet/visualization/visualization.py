@@ -77,6 +77,7 @@ def superimpose_pose(img_in, pose, num_classes=13, tensors=True, filename=None):
     pose = pose.squeeze()
     pose = pose.reshape((num_classes, -1))
     img = np.copy(img_in)
+    img = img.astype(np.uint8)
     if tensors:
         img = np.transpose(img.cpu().numpy(), axes=[1, 2, 0])
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
@@ -91,36 +92,54 @@ def superimpose_pose(img_in, pose, num_classes=13, tensors=True, filename=None):
         for i in range((pose.shape[0])):
             pose[i, 0] = int(pose[i, 0] * w)
             pose[i, 1] = int(pose[i, 1] * h)
+    radius = 3
+    thickness = 2
     for i in range((pose.shape[0])):
         # img = cv2.circle(img,(5,5),3,(0,255,0),5)
-        img = cv2.circle(img, (int(pose[i, 0]), int(pose[i, 1])), 3, color, 2)
+        if pose.shape[1] == 3:
+            radius = int(pose[i, 2]*5)
+        img = cv2.circle(img, (int(pose[i, 0]), int(pose[i, 1])), radius, color, thickness)
     if filename is not None:
         # print(filename)
         cv2.imwrite(filename, img)
 
     cv2.imshow('a', img)
-    cv2.waitKey(500)
+    cv2.waitKey(100)
 
 
 def add_skeleton(img, keypoints, color, lines=None, normalised=True):
     if len(img.shape) == 2:
 
-        img = cv2.cvtColor(img.astype('float32'), cv2.COLOR_GRAY2BGR)
+        img = cv2.cvtColor(img.astype('uint8'), cv2.COLOR_GRAY2BGR)
     if normalised:
         h, w, _ = img.shape
     else:
         h = w = 1
-
-    for i in range(len(keypoints) // 2):
-        x = int(keypoints[i * 2] * w)
-        y = int(keypoints[i * 2 + 1] * h)
-        cv2.circle(img, (x, y), 2, color, 2)
+    if keypoints.size % 3 == 0:
+        dim = 3
+    else:
+        dim = 2
+    radius = 2
+    th = 0.1
+    use_color = color
+    for i in range(len(keypoints) // dim):
+        x = int(keypoints[i * dim] * w)
+        y = int(keypoints[i * dim + 1] * h)
+        if dim==3:
+            radius = int(keypoints[i* dim + 2] * 10)
+            if keypoints[i* dim + 2]<th:
+                use_color = (0,0,0)
+            else:
+                use_color = color
+        cv2.circle(img, (x, y), radius, use_color, 2)
         # img = cv2.putText(img, list(hpecore_kps_labels.keys())[i], (x,y), cv2.FONT_HERSHEY_SIMPLEX,
         #                     0.5, color, thickness=1, lineType=cv2.LINE_AA)
     if lines is not None:
-        kps_2d = np.reshape(keypoints, [-1, 2])
+        kps_2d = np.reshape(keypoints, [-1, dim])
         kps_dict = get_kps_names_hpecore(kps_2d)
         for [jointa, jointb] in lines_in_skeleton:
+            if kps_dict[jointa][2]<th or kps_dict[jointb][2]<th:
+                continue
             # print('kps_dict[jointa]', kps_dict[jointa][0])
             x1 = int(kps_dict[jointa][0] * w)
             y1 = int(kps_dict[jointa][1] * h)

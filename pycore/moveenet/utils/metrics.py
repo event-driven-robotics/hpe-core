@@ -60,6 +60,10 @@ def myAcc(output, target, th=0.5, num_classes = 13):
 
 
 def pck(output, target, limb_length, threshold=None, num_classes=13, mode='head'):
+    if output.size % 3 == 0:
+        dim = 3
+    else:
+        dim = 2
     if threshold is None:
         if mode == 'head': # for MPII dataset
             threshold = 0.5
@@ -79,7 +83,7 @@ def pck(output, target, limb_length, threshold=None, num_classes=13, mode='head'
 
 
     # compute euclidean distances between joints
-    output = output.reshape((-1,num_classes,2))
+    output = output.reshape((-1,num_classes,dim))[:,:,:2]
     target = target.reshape((-1,num_classes,2))
     distances = np.linalg.norm( output - target , axis=2)
 
