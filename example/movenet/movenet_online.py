@@ -98,7 +98,7 @@ class MovenetModule(yarp.RFModule):
         # closing ports
         self.input_port.close()
         self.output_port.close()
-        cv2.destroyAllWindows()
+        #cv2.destroyAllWindows()
         return True
 
     def updateModule(self):
@@ -120,6 +120,8 @@ class MovenetModule(yarp.RFModule):
 
             # Read the image
             read_image = self.input_port.read()
+            if read_image is None:
+                return False
             self.input_port.getEnvelope(self.stamp)
             # stamp_in = self.stamp.getTime()
             stamp_in = self.stamp.getCount() + self.stamp.getTime()
