@@ -192,6 +192,49 @@ def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
     # Save the figure and show
     plt.tight_layout()
     plt.savefig(str(file_path.resolve()))
+    
+    
+    
+def plot_error(algo_metrics: dict, headers: list, descr: Optional[str], file_path: Path) -> None:
+
+    # create figure
+    fig, ax = plt.subplots()
+
+    all_values = list()
+    tick_labels = [' ']
+    for (algo_name, metric) in sorted(algo_metrics.items(), reverse = True):
+        values = metric.get_value()
+        joints_metric_values = values[0]
+
+        if isinstance(metric, metrics_utils.PCK):
+            all_values.append(joints_metric_values)
+
+            tick_labels.append(algo_name)
+            ax.set_xlabel('Joints PCK', fontsize = 22)
+
+        elif isinstance(metric, metrics_utils.RMSE):
+            all_values.append(np.maximum(joints_metric_values[::2], joints_metric_values[1::2]))
+
+            tick_labels.extend([f'{algo_name}'])
+            ax.set_xlabel('Joints RMSE', fontsize = 22)
+            
+            res = np.maximum(joints_metric_values[::2], joints_metric_values[1::2])
+
+        
+        elif isinstance(metric, metrics_utils.MPJPE):
+            all_values.append(joints_metric_values)
+            res = joints_metric_values
+
+            tick_labels.extend([f'{algo_name}'])
+            ax.set_xlabel('Joints MPJPE', fontsize = 22)
+
+        
+        ax.plot(res, label=f'{algo_name}', marker='o', markersize=10)
+    plt.xticks(range(0, 13), tuple(headers[0:13]), fontsize=20, rotation=35, ha='right')
+    ax.legend(fontsize=22, loc='upper left')
+    plt.xlabel('MPJPE [px]', fontsize=24, labelpad=5)
+    plt.tick_params(axis='y', which='major', labelsize=22)
+
 
 
 def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_names, joints_predicted):
@@ -897,6 +940,9 @@ def main(args):
                                             file_stem='mpjpe')
 
             plot_boxplot(metric_results,
+                         descr=f'Global MPJPE results',
+                         file_path=output_folder_path / f'mpjpe.png')
+            plot_error(metric_results, header,
                          descr=f'Global MPJPE results',
                          file_path=output_folder_path / f'mpjpe.png')
             

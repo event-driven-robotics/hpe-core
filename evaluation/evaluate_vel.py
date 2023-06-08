@@ -183,6 +183,47 @@ def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
     # Save the figure and show
     plt.tight_layout()
     plt.savefig(str(file_path.resolve()))
+    
+
+def plot_error(algo_metrics: dict, headers: list, descr: Optional[str], file_path: Path) -> None:
+
+    # create figure
+    fig, ax = plt.subplots()
+
+    all_values = list()
+    tick_labels = [' ']
+    for (algo_name, metric) in sorted(algo_metrics.items(), reverse = True):
+        values = metric.get_value()
+        joints_metric_values = values[0]
+
+        if isinstance(metric, metrics_utils.PCK):
+            all_values.append(joints_metric_values)
+
+            tick_labels.append(algo_name)
+            ax.set_xlabel('Joints PCK', fontsize = 22)
+
+        elif isinstance(metric, metrics_utils.RMSE):
+            all_values.append(np.maximum(joints_metric_values[::2], joints_metric_values[1::2]))
+
+            tick_labels.extend([f'{algo_name}'])
+            ax.set_xlabel('Joints RMSE', fontsize = 22)
+            
+            res = np.maximum(joints_metric_values[::2], joints_metric_values[1::2])
+
+        
+        elif isinstance(metric, metrics_utils.MPJPE):
+            all_values.append(joints_metric_values)
+            res = joints_metric_values
+
+            tick_labels.extend([f'{algo_name}'])
+            ax.set_xlabel('Joints MPJPE', fontsize = 22)
+
+        
+        ax.plot(res, label=f'{algo_name}', marker='o', markersize=10)
+    plt.xticks(range(0, 13), tuple(headers[0:13]), fontsize=20, rotation=35, ha='right')
+    ax.legend(fontsize=22, loc='upper left')
+    plt.xlabel('MPJPE [px]', fontsize=24, labelpad=5)
+    plt.tick_params(axis='y', which='major', labelsize=22)
 
 
 def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_names, joints_predicted):
@@ -573,6 +614,95 @@ def tabulate_latency_over_algorithms(algo_metrics: dict, headers: list, descr: O
             print(descr)
         print(tabulate(table, headers=header, tablefmt=fmt))
 
+def plot_skeleton(output_folder_path, ds_name, timestamps, joints_gt, algo_names, joints_predicted, vel_gt1K):
+
+    eros = plt.imread("/home/fdipietro/eros.png")
+    evs = plt.imread("/home/fdipietro/evs.png")
+    # fig, ax = plt.subplots()
+    
+    assert 1 <= joints_gt.shape[2] <= 3, 'coordinates must be either 2D or 3D'
+    algo_colors = ['tab:green','blue', 'red', 'violet', 'chocolate', 'purple', 'sienna', 'lime', 'gold', 'aqua', 'olive'] # fixed colors
+
+    # for pi, predictions_algo in enumerate(joints_predicted):
+    # create plot
+    my_dpi = 96
+    # fig = plt.figure(num=f'Dataset {ds_name} - all joints - Algorithm: {algo_names[pi]}',
+    #                  figsize=(2048 / my_dpi, 900 / my_dpi),
+    #                  dpi=96)
+    fig = plt.figure(num=f'Dataset {ds_name} - all joints',
+                     figsize=(2048 / my_dpi, 900 / my_dpi),
+                     dpi=96)
+    ax = fig.add_subplot(111)
+    fig.tight_layout(pad=5)
+    # ax.imshow(evs, alpha=1) # IMPORTANT UNCOMMENT THIS LINE
+    # ax.imshow(eros, alpha=1)
+    ts = 26 # selected timestamp in seconds
+    ts = ts * 1000
+    
+    # GROUND-TRUTH
+    x = np.array([])
+    y = np.array([])
+    vx = np.array([])
+    vy = np.array([])
+    sc = 3
+    
+
+    # iterate on each joint
+    for joint_key, joint_ind in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
+        x0 = joints_gt[ts, joint_ind,0]
+        vx0 = vel_gt1K[ts, joint_ind,0] * sc
+        y0 = 480-joints_gt[ts, joint_ind,1]
+        vy0 = vel_gt1K[ts, joint_ind,1] * sc
+        x = np.append(x, x0)
+        y = np.append(y, y0)
+        vx = np.append(vx, vx0)
+        vy = np.append(vy, vy0)
+        ax.arrow(x0, y0, vx0, vy0, head_width=5, head_length=10, color="tab:red")
+        # ax.plot([xp0], [yp0], color='tab:orange', marker='x')
+    # ax.plot(0, 0, color="tab:orange",  label=f'Ground-truth velocity')
+    print(vx, vy)
+    # plot joints location
+    ax.scatter(x, y)
+    ax.set_aspect(4/3)
+    # add segments bewtween joints
+    ax.plot([x[1], x[2]], [y[1], y[2]], color = 'tab:blue', linewidth=3) #shoulderR - shoulderL
+    ax.plot([x[1], x[3]], [y[1], y[3]], color = 'tab:blue', linewidth=3) #shoulderR - elbowR
+    ax.plot([x[2], x[4]], [y[2], y[4]], color = 'tab:blue', linewidth=3) #shoulderL - elbowL
+    ax.plot([x[2], x[5]], [y[2], y[5]], color = 'tab:blue', linewidth=3) #shoulderL - wristL
+    ax.plot([x[1], x[6]], [y[1], y[6]], color = 'tab:blue', linewidth=3) #shoulderR - wristR
+    ax.plot([x[3], x[7]], [y[3], y[7]], color = 'tab:blue', linewidth=3) #elbowR - handR
+    ax.plot([x[4], x[8]], [y[4], y[8]], color = 'tab:blue', linewidth=3) #elbowL - handL
+    ax.plot([x[6], x[5]], [y[5], y[5]], color = 'tab:blue', linewidth=3) #wristR - wristL
+    ax.plot([x[6], x[9]], [y[6], y[9]], color = 'tab:blue', linewidth=3) #wristR - kneeR
+    ax.plot([x[5], x[10]], [y[5], y[10]], color = 'tab:blue', linewidth=3) #wristL - kneeL
+    ax.plot([x[9], x[11]], [y[9], y[11]], color = 'tab:blue', linewidth=3) #kneeR - footR
+    ax.plot([x[10], x[12]], [y[10], y[12]], color = 'tab:blue', linewidth=3) #kneeL - footL
+    
+    circleHead = plt.Circle((x[0],y[0]),20, fill=False, color = 'tab:blue', linewidth=3)
+    ax.add_patch(circleHead)
+    ax.plot([(x[1]+x[2])/2 , x[0]], [(y[1]+y[2])/2 , y[0]-20], color = 'tab:blue', linewidth=3) #shoulderR - shoulderL
+    
+    ax.set_xlim([0, 639])
+    ax.set_ylim([0, 479])  
+    
+    # for pi, predictions_algo in enumerate(joints_predicted):
+    #     for joint_key, joint_ind in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
+    #         x = np.array([])
+    #         y = np.array([])
+    #         vx = np.array([])
+    #         vy = np.array([])
+    #         x0 = joints_gt[ts, joint_ind,0]
+    #         vx0 = predictions_algo[ts, joint_ind,0] * sc
+    #         y0 = 480-joints_gt[ts, joint_ind,1]
+    #         vy0 = predictions_algo[ts, joint_ind,1] * sc
+    #         x = np.append(x, x0)
+    #         y = np.append(y, y0)
+    #         vx = np.append(vx, vx0)
+    #         vy = np.append(vy, vy0)
+    #         ax.arrow(x0, y0, vx0, vy0, head_width=5, head_length=10, color=algo_colors[pi])
+    #     ax.plot(0, 0, color=algo_colors[pi],  label=f'Estimated velocity with  {algo_names[pi]}')
+    # ax.legend(fontsize=16, loc='upper right')       
+
 
 def main(args):
     
@@ -798,6 +928,8 @@ def main(args):
             plot_predictions_all_joints(output_ds_folder_path, results_key, tGT1K, skeletons_gt1K, algorithm_names, skeletons_predictions1K)
         if(args.lat):  
             plot_latency(output_ds_folder_path, results_key, timestamps, algorithm_names, latency)
+        if(args.sklt):
+            plot_skeleton(output_ds_folder_path, results_key, tGT1K, skeletons_gt1K, algorithm_names, skeletons_predictions1K, vel_gt1K)
 
     # iterate over datasets metrics and print results
     for (ds_name, metrics) in results['datasets'].items():
@@ -871,8 +1003,8 @@ def main(args):
                                                     file_path=output_ds_folder_path,
                                                     file_stem=f'mpjpe_{ds_name}')
                     plot_boxplot(metric_results,
-                                 descr=f'MPJPE results for dataset {ds_name}',
-                                 file_path=output_ds_folder_path / f'mpjpe_{ds_name}.png')
+                                  descr=f'MPJPE results for dataset {ds_name}',
+                                  file_path=output_ds_folder_path / f'mpjpe_{ds_name}.png')
                 
                 
                     
@@ -923,6 +1055,10 @@ def main(args):
                          descr=f'Global RMSE results',
                          file_path=output_folder_path / f'rmse.png')
             
+            plot_error(metric_results, header,
+                         descr=f'Global RMSE results',
+                         file_path=output_folder_path / f'rmse.png')
+            
         elif metric_name == 'mpjpe':
             if (not (to_latex)):
                 print("\n-= MPJPE =-")
@@ -937,6 +1073,9 @@ def main(args):
                                             file_stem='mpjpe')
 
             plot_boxplot(metric_results,
+                          descr=f'Global MPJPE results',
+                          file_path=output_folder_path / f'mpjpe.png')
+            plot_error(metric_results, header,
                          descr=f'Global MPJPE results',
                          file_path=output_folder_path / f'mpjpe.png')
             
@@ -964,6 +1103,9 @@ if __name__ == '__main__':
     parser.add_argument('-mpjpe', help='flag specifying that the metric MPJPE must be computed', dest='mpjpe',
                         action='store_true')
     parser.set_defaults(mpjpe=False)
+    parser.add_argument('-sklt', help='flag specifying to plot skeleton with velocity', dest='sklt', action='store_true')
+    parser.set_defaults(sklt=False)
+    
 
     args, unknown = parser.parse_known_args()
     if(unknown):
