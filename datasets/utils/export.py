@@ -1,4 +1,3 @@
-
 import numpy
 from pathlib import Path
 from typing import Optional, Dict
@@ -11,7 +10,6 @@ from datasets.h36m.utils.parsing import hpecore_to_movenet
 
 
 def skeleton_to_dict(skeleton, image_name, image_width, image_height, head_size, torso_size):
-
     sample_anno = dict()
     sample_anno['image_name'] = image_name
     sample_anno['image_height'] = image_height
@@ -23,8 +21,8 @@ def skeleton_to_dict(skeleton, image_name, image_width, image_height, head_size,
     return sample_anno
 
 
-def skeleton_to_yarp_row(counter: int, timestamp: float, skeleton: numpy.array, head_size: float = -1.0, torso_size: float = -1.0) -> str:
-
+def skeleton_to_yarp_row(counter: int, timestamp: float, skeleton: numpy.array, head_size: float = -1.0,
+                         torso_size: float = -1.0) -> str:
     skeleton_str = numpy.array2string(skeleton.reshape(-1), max_line_width=1000, precision=0, separator=' ')
     skeleton_str = skeleton_str[1:-1]
 
@@ -34,7 +32,6 @@ def skeleton_to_yarp_row(counter: int, timestamp: float, skeleton: numpy.array, 
 
 
 def export_list_to_yarp(elems: list, info: str, output_dir: Path):
-
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # write skeleton coordinates, head size and torso for every line
@@ -49,8 +46,8 @@ def export_list_to_yarp(elems: list, info: str, output_dir: Path):
 
 
 def export_skeletons_to_yarp(skeletons: numpy.array, timestamps: numpy.array, output_dir: Path,
-                             channel: int, head_sizes: Optional[numpy.array] = None, torso_sizes: Optional[numpy.array] = None):
-
+                             channel: int, head_sizes: Optional[numpy.array] = None,
+                             torso_sizes: Optional[numpy.array] = None):
     assert len(skeletons.shape) == 3 and (skeletons.shape[2] == 2 or skeletons.shape[2] == 3), \
         'skeleton shape must be (n, joints_num, 2) or (n, joints_num, 3)'
 
@@ -60,7 +57,6 @@ def export_skeletons_to_yarp(skeletons: numpy.array, timestamps: numpy.array, ou
     data_file = output_dir / 'data.log'
     with open(str(data_file.resolve()), 'w') as f:
         for si in range(len(skeletons)):
-
             hs = -1.0 if head_sizes is None else head_sizes[si]
             ts = -1.0 if torso_sizes is None else torso_sizes[si]
             f.write(f'{skeleton_to_yarp_row(si, timestamps[si], skeletons[si, :], hs, ts)}\n')
@@ -83,9 +79,9 @@ def format_crop_file(crop_lines):
 
 def crop_frame(frame, crop):
     # crop a frame based on values from dictonary element crop.
-    w,h,_ = frame.shape
+    w, h, _ = frame.shape
     if crop is not None:
-        frame = frame[crop['top'] + 1:w-crop['bottom'], crop['left'] + 1:h-crop['right'], :]
+        frame = frame[crop['top'] + 1:w - crop['bottom'], crop['left'] + 1:h - crop['right'], :]
     return frame
 
 
@@ -97,9 +93,11 @@ def crop_pose(sklt, crop):
             sklt[i, 1] -= crop['top']
     return sklt
 
+
 def ensure_location(path):
     if not os.path.isdir(path):
         os.makedirs(path)
+
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -111,8 +109,8 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
-def checkframecount(video_file_name, gt_file_name):
 
+def checkframecount(video_file_name, gt_file_name):
     vid = cv2.VideoCapture(video_file_name)
     vid_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
     vid.release()
@@ -132,12 +130,13 @@ def checkframecount(video_file_name, gt_file_name):
 
 
 def get_movenet_keypoints(pose: Dict, h_frame=1, w_frame=1, add_visibility=True, upperbody=False):
-
     keypoints = []
-    pose_hpecore = numpy.zeros([len(HPECoreSkeleton.KEYPOINTS_MAP),2], float)
+    pose_hpecore = numpy.zeros([len(HPECoreSkeleton.KEYPOINTS_MAP), 2], float)
     for key, value in HPECoreSkeleton.KEYPOINTS_MAP.items():
-        pose_hpecore[value,:] = pose[key][:]
+        pose_hpecore[value, :] = pose[key][:]
     pose_movenet = hpecore_to_movenet(pose_hpecore)
+    if upperbody:
+        pose_movenet = pose_movenet[:7, :]
     for k in pose_movenet:
         if add_visibility:
             k_scaled = [k[0] / w_frame, k[1] / h_frame, 2]
@@ -148,11 +147,10 @@ def get_movenet_keypoints(pose: Dict, h_frame=1, w_frame=1, add_visibility=True,
 
 
 def get_hpecore_keypoints(pose: Dict, h_frame=1, w_frame=1, add_visibility=True):
-
     keypoints = []
-    pose_hpecore = numpy.zeros([len(HPECoreSkeleton.KEYPOINTS_MAP),2], float)
+    pose_hpecore = numpy.zeros([len(HPECoreSkeleton.KEYPOINTS_MAP), 2], float)
     for key, value in HPECoreSkeleton.KEYPOINTS_MAP.items():
-        pose_hpecore[value,:] = pose[key][:]
+        pose_hpecore[value, :] = pose[key][:]
     for k in pose_hpecore:
         if add_visibility:
             k_scaled = [k[0] / w_frame, k[1] / h_frame, 2]
@@ -168,22 +166,27 @@ def get_torso_length(pose, h_frame=1, w_frame=1):
     # k['right_shoulder']=pose[2,:]
     # k['left_hip']=pose[7,:]
     # k['right_hip']=pose[8,:]
+    #
 
-    k['shoulder_mean'] = numpy.mean(pose[1:3, :], axis=0)
-    k['hip_mean'] = numpy.mean(pose[7:9, :], axis=0)
-    k['shoulder_mean'] = k['shoulder_mean'][0] / w_frame, k['shoulder_mean'][1] / h_frame
-    k['hip_mean'] = k['hip_mean'][0] / w_frame, k['hip_mean'][1] / h_frame
-    k['torso_dist'] = math.dist(k['shoulder_mean'], k['hip_mean'])
-
-    return k['torso_dist']
+    kps = numpy.zeros([len(HPECoreSkeleton.KEYPOINTS_MAP), 2], float)
+    for key, value in HPECoreSkeleton.KEYPOINTS_MAP.items():
+        kps[value, :] = pose[key][:]
+    # print(kps.shape)
+    left_hip = numpy.divide(kps[7, :], [w_frame, h_frame])
+    right_hip = numpy.divide(kps[8, :], [w_frame, h_frame])
+    left_shoulder = numpy.divide(kps[1, :], [w_frame, h_frame])
+    right_shoulder = numpy.divide(kps[2, :], [w_frame, h_frame])
+    hip_width = math.dist(left_hip, right_shoulder)
+    shoulder_width = math.dist(left_shoulder, right_hip)
+    torso_diameter = numpy.mean([hip_width, shoulder_width])
+    return torso_diameter
 
 
 def get_center(pose, h_frame=1, w_frame=1):
-    # x_cen = np.mean([min(pose[:, 0]), max(pose[:, 0])]) / w_frame
-    # y_cen = np.mean([min(pose[:, 1]), max(pose[:, 1])]) / h_frame
-    pose_hpecore = numpy.zeros([len(HPECoreSkeleton.KEYPOINTS_MAP),2], float)
-    for key, value in HPECoreSkeleton.KEYPOINTS_MAP.items():
-        pose_hpecore[value,:] = pose[key][:]
-    x_cen = numpy.mean(pose_hpecore[:, 0]) / w_frame
-    y_cen = numpy.mean(pose_hpecore[:, 1]) / h_frame
+    # pose_hpecore = numpy.zeros([len(HPECoreSkeleton.KEYPOINTS_MAP),2], float)
+    # for key, value in HPECoreSkeleton.KEYPOINTS_MAP.items():
+    #     pose_hpecore[value,:] = pose[key][:]
+    pose = numpy.reshape(pose, [-1, 3])[:, :-1]
+    x_cen = numpy.mean(pose[:, 0])
+    y_cen = numpy.mean(pose[:, 1])
     return [x_cen, y_cen]

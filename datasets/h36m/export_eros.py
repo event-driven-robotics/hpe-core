@@ -14,9 +14,9 @@ import pathlib
 import os
 import numpy as np
 
-from datasets.utils.parsing import import_yarp_skeleton_data,batchIterator
+from datasets.utils.parsing import import_yarp_skeleton_data, batchIterator
 from datasets.utils.events_representation import EROS
-from datasets.utils.export import ensure_location, str2bool, get_movenet_keypoints, get_center
+from datasets.utils.export import ensure_location, str2bool, get_movenet_keypoints, get_center, get_torso_length
 from bimvee.importIitYarp import importIitYarp as import_dvs
 
 
@@ -35,13 +35,13 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path, skip=None, args=
 
     poses_movenet = []
     if args.write_video:
-        output_path_video = os.path.join(output_path,action_name+'.mp4')
+        output_path_video = os.path.join(output_path, action_name + '.mp4')
         print(output_path_video)
         video_out = cv2.VideoWriter(output_path_video, cv2.VideoWriter_fourcc(*'avc1'), args.fps,
                                     (args.frame_width, args.frame_height))
 
     for fi, (events, pose, batch_size) in enumerate(iterator):
-    # for fi, (events, pose, ts) in enumerate(iterator):
+        # for fi, (events, pose, ts) in enumerate(iterator):
         if args.dev:
             print('frame: ', fi)
         for ei in range(batch_size):
@@ -58,9 +58,10 @@ def export_to_eros(data_dvs_file, data_vicon_file, output_path, skip=None, args=
         sample_anno = {}
         sample_anno['img_name'] = action_name + '_' + str(fi).zfill(5) + '.jpg'
         sample_anno['ts'] = pose['ts']
-        sample_anno['keypoints'] = get_movenet_keypoints(pose, args.frame_height, args.frame_width,args.upperbody)
-        sample_anno['center'] = get_center(pose, args.frame_height, args.frame_width)
-        # sample_anno['torso_size'] = get_torso_length(pose, frame_height, frame_width)
+        sample_anno['keypoints'] = get_movenet_keypoints(pose, args.frame_height, args.frame_width,
+                                                         upperbody=args.upperbody)
+        sample_anno['center'] = get_center(sample_anno['keypoints'], args.frame_height, args.frame_width)
+        sample_anno['torso_size'] = get_torso_length(pose, args.frame_height, args.frame_width)
         sample_anno['keypoints_prev'] = kps_old
         sample_anno['original_sample'] = action_name
 
@@ -119,6 +120,8 @@ def main(args):
     else:
         output_path_images = args.data_home + "/training/h36m_EROS/"
         output_path_anno = args.data_home + "/training/h36m_anno/"
+        if args.upperbody:
+            output_path_anno = args.data_home + "/training/h36m_anno_upper/"
 
     output_path_images = os.path.abspath(output_path_images)
     output_path_anno = os.path.abspath(output_path_anno)
@@ -147,14 +150,15 @@ def main(args):
             print('skipping: ', sample, '(already processed)')
             process = False
         elif not os.path.exists(dvs_dir):
-            print('skipping: ',  dvs_dir, 'does not exist')
+            print('skipping: ', dvs_dir, 'does not exist')
             process = False
         elif not os.path.exists(data_vicon_file):
-            print('skipping: ',  data_vicon_file, 'does not exist')
+            print('skipping: ', data_vicon_file, 'does not exist')
             process = False
 
         if process:
-            export_to_eros(dvs_dir, data_vicon_file, output_path_images, skip=args.skip_image, args=args, output_json=output_json)
+            export_to_eros(dvs_dir, data_vicon_file, output_path_images, skip=args.skip_image, args=args,
+                           output_json=output_json)
 
         if args.dev:
             exit()
@@ -168,7 +172,8 @@ if __name__ == '__main__':
     parser.add_argument('-frame_height', help='', default=480, type=int)
     parser.add_argument('-gauss_kernel', help='', default=7, type=int)
     parser.add_argument('-skip_image', help='', default=None)
-    parser.add_argument('-data_home', help='Path to dataset folder', default='/home/ggoyal/data/h36m_cropped/', type=str)
+    parser.add_argument('-data_home', help='Path to dataset folder', default='/home/ggoyal/data/h36m_cropped/',
+                        type=str)
     parser.add_argument("-from_scratch", type=str2bool, nargs='?', const=True, default=False,
                         help="Write annotation file from scratch.")
     parser.add_argument("-write_annotation", type=str2bool, nargs='?', const=True, default=False,
@@ -178,7 +183,8 @@ if __name__ == '__main__':
     parser.add_argument('-fps', help='', default=50, type=int)
     parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=False, help="Run in dev mode.")
     parser.add_argument("-ts_scaler", help='', default=12.50, type=float)
-    parser.add_argument("-upperbody", type=str2bool, nargs='?', const=True, default=False, help="Create annotation for upperbody only.")
+    parser.add_argument("-", type=str2bool, nargs='?', const=True, default=False,
+                        help="Create annotation for upperbody only.")
 
     args = parser.parse_args()
     try:
