@@ -104,6 +104,69 @@ class batchIterator:
         self._index += 1
         return retv, rets, len(retv['ts'])
 
+class timedBatchIterator:
+    def __init__(self, events: Dict, gt_skel: Dict, duration=.040):
+        # Duration: time in ms
+        self._index = 0
+        self._events = events
+        self._gt_skel = gt_skel
+        self._samples_count = len(gt_skel['ts'])
+        self._events_count = len(events['ts'])
+        self._skel_sample = [[0,0]] * len(gt_skel)
+        self.duration = duration
+        total_time = events['ts'][-1]-events['ts'][0]
+        self._batch_indices = [0] * (int(total_time/duration) +1)
+        self._skeleton_indices = [0] * (int(total_time/duration) +1)
+
+        gt_i = 0
+        ev_i = 0
+        ts = events['ts'][0]
+        count = 0
+        for ev_i in range(self._events_count):
+            if self._gt_skel['ts'][gt_i]<self._events['ts'][ev_i]:
+                self._skeleton_indices[count+1] = gt_i+1
+                gt_i += 1
+                if (gt_i +1 >= self._samples_count):
+                    break
+            if self._events['ts'][ev_i] > ts+duration:
+                self._batch_indices[count+1] = ev_i
+                ts = self._events['ts'][ev_i]
+                count +=1
+                if(gt_i >= self._samples_count):
+                    break
+
+    def __iter__(self):
+        return self
+
+    def __len__(self):
+        return len(self._skeleton_indices-1)
+
+    def __next__(self):
+
+        if self._index + 1 >= len(self._batch_indices):
+            raise StopIteration
+
+        i1 = self._batch_indices[self._index]
+        i2 = self._batch_indices[self._index+1]
+        j1 = self._skeleton_indices[self._index]
+        j2 = self._skeleton_indices[self._index+1]
+
+        retv = dict()
+        retv['ts'] = self._events['ts'][i1:i2]
+        retv['x'] = self._events['x'][i1:i2]
+        retv['y'] = self._events['y'][i1:i2]
+        retv['pol'] = self._events['pol'][i1:i2]
+
+        rets = []
+        for i in range(j1,j2+1):
+            rets_i = dict()
+            for jname in self._gt_skel.keys():
+                rets_i[jname] = self._gt_skel[jname][i]
+                rets_i['ts'] = self._gt_skel['ts'][i]
+            rets.append(rets_i)
+
+        self._index += 1
+        return retv, rets, len(retv['ts'])
 
 
 class YarpHPEIterator:
