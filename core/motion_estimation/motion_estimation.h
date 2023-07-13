@@ -494,6 +494,25 @@ public:
             auto &p_sae  =  sae.at<double>(v->y, v->x);
             auto &p_eros = eros.at<double>(v->y, v->x);
 
+            {
+                auto xl = std::max(v->x - 1, 0);
+                auto xh = std::min(v->x + 1 + 1, eros.cols);  //+1 becuase I use < sign
+                auto yl = std::max(v->y - 1, 0);
+                auto yh = std::min(v->y + 1 + 1, eros.rows);  //+1 becuase I use < sign
+
+                bool add = false;
+                for (auto xi = xl; xi < xh; ++xi) {
+                    for (auto yi = yl; yi < yh; ++yi) {
+                        double dt = ts - sae.at<double>(yi, xi);
+                        if (dt < 0.01) {
+                            add = true;
+                            break;
+                        }
+                    }
+                }
+                if(!add) continue;
+            }
+
             //we manually implement a filter here
             if(ts < p_sae + filter_thresh)
                 continue;
