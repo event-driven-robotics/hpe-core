@@ -106,31 +106,16 @@ class C3dHelper:
             key: old_dict[key] for key in labels
         }
         return new_dict
-    
-    def find_markers_p0(self):
-        labels = [
-            'event_camera:side',
-            'event_camera:front',
-            'event_camera:top'
-        ]
-        camera_points = self.filter_dict_labels(self.get_points_dict(200), labels)
-        rot = Rotation.from_euler('xyz', [-np.pi/2, 0, 0]).as_matrix()
-        cam_t = rot @ camera_points['event_camera:front'][:3]
-        cam_t = np.append(cam_t, 1.0)
-        camera_side = np.append(rot @ camera_points['event_camera:side'][:3] - cam_t[:3], 1.0)
-        camera_top = np.append(rot @ camera_points['event_camera:top'][:3] - cam_t[:3], 1.0)
-        self.front_p0 = cam_t
-        self.side_p0 = camera_side
-        self.top_p0 = camera_top
-
-        self.camera_markers_p0 = np.array([
-            rot @ camera_points['event_camera:front'][:3],
-            rot @ camera_points['event_camera:side'][:3], 
-            rot @ camera_points['event_camera:top'][:3]
-        ])
 
     def marker_T_at_frame_vector(self, frame_id):
+        """
+        This method returns the tranformation T that described the frame of reference defined by
+        the 3 marker placed on the camera.
+        Returns the 4x4 transformation matrix T that transform points from world frame to the marker frame
+        The function actually first computes the inverse transformation from marker frame to world and then inverts the matrix"""
         
+        # different sequences sometime use different labels for the camera markers
+        # this should not be necessary in the final version. The vicon processing should keep the labels consistent.
         try:
             labels = [
                 'event_camera:side',
@@ -157,7 +142,9 @@ class C3dHelper:
         except:
             pass
             
-
+        
+        # mid point between top and side marker
+        # even if not precise it is considered the origin of the new frame of reference
         side_top_mid = (camera_side + camera_top) / 2
 
         z = camera_front - side_top_mid
@@ -172,11 +159,9 @@ class C3dHelper:
         y = np.cross(z, x)
         y = y / np.linalg.norm(y)
 
-        vectors = np.vstack((x, y, z))
-        
-        rot_mat = vectors
-
-        #print(np.linalg.det(rot_mat))
+        # x, y, z are all normalized and orthogonal
+        # the 3 vectors stacked define a rotation matrix
+        rot_mat = np.vstack((x, y, z))
 
         T = np.zeros((4, 4))
         T[:3, :3] = rot_mat.transpose()
@@ -188,65 +173,6 @@ class C3dHelper:
         self.markers_T[frame_id] = np.copy(T)
 
         return np.copy(T)
-
-    def marker_T_at_frame(self, frame_id):
-        """
-        Find the transform T for tranforming a point in world coordinates 
-        in the coodinates defined by the markers on the camera
-        TODO when available this informatio will be taken from the information 
-        saved by the vicon directly, without the need to calcualte it"""
-        
-        labels = [
-            'event_camera:side',
-            'event_camera:front',
-            'event_camera:top'
-        ]
-
-        camera_points_2 = self.filter_dict_labels(self.get_points_dict(frame_id), labels)
-        cam_t_2 = camera_points_2['event_camera:front'][:3]
-        camera_front_2 = np.append(cam_t_2, 1.0)
-        cam_t_2 = np.append( - cam_t_2, 1.0)
-        camera_side_2 = np.append(camera_points_2['event_camera:side'][:3], 1.0)
-        camera_top_2 = np.append(camera_points_2['event_camera:top'][:3], 1.0)
-
-        # the camera front is considered to be the origin of the frame
-        # the goal is to find a rotation such that the other 2 points are always in
-        # the same position in the marker frame of reference
-        def error(r):
-            Rot = Rotation.from_euler('xyz', r)
-            R = Rot.as_matrix()
-
-            T = np.zeros((4, 4))
-            T[:3, :3] = R
-            T[:3, -1] = cam_t_2[:3]
-            T[-1, -1] = 1.0
-
-            transformed_points = (T @ np.concatenate((camera_front_2.reshape(4, 1), 
-                                                      camera_side_2.reshape(4, 1), 
-                                                      camera_top_2.reshape(4, 1)), axis=1)).transpose()
-            for p in transformed_points:
-                p /= p[-1]
-
-            return np.linalg.norm(transformed_points - np.concatenate((np.array([0.0, 0.0, 0.0, 1.0]).reshape(4, 1), 
-                                                                       self.side_p0.reshape(4, 1), 
-                                                                       self.top_p0.reshape(4, 1)), axis=1).transpose(), axis=1).sum()
-
-        result = minimize(error, np.zeros((3, )))
-
-        r = result.x
-
-        Rot = Rotation.from_euler('xyz', r)
-        R = Rot.as_matrix()
-
-        T = np.zeros((4, 4))
-        T[:3, :3] = R
-        T[:, -1] = cam_t_2
-
-        T = np.linalg.inv(T)
-
-        self.markers_T[frame_id] = np.copy(T)
-
-        return T
     
     def get_vicon_points(self, frames_id, labels):
         vicon_points_frames = [self.get_points_dict(idx) for idx in frames_id]
