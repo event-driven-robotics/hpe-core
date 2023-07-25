@@ -1,6 +1,6 @@
--i https://download.pytorch.org/whl/cu118
+--extra-index-url https://download.pytorch.org/whl/cu118
 numpy~=1.24.1
-pandas
+pandas~=1.5.3
 opencv-python~=4.5.5.62
 torch==2.0.0
 torchvision==0.15.0
