@@ -106,3 +106,8 @@ install_basic_package_files(${PROJECT_NAME}
                             NAMESPACE hpe-core::
                             DEPENDENCIES OpenCV)
 include(AddUninstallTarget)
+
+
+find_package(hpe-core REQUIRED)
+add_executable(test utility/test.cpp)
+target_link_libraries(test PUBLIC ${OpenCV_LIBRARIES} hpe-core::hpe-core)
