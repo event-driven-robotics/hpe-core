@@ -121,6 +121,7 @@ def main(args):
         output_path_images = args.data_home + "/training/h36m_EROS/"
         output_path_anno = args.data_home + "/training/h36m_anno/"
         if args.upperbody:
+            output_path_images = args.data_home + "/training/h36m_EROS_upper/"
             output_path_anno = args.data_home + "/training/h36m_anno_upper/"
 
     output_path_images = os.path.abspath(output_path_images)
@@ -183,7 +184,7 @@ if __name__ == '__main__':
     parser.add_argument('-fps', help='', default=50, type=int)
     parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=False, help="Run in dev mode.")
     parser.add_argument("-ts_scaler", help='', default=12.50, type=float)
-    parser.add_argument("-", type=str2bool, nargs='?', const=True, default=False,
+    parser.add_argument("-upperbody", type=str2bool, nargs='?', const=True, default=False,
                         help="Create annotation for upperbody only.")
 
     args = parser.parse_args()
