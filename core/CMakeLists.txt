@@ -55,6 +55,7 @@ set( folder_source
   event_representations/representations.cpp
   motion_estimation/reprojection.cpp
   motion_estimation/motion_estimation.cpp
+  motion_estimation/motion.cpp
   fusion/fusion.cpp
 )
 
@@ -62,6 +63,7 @@ set( folder_header
   utility/utility.h
   motion_estimation/motion_estimation.h
   motion_estimation/reprojection.h
+  motion_estimation/motion.h
   event_representations/representations.h
   fusion/fusion.h
 )

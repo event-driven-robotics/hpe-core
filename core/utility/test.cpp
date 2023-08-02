@@ -30,8 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #include <hpe-core/utility.h>
 #include <hpe-core/representations.h>
-#include <hpe-core/fusion.h>
-#include <hpe-core/motion_estimation.h>
+#include <hpe-core/motion.h>
 
 bool test_representations()
 {
@@ -43,6 +42,8 @@ bool test_representations()
     hpecore::EROS eros;
     hpecore::BIN binary;
     hpecore::SAE sae;
+
+    hpecore::pwtripletvelocity pwtv;
 
     eros.init(640, 480, 7, 0.3);
     binary.init(640, 480, 0);
@@ -58,6 +59,14 @@ bool test_representations()
                 binary.update(x, y);
                 sae.update(x, y, t);
             }
+            if(y > 10 && y < 470) {
+                cv::Mat csae = sae.getSurface();
+                
+                //auto k = pwtv.area_velocity(csae({320-10, y-10, 21, 21}));
+                auto k = pwtv.multi_area_velocity(csae, t, {{320.0f, (float)y}}, 10);
+                std::cout << k[0].u << " " << k[0].v << std::endl;
+            }
+
             if(++t > 1000.0) t = 0;
             cv::imshow("EROS", eros.getSurface() / 255.0);
             cv::imshow("BINARY", binary.getSurface() / 255.0);
