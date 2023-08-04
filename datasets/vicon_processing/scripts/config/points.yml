@@ -1,0 +1,140 @@
+points:
+- P001:CLAV:
+    x: 463
+    y: 104
+  P001:LASI:
+    x: 456
+    y: 224
+  P001:LELB:
+    x: 507
+    y: 184
+  P001:LFRM:
+    x: 523
+    y: 208
+  P001:LUPA:
+    x: 511
+    y: 147
+  P001:RASI:
+    x: 406
+    y: 202
+  P001:STRN:
+    x: 462
+    y: 126
+- P001:CLAV:
+    x: 338
+    y: 144
+  P001:LASI:
+    x: 355
+    y: 285
+  P001:LELB:
+    x: 476
+    y: 154
+  P001:LFRM:
+    x: 472
+    y: 120
+  P001:LUPA:
+    x: 431
+    y: 148
+  P001:RASI:
+    x: 295
+    y: 283
+  P001:STRN:
+    x: 342
+    y: 165
+- P001:CLAV:
+    x: 332
+    y: 143
+  P001:LASI:
+    x: 373
+    y: 239
+  P001:LELB:
+    x: 400
+    y: 190
+  P001:LFRM:
+    x: 418
+    y: 204
+  P001:LUPA:
+    x: 386
+    y: 161
+  P001:RASI:
+    x: 328
+    y: 251
+  P001:STRN:
+    x: 340
+    y: 162
+- P001:CLAV:
+    x: 338
+    y: 181
+  P001:LASI:
+    x: 379
+    y: 294
+  P001:LELB:
+    x: 445
+    y: 143
+  P001:LFRM:
+    x: 458
+    y: 115
+  P001:LUPA:
+    x: 417
+    y: 162
+  P001:RASI:
+    x: 325
+    y: 300
+  P001:STRN:
+    x: 342
+    y: 195
+- P001:CLAV:
+    x: 252
+    y: 88
+  P001:LASI:
+    x: 271
+    y: 214
+  P001:LELB:
+    x: 292
+    y: 179
+  P001:LFRM:
+    x: 298
+    y: 211
+  P001:LUPA:
+    x: 298
+    y: 126
+  P001:RASI:
+    x: 219
+    y: 212
+  P001:STRN:
+    x: 254
+    y: 115
+times:
+- !!python/object/apply:numpy.core.multiarray.scalar
+  - &id001 !!python/object/apply:numpy.dtype
+    args:
+    - f8
+    - false
+    - true
+    state: !!python/tuple
+    - 3
+    - <
+    - null
+    - null
+    - null
+    - -1
+    - -1
+    - 0
+  - !!binary |
+    AAAAAAAAJEA=
+- !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    AAAAAAAAKUA=
+- !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    AAAAAAAALkA=
+- !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    AAAAAACAMUA=
+- !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    AAAAAAAANEA=
