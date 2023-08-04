@@ -47,7 +47,11 @@ class C3dHelper:
 
         # the calibration stick has 5 lights on it
         # when it is turned on we should see 5 more points
-        start_frame_id = np.argwhere(n_points >= mode[0] + 5)[0]
+        candidates_id = np.argwhere(n_points >= mode[0] + 5)
+        if len(candidates_id) == 0:
+            start_frame_id = 0
+        else:
+            start_frame_id = candidates_id[0]
 
         rate = self.reader.point_rate
         time_step = 1.0 / rate
@@ -139,7 +143,8 @@ class C3dHelper:
             camera_front = camera_points['camera:front'][:3]
             camera_side = camera_points['camera:side'][:3]
             camera_top = camera_points['camera:top'][:3]
-        except:
+        except Exception as e:
+            print(e)
             pass
             
         
@@ -269,7 +274,7 @@ class DvsHelper():
         contains the labels and the x, y position in the image
         """
         with open(file_path, 'r') as stream:
-            data_loaded = yaml.safe_load(stream)
+            data_loaded = yaml.load(stream, Loader=yaml.Loader)
 
         self.labeled_points = data_loaded
         return self.labeled_points

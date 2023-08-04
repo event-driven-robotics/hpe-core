@@ -18,27 +18,30 @@ from . import utils
 
 class ProjectionHelper():
 
-    def __init__(self, world_points: np.ndarray, image_points: np.ndarray):
-        """
-        If the points come from different frames (aka different points in time)
-        they are assumed to be transformed in the reference frame defined by the camera markers.
-        If they come from a single point in time they can also be in world coordinates
-        """
+    # def __init__(self, world_points: np.ndarray, image_points: np.ndarray):
+    #     """
+    #     If the points come from different frames (aka different points in time)
+    #     they are assumed to be transformed in the reference frame defined by the camera markers.
+    #     If they come from a single point in time they can also be in world coordinates
+    #     """
 
-        assert world_points.shape[0] == image_points.shape[0]
+    #     assert world_points.shape[0] == image_points.shape[0]
 
-        self.world_points = world_points
-        self.image_points = image_points
+    #     self.world_points = world_points
+    #     self.image_points = image_points
 
-        for wp in world_points:
-            wp /= wp[-1]
+    #     for wp in world_points:
+    #         wp /= wp[-1]
 
-        self.with_calibration = False
+    #     self.with_calibration = False
 
-    def __init__(self, vicon_points_dict: dict, dvs_points_dict: dict):
+    def __init__(self, vicon_points_dict: dict=None, dvs_points_dict: dict=None):
         """
         Takes the world points and image points as dict with timestampts and creates
         the numpy array """
+        if vicon_points_dict is None and dvs_points_dict is None:
+            return
+        
         n_points = len(vicon_points_dict['points'][0])
         world_points = np.ones((n_points * len(vicon_points_dict['points']), 4))
         image_points = np.ones((n_points * len(vicon_points_dict['points']), 3))
