@@ -53,6 +53,7 @@ endif()
 
 set( folder_source
   event_representations/representations.cpp
+  motion_estimation/reprojection.cpp
   motion_estimation/motion_estimation.cpp
   fusion/fusion.cpp
 )
@@ -60,6 +61,7 @@ set( folder_source
 set( folder_header
   utility/utility.h
   motion_estimation/motion_estimation.h
+  motion_estimation/reprojection.h
   event_representations/representations.h
   fusion/fusion.h
 )
