@@ -39,7 +39,7 @@ class pwtripletvelocity
 {
 private:
     double tolerance{0.15};
-    double prev_update_ts;
+    
     static const std::vector< std::vector<cv::Point> > is;
     static const std::vector<jDot> vs;
 
@@ -53,36 +53,13 @@ private:
         }
     } wjv;
 
-    inline wjv point_velocity(const cv::Mat &local_sae)
-    {
-
-        wjv wvel = {{0,0}, 0};
-
-        for(size_t i = 0; i < is.size(); i++) 
-        {
-            const double &t0 = local_sae.at<double>(2, 2);
-            const double &t1 = local_sae.at<double>(is[i][1]);
-            const double &t2 = local_sae.at<double>(is[i][2]);
-            double dta = t0-t1;
-            double dtb = t1-t2;
-            bool valid = dta > 0 && dtb > 0 && t1 > 0 && t2 > 0;
-            if(!valid) continue;
-            double error = fabs(1 - dtb/dta);
-            if(error > tolerance) continue;
-            //valid triplet. calulate the velocity.
-            double invt = 2.0 /  (dta + dtb);
-            wvel.v.u += vs[i].u * invt;
-            wvel.v.v += vs[i].v * invt;
-            wvel.c++;
-            //test rectification of the vector here. in theory slowest vector is most accurate.
-        }
-        return wvel;
-    }
+    wjv point_velocity(const cv::Mat &local_sae);
 
 public:
-
+    double prev_update_ts;
     jDot area_velocity(const cv::Mat &area_sae);
     std::vector<jDot> multi_area_velocity(const cv::Mat &full_sae, double ts, std::vector<joint> js, int radius);
+    skeleton13 multi_area_velocity(const cv::Mat &full_sae, double ts, skeleton13 js, int radius);
 
 };
 

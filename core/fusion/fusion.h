@@ -231,6 +231,10 @@ class multiJointLatComp : public stateEstimator {
         for (auto name : jointNames)
             kf_array[name].set(position[name], ts);
     }
+
+    void reset() {
+        pose_initialised = false;
+    }
 };
 
 }  // namespace hpecore
