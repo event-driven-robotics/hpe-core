@@ -52,6 +52,7 @@ lines_in_skeleton = [
     ['hipL', 'kneeL'],
     ['kneeL', 'footL'],
 ]
+upper_joints = ['head', 'shoulderR', 'shoulderL', 'elbowR', 'elbowL', 'handR', 'handL']
 
 MOVENET_TO_DHP19_INDICES = DHP19_TO_MOVENET_INDICES[np.argsort(DHP19_TO_MOVENET_INDICES[:, 1]), :]
 
@@ -107,9 +108,8 @@ def superimpose_pose(img_in, pose, num_classes=13, tensors=True, filename=None):
     cv2.waitKey(100)
 
 
-def add_skeleton(img, keypoints, color, lines=None, normalised=True):
+def add_skeleton(img, keypoints, color, lines=None, normalised=True, th=0.1, confidence=False, upper=False, text=False):
     if len(img.shape) == 2:
-
         img = cv2.cvtColor(img.astype('uint8'), cv2.COLOR_GRAY2BGR)
     if normalised:
         h, w, _ = img.shape
@@ -120,25 +120,32 @@ def add_skeleton(img, keypoints, color, lines=None, normalised=True):
     else:
         dim = 2
     radius = 2
-    th = 0.1
     use_color = color
     for i in range(len(keypoints) // dim):
+        if upper and list(hpecore_kps_labels.keys())[i] not in upper_joints:
+            continue
         x = int(keypoints[i * dim] * w)
         y = int(keypoints[i * dim + 1] * h)
-        if dim==3:
-            radius = int(keypoints[i* dim + 2] * 10)
-            if keypoints[i* dim + 2]<th:
-                use_color = (0,0,0)
+        if dim == 3:
+            if confidence:
+                radius = int(keypoints[i * dim + 2] * 10)
+            if keypoints[i * dim + 2] < th:
+                use_color = (0, 0, 0)
             else:
                 use_color = color
         cv2.circle(img, (x, y), radius, use_color, 2)
-        # img = cv2.putText(img, list(hpecore_kps_labels.keys())[i], (x,y), cv2.FONT_HERSHEY_SIMPLEX,
-        #                     0.5, color, thickness=1, lineType=cv2.LINE_AA)
+        if text:
+            img = cv2.putText(img, str(f"{keypoints[i * dim + 2]:.3f}"), (x, y), cv2.FONT_HERSHEY_SIMPLEX,
+                              0.5, color, thickness=1, lineType=cv2.LINE_AA)
+            # img = cv2.putText(img, list(hpecore_kps_labels.keys())[i], (x,y), cv2.FONT_HERSHEY_SIMPLEX,
+            #                 0.5, color, thickness=1, lineType=cv2.LINE_AA)
     if lines is not None:
         kps_2d = np.reshape(keypoints, [-1, dim])
         kps_dict = get_kps_names_hpecore(kps_2d)
         for [jointa, jointb] in lines_in_skeleton:
-            if kps_dict[jointa][2]<th or kps_dict[jointb][2]<th:
+            if kps_dict[jointa][2] < th or kps_dict[jointb][2] < th:
+                continue
+            if upper and (jointa not in upper_joints or jointb not in upper_joints):
                 continue
             # print('kps_dict[jointa]', kps_dict[jointa][0])
             x1 = int(kps_dict[jointa][0] * w)

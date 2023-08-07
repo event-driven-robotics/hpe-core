@@ -3,6 +3,7 @@ from pycore.moveenet import init, MoveNet, Task
 from config import cfg
 from pycore.moveenet.utils.utils import arg_parser
 from pycore.moveenet.task.task_tools import image_show, write_output, superimpose
+from pycore.moveenet.visualization.visualization import add_skeleton, movenet_to_hpecore
 
 import sys
 import yarp
@@ -32,7 +33,6 @@ class MovenetModule(yarp.RFModule):
         # self.np_input = None
         self.yarp_image = yarp.ImageMono()
         self.yarp_sklt_out = yarp.Bottle()
-        # self.checkpoint_path = "/home/ggoyal/data/models/h36m_cropped_cam2-4_iter2_from-pretrained_/e12_valacc0.77841.pth"
         self.checkpoint_path = "/usr/local/src/hpe-core/example/movenet/models/e97_valacc0.81209.pth"
         # self.checkpoint_path = "/usr/local/src/hpe-core/example/movenet/models/hp19_frontcams_e88_valacc0.97142.pth"
         self.resultsPath = '/outputs'
@@ -64,16 +64,23 @@ class MovenetModule(yarp.RFModule):
         self.fname_ts = rf.check("write_ts", yarp.Value("pred_ts.npy")).asString()
 
         # read flags and parameters
+        if cfg['upper']:
+            cfg['num_classes'] = 7
+            self.checkpoint_path = '/usr/local/src/hpe-core/example/movenet/models/upper.pth'
+
+        if dev:
+            self.files = glob.glob(self.tester_path + "/*.jpg")
+            self.file_counter = 0
+            if cfg['upper']:
+                self.checkpoint_path = '/home/ggoyal/data/h36m_cropped/runs_upper/e54_valacc0.74068.pth'
+                print('Upperbody mode activated.')
+            print(str(len(self.files)) + ' Files Found. Iterating over them now.')
 
         self.model = MoveNet(num_classes=self.cfg["num_classes"],
                              width_mult=self.cfg["width_mult"],
                              mode='train')
         self.run_task = Task(cfg, self.model)
         self.run_task.modelLoad(self.checkpoint_path)
-
-        if dev:
-            self.files = glob.glob(self.tester_path + "/*.jpg")
-            self.file_counter = 0
 
         # open io ports
         if not self.input_port.open(self.getName() + "/img:i"):
@@ -149,18 +156,21 @@ class MovenetModule(yarp.RFModule):
         pre = self.run_task.predict_online(input_image)
 
         # Visualize the result
-        # if self.cfg['show_center']:
-        #     img = image_show(input_image, pre=pre['joints'], center=pre['center'])
-        #     sup_img = superimpose(img, pre['center_heatmap'])
-        #     cv2.imshow('', cv2.resize(sup_img,[sup_img.shape[0],sup_img.shape[1]]))
-        #     k = cv2.waitKey(100)
-        # else:
-        #     img = image_show(input_image, pre=pre['joints'])
-        #     cv2.imshow('', img)
-        #     if dev:
-        #         k = cv2.waitKey(100)
-        #     else:
-        #         k = cv2.waitKey(1)
+        if dev:
+            if self.cfg['show_center']:
+                img = image_show(input_image, pre=pre['joints'], center=pre['center'])
+                sup_img = superimpose(img, pre['center_heatmap'])
+                cv2.imshow('', cv2.resize(sup_img,[sup_img.shape[0],sup_img.shape[1]]))
+                k = cv2.waitKey(100)
+            else:
+                img = add_skeleton(input_image, pre['joints'], (0, 0, 255), lines=True, normalised=False,
+                                     th=cfg['confidence_th'], confidence=cfg['confidence'], text=cfg['text'], upper=cfg['upper'])
+                # img = image_show(input_image, pre=pre['joints'])
+                cv2.imshow('', img)
+                if dev:
+                    k = cv2.waitKey(100)
+                else:
+                    k = cv2.waitKey(1)
 
         # latency 
         t1 = datetime.datetime.now()

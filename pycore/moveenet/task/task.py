@@ -137,8 +137,10 @@ class Task():
                     instant['center'] = np.array([cx[0][0],cy[0][0]])/centers.shape[1]
             except KeyError:
                 pass
-            pre = movenetDecode(output, None, mode='occlusion', num_joints=self.cfg["num_classes"],hm_th=0.3)
-
+            pre = movenetDecode(output, None, mode='occlusion', num_joints=self.cfg["num_classes"], hm_th=self.cfg['confidence_th'])
+            if self.cfg['num_classes'] == 7:
+                x = np.resize([0],[1,18])
+                pre = np.concatenate((pre, x), axis=1)
             # img = np.transpose(img[0].cpu().numpy(), axes=[1, 2, 0])
             # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             _, pose_pre = restore_sizes(img[0], pre, (int(img_size_original[0]), int(img_size_original[1])))
