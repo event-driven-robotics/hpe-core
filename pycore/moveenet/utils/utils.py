@@ -261,6 +261,8 @@ def arg_parser(cfg):
                         action='store_true', default=False, required=False)
     parser.add_argument('--text', help='Use if confidence values should be shown as text. Only activated in dev mode with confidence on',
                         action='store_true', default=False, required=False)
+    parser.add_argument('--debug', help='Use for various uses across debugging modalities', action='store_true',
+                        default=False, required=False)
     parser.add_argument("--confidence_th", help='Threshold value under which joints are not shown', default=0.01, type=float)
 
     args = parser.parse_args()

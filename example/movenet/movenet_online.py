@@ -158,7 +158,7 @@ class MovenetModule(yarp.RFModule):
         pre = self.run_task.predict_online(input_image)
 
         # Visualize the result
-        if dev:
+        if dev or cfg['debug']:
             # if self.cfg['show_center']:
             #     img = image_show(input_image, pre=pre['joints'], center=pre['center'])
             #     sup_img = superimpose(img, pre['center_heatmap'])
