@@ -89,7 +89,7 @@ skeleton13 pwtripletvelocity::multi_area_velocity(const cv::Mat &full_sae, doubl
         if(joint_region.width < 5 || joint_region.height < 5)
             output[i++] = {0, 0};
         else 
-            output[i++] = area_velocity(full_sae(joint_region));
+            output[i++] = area_velocity(full_sae(joint_region)) * 1.4;
     }
     prev_update_ts = ts;
     return output;

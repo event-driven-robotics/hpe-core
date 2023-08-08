@@ -55,7 +55,7 @@ class stateEstimator {
     virtual bool poseIsInitialised();
     virtual skeleton13 query();
     virtual joint query(jointName name);
-    skeleton13_vel queryVelocity();
+    virtual skeleton13_vel queryVelocity();
     void setVelocity(skeleton13_vel vel);
     std::deque<hpecore::jDot>* queryError();
 };
@@ -97,12 +97,15 @@ class constVelKalman : public stateEstimator {
 };
 
 // latency compensation constant position model
+#define HS 5000
 class singleJointLatComp {
    private:
     cv::KalmanFilter kf;
     joint vel_accum;
-    std::deque<joint> history_v;
-    std::deque<double> history_ts;
+    std::array<jDot, HS> history_v; // 5ms
+    std::array<int, HS> history_c;
+    //std::deque<joint> history_v;
+    //std::deque<double> history_ts;
     double measU;
     double procU;
     double prev_pts;
@@ -129,17 +132,37 @@ class singleJointLatComp {
         vel_accum = {0, 0};
     }
 
-    void updateFromVelocity(jDot velocity, double ts) {
-        jDot auxHistory = velocity * (ts - prev_vts);
-        history_v.push_back(auxHistory);
-        history_ts.push_back(ts);
-        vel_accum = vel_accum + auxHistory;
-        prev_vts = ts;
+    void updateFromVelocity(jDot velocity, double ts) 
+    {
+        if(velocity.u == 0.0 && velocity.v == 0.0)
+            return;
+
+        velocity = velocity * 0.001; //convert to pixels per millisecond
+        double dt = 2 / sqrt(velocity.u * velocity.u + velocity.v * velocity.v);
+
+        int i_start = (ts - prev_pts)*1000; // millisecond precision
+        if(i_start > HS) {
+            std::cout << "Velocity - history not long enough" << std::endl;
+            i_start = HS;
+        }
+        int i_end = std::max(i_start - dt, 0.0);
+
+        for(int i = i_start; i > i_end; i--) 
+        {
+            history_c[i]++;
+            double du = (velocity.u - history_v[i].u) / history_c[i];
+            double dv = (velocity.v - history_v[i].v) / history_c[i];
+            vel_accum.u += du;
+            vel_accum.v += dv;
+            history_v[i].u += du;
+            history_v[i].v += dv;
+        }
     }
 
     void updateFromPosition(joint position, double ts, bool use_comp = true)
     {
-        size_t i = 0; //position in history
+
+        int i = 0; //position in history
         //if not using latency compensation we want to integrate before doing
         //the position update.
         if(!use_comp)
@@ -151,9 +174,10 @@ class singleJointLatComp {
         //point the detection was made
         else
         {
-            for(;i < history_ts.size(); i++)
+            int dt = 1000.0 * (ts - prev_pts); //milliseconds since last update
+            dt = std::min(dt, HS);
+            for(;i < dt; i++)
             {
-                if(history_ts[i] > ts) break;
                 kf.statePost.at<float>(0) += history_v[i].u;
                 kf.statePost.at<float>(1) += history_v[i].v;
             }
@@ -171,15 +195,17 @@ class singleJointLatComp {
         // add the remaining current period velocity accumulation to the state
         if (use_comp)
         {
-            for(;i < history_ts.size(); i++)
+            for(;i < HS; i++)
             {
                 kf.statePost.at<float>(0) += history_v[i].u;
                 kf.statePost.at<float>(1) += history_v[i].v;
             }
         }
         vel_accum = {0.0, 0.0};
-        history_v.clear();
-        history_ts.clear();
+        for(size_t i = 0; i < history_v.size(); i++) {
+            history_v[i] = {0, 0};
+            history_c[i] = 0;
+        }
         prev_pts = ts;
         
     }
@@ -187,6 +213,10 @@ class singleJointLatComp {
     joint query() {
         return {kf.statePost.at<float>(0) + vel_accum.u,
                 kf.statePost.at<float>(1) + vel_accum.v};
+    }
+
+    joint queryVelocity() {
+        return vel_accum;
     }
 };
 
@@ -234,6 +264,13 @@ class multiJointLatComp : public stateEstimator {
 
     void reset() {
         pose_initialised = false;
+    }
+
+    skeleton13 queryVelocity() override {
+        skeleton13 output;
+        for(size_t i = 0; i < output.size(); i++)
+            output[i] = kf_array[i].queryVelocity();
+        return output;
     }
 };
 
