@@ -159,20 +159,21 @@ class MovenetModule(yarp.RFModule):
 
         # Visualize the result
         if dev:
-            if self.cfg['show_center']:
-                img = image_show(input_image, pre=pre['joints'], center=pre['center'])
-                sup_img = superimpose(img, pre['center_heatmap'])
-                cv2.imshow('', cv2.resize(sup_img,[sup_img.shape[0],sup_img.shape[1]]))
+            # if self.cfg['show_center']:
+            #     img = image_show(input_image, pre=pre['joints'], center=pre['center'])
+            #     sup_img = superimpose(img, pre['center_heatmap'])
+            #     cv2.imshow('', cv2.resize(sup_img,[sup_img.shape[0],sup_img.shape[1]]))
+            #     k = cv2.waitKey(100)
+            # else:
+            out = np.reshape(np.concatenate((np.reshape(pre['joints'],[-1,2]), np.reshape(pre['confidence'],[-1,1])), axis=1),[-1])
+            img = add_skeleton(input_image, out, (0, 0, 255), lines=True, normalised=False,
+                                 th=cfg['confidence_th'], confidence=cfg['confidence'], text=cfg['text'], upper=cfg['upper'])
+            # img = image_show(input_image, pre=pre['joints'])
+            cv2.imshow('', img)
+            if dev:
                 k = cv2.waitKey(100)
             else:
-                img = add_skeleton(input_image, pre['joints'], (0, 0, 255), lines=True, normalised=False,
-                                     th=cfg['confidence_th'], confidence=cfg['confidence'], text=cfg['text'], upper=cfg['upper'])
-                # img = image_show(input_image, pre=pre['joints'])
-                cv2.imshow('', img)
-                if dev:
-                    k = cv2.waitKey(100)
-                else:
-                    k = cv2.waitKey(1)
+                k = cv2.waitKey(1)
 
         # latency 
         t1 = datetime.datetime.now()

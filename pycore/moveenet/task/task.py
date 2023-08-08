@@ -153,8 +153,8 @@ class Task():
             kps_hpecore = movenet_to_hpecore(pose_pre)
             kps_pre_hpecore = np.reshape(kps_hpecore[:,:2], [-1])
             kps_pre_hpecore_towrite = np.reshape(kps_hpecore[:,:2], [-1])
-            if kps_hpecore.shape[0]==3:
-                instant['confidence'] = kps_hpecore[2,:][:]
+            if kps_hpecore.shape[1]==3:
+                instant['confidence'] = kps_hpecore[:,2]
             # print(kps_pre_hpecore)
             if write_csv is not None:
                 # print('writing')
