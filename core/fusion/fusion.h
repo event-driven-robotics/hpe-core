@@ -157,6 +157,7 @@ class singleJointLatComp {
             history_v[i].u += du;
             history_v[i].v += dv;
         }
+        prev_vts = ts;
     }
 
     void updateFromPosition(joint position, double ts, bool use_comp = true)
@@ -216,6 +217,11 @@ class singleJointLatComp {
     }
 
     joint queryVelocity() {
+        if(prev_vts == prev_pts) return {0,0};
+        return vel_accum * (1.0/(prev_vts - prev_pts));
+    }
+
+    joint queryDP() {
         return vel_accum;
     }
 };
@@ -270,6 +276,13 @@ class multiJointLatComp : public stateEstimator {
         skeleton13 output;
         for(size_t i = 0; i < output.size(); i++)
             output[i] = kf_array[i].queryVelocity();
+        return output;
+    }
+
+    skeleton13 queryDP() {
+        skeleton13 output;
+        for(size_t i = 0; i < output.size(); i++)
+            output[i] = kf_array[i].queryDP();
         return output;
     }
 };
