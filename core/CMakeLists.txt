@@ -55,6 +55,7 @@ set( folder_source
   event_representations/representations.cpp
   motion_estimation/reprojection.cpp
   motion_estimation/motion_estimation.cpp
+  motion_estimation/motion.cpp
   fusion/fusion.cpp
 )
 
@@ -62,6 +63,7 @@ set( folder_header
   utility/utility.h
   motion_estimation/motion_estimation.h
   motion_estimation/reprojection.h
+  motion_estimation/motion.h
   event_representations/representations.h
   fusion/fusion.h
 )
@@ -106,3 +108,8 @@ install_basic_package_files(${PROJECT_NAME}
                             NAMESPACE hpe-core::
                             DEPENDENCIES OpenCV)
 include(AddUninstallTarget)
+
+
+#find_package(hpe-core REQUIRED)
+#add_executable(test utility/test.cpp)
+#target_link_libraries(test PUBLIC ${OpenCV_LIBRARIES} hpe-core::hpe-core)
