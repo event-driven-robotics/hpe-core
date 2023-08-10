@@ -165,8 +165,8 @@ class MovenetModule(yarp.RFModule):
             #     cv2.imshow('', cv2.resize(sup_img,[sup_img.shape[0],sup_img.shape[1]]))
             #     k = cv2.waitKey(100)
             # else:
-            print('Joints:', pre['joints'])
-            print('Conf:', pre['confidence'])
+            # print('Joints:', pre['joints'])
+            # print('Conf:', pre['confidence'])
             print('After concatenation: ', np.concatenate((pre['joints'], pre['confidence'])))
             # out = np.reshape(np.concatenate((np.reshape(pre['joints'],[-1,2]), np.reshape(pre['confidence'],[-1,1])), axis=1),[-1])
             # img = add_skeleton(input_image, out, (0, 0, 255), lines=True, normalised=False,
@@ -203,6 +203,7 @@ class MovenetModule(yarp.RFModule):
 
         self.output_port.setEnvelope(stamp)
         self.yarp_sklt_out.clear()
+        # out_sklt = pre['joints']
         out_sklt = np.concatenate((pre['joints'],pre['confidence']))
         # output_bottle = 'SKLT' + str(out_sklt)
         # self.yarp_sklt_out.setExternal(output_bottle.data, output_bottle.shape[1], output_bottle.shape[0])
@@ -210,7 +211,7 @@ class MovenetModule(yarp.RFModule):
         # self.yarp_sklt_out.addList()
         temp_list = self.yarp_sklt_out.addList()
         for i in out_sklt:
-            temp_list.addInt32(int(i))
+            temp_list.addFloat64(int(i))
 
         self.output_port.write(self.yarp_sklt_out)
 
