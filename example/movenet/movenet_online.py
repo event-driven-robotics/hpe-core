@@ -34,6 +34,7 @@ class MovenetModule(yarp.RFModule):
         self.yarp_image = yarp.ImageMono()
         self.yarp_sklt_out = yarp.Bottle()
         self.checkpoint_path = "/usr/local/src/hpe-core/example/movenet/models/e97_valacc0.81209.pth"
+        # self.checkpoint_path = "/home/ggoyal/code/hpe-core/example/movenet/models/e97_valacc0.81209.pth"
         # self.checkpoint_path = "/usr/local/src/hpe-core/example/movenet/models/hp19_frontcams_e88_valacc0.97142.pth"
         self.resultsPath = '/outputs'
         self.image_w_model = 192  # Size of the image expected by the model
@@ -46,7 +47,6 @@ class MovenetModule(yarp.RFModule):
         self.cfg = cfg
         if dev:
             self.tester_path = '/home/ggoyal/data/eros_samples_live_220408'  # path to a folder with images.
-        print("Press space at the image window to end the program.")
 
     def configure(self, rf):
 
@@ -165,15 +165,18 @@ class MovenetModule(yarp.RFModule):
             #     cv2.imshow('', cv2.resize(sup_img,[sup_img.shape[0],sup_img.shape[1]]))
             #     k = cv2.waitKey(100)
             # else:
-            out = np.reshape(np.concatenate((np.reshape(pre['joints'],[-1,2]), np.reshape(pre['confidence'],[-1,1])), axis=1),[-1])
-            img = add_skeleton(input_image, out, (0, 0, 255), lines=True, normalised=False,
-                                 th=cfg['confidence_th'], confidence=cfg['confidence'], text=cfg['text'], upper=cfg['upper'])
-            # img = image_show(input_image, pre=pre['joints'])
-            cv2.imshow('', img)
-            if dev:
-                k = cv2.waitKey(100)
-            else:
-                k = cv2.waitKey(1)
+            print('Joints:', pre['joints'])
+            print('Conf:', pre['confidence'])
+            print('After concatenation: ', np.concatenate((pre['joints'], pre['confidence'])))
+            # out = np.reshape(np.concatenate((np.reshape(pre['joints'],[-1,2]), np.reshape(pre['confidence'],[-1,1])), axis=1),[-1])
+            # img = add_skeleton(input_image, out, (0, 0, 255), lines=True, normalised=False,
+            #                      th=cfg['confidence_th'], confidence=cfg['confidence'], text=cfg['text'], upper=cfg['upper'])
+            # # img = image_show(input_image, pre=pre['joints'])
+            # cv2.imshow('', img)
+            # if dev:
+            #     k = cv2.waitKey(100)
+            # else:
+            #     k = cv2.waitKey(1)
 
         # latency 
         t1 = datetime.datetime.now()
@@ -200,7 +203,7 @@ class MovenetModule(yarp.RFModule):
 
         self.output_port.setEnvelope(stamp)
         self.yarp_sklt_out.clear()
-        out_sklt =  pre['joints']
+        out_sklt = np.concatenate((pre['joints'],pre['confidence']))
         # output_bottle = 'SKLT' + str(out_sklt)
         # self.yarp_sklt_out.setExternal(output_bottle.data, output_bottle.shape[1], output_bottle.shape[0])
         self.yarp_sklt_out.addString('SKLT')

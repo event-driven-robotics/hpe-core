@@ -149,12 +149,12 @@ class Task():
                     instant['center_heatmap'] = centers[0]
             except KeyError:
                 pass
-            # kps_2d = np.reshape(pose_pre, [-1, 2])
-            kps_hpecore = movenet_to_hpecore(pose_pre)
+            kps_2d = np.reshape(pose_pre, [-1, 3])
+            kps_hpecore = movenet_to_hpecore(kps_2d)
             kps_pre_hpecore = np.reshape(kps_hpecore[:,:2], [-1])
             kps_pre_hpecore_towrite = np.reshape(kps_hpecore[:,:2], [-1])
-            if kps_hpecore.shape[1]==3:
-                instant['confidence'] = kps_hpecore[:,2]
+            # if kps_hpecore.shape[1]==3:
+            instant['confidence'] = kps_hpecore[:,2]
             # print(kps_pre_hpecore)
             if write_csv is not None:
                 # print('writing')
