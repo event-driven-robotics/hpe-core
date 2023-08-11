@@ -18,7 +18,7 @@ from torch.utils.tensorboard import SummaryWriter
 from pycore.moveenet.task.task_tools import getSchedu, getOptimizer, movenetDecode, clipGradient, restore_sizes, image_show
 from pycore.moveenet.loss.movenet_loss import MovenetLoss
 from pycore.moveenet.utils.utils import printDash, ensure_loc
-# from pycore.moveenet.visualization.visualization import superimpose_pose
+from pycore.moveenet.visualization.visualization import superimpose_pose, hpecore_kps_labels
 from pycore.moveenet.utils.metrics import myAcc, pck
 from datasets.h36m.utils.parsing import movenet_to_hpecore
 
@@ -85,8 +85,8 @@ class Task():
                     y = int(pre[0][i * 2 + 1] * h)
                     cv2.circle(img, (x, y), 3, (255, 0, 0), 2)
 
-                image_show(img)
-                continue
+                # image_show(img)
+                # continue
                 cv2.imwrite(os.path.join(save_dir, basename), img)
 
                 # debug
@@ -137,27 +137,40 @@ class Task():
                     instant['center'] = np.array([cx[0][0],cy[0][0]])/centers.shape[1]
             except KeyError:
                 pass
-            pre = movenetDecode(output, None, mode='output', num_joints=self.cfg["num_classes"])
-
-            img = np.transpose(img[0].cpu().numpy(), axes=[1, 2, 0])
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-            _, pose_pre = restore_sizes(img, pre, (int(img_size_original[0]), int(img_size_original[1])))
+            pre = movenetDecode(output, None, mode='occlusion', num_joints=self.cfg["num_classes"], hm_th=self.cfg['confidence_th'])
+            if self.cfg['num_classes'] == 7:
+                x = np.resize([0],[1,18])
+                pre = np.concatenate((pre, x), axis=1)
+            # img = np.transpose(img[0].cpu().numpy(), axes=[1, 2, 0])
+            # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            _, pose_pre = restore_sizes(img[0], pre, (int(img_size_original[0]), int(img_size_original[1])))
             try:
                 if self.cfg['show_center']:
                     instant['center_heatmap'] = centers[0]
             except KeyError:
                 pass
-            kps_2d = np.reshape(pose_pre, [-1, 2])
+            kps_2d = np.reshape(pose_pre, [-1, 3])
             kps_hpecore = movenet_to_hpecore(kps_2d)
-            kps_pre_hpecore = np.reshape(kps_hpecore, [-1])
+            kps_pre_hpecore = np.reshape(kps_hpecore[:,:2], [-1])
+            kps_pre_hpecore_towrite = np.reshape(kps_hpecore[:,:2], [-1])
+            # if kps_hpecore.shape[1]==3:
+            instant['confidence'] = kps_hpecore[:,2]
             # print(kps_pre_hpecore)
             if write_csv is not None:
                 # print('writing')
-                row = self.create_row(ts,kps_pre_hpecore, delay=time.time()-start_sample)
+                row = self.create_row(ts,kps_pre_hpecore_towrite, delay=time.time()-start_sample)
                 ensure_loc(os.path.dirname(write_csv))
                 self.write_results(write_csv, row)
 
             instant['joints'] = kps_pre_hpecore
+            # labels = list(hpecore_kps_labels.keys())
+            # print('**********************')
+            # for key in list(hpecore_kps_labels.keys()):
+            #     print(key, kps_hpecore[hpecore_kps_labels[key],2])
+
+
+
+
             return instant
 
 

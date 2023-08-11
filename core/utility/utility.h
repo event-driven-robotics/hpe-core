@@ -83,11 +83,13 @@ typedef std::array<joint, 13> skeleton13;
 typedef std::array<bool, 13>  skeleton13_b;
 typedef std::array<cv::Point, 13> skeleton13_v;
 typedef std::array<jDot, 13> skeleton13_vel;
+typedef std::array<double, 13> confidence13;
 
 struct stampedPose {
     double timestamp;
     double delay;
     skeleton13 pose;
+    confidence13 conf;
 };
 
 enum jointName {head, shoulderR, shoulderL, elbowR, elbowL,
@@ -112,6 +114,15 @@ inline skeleton13_b jointTest(skeleton13 pose)
     }
     return result;
 }
+
+inline skeleton13_b jointTest(stampedPose sk)
+{
+    skeleton13_b result;
+    for(size_t i = 0; i < sk.pose.size(); i++)
+        result[i] = (sk.pose[i].u > 0.0f || sk.pose[i].v > 0.0f) && (sk.conf[i] > 0.4);
+    return result;
+}
+
 
 inline skeleton13_v jointConvert(skeleton13 pose)
 {
@@ -222,14 +233,14 @@ inline skeleton13 body25_to_dhp19(const skeleton25 skeleton_in)
     return skeleton_out;
 }
 
-inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 3> color = {0, 0, 200}, int th =1) 
+inline void drawSkeleton(cv::Mat &image, const stampedPose sk, std::array<int, 3> color = {0, 0, 200}, int th =1) 
 {
-    skeleton13_b jb = jointTest(pose);
-    skeleton13_v jv = jointConvert(pose);
+    skeleton13_b jb = jointTest(sk);
+    skeleton13_v jv = jointConvert(sk.pose);
     auto colorS = CV_RGB(color[0], color[1], color[2]);
 
     // plot detected joints
-    for (size_t i = 1; i < pose.size(); i++)
+    for (size_t i = 1; i < sk.pose.size(); i++)
         if (jb[i])
             cv::drawMarker(image, jv[i], colorS, cv::MARKER_TILTED_CROSS, 8);
 
@@ -237,8 +248,10 @@ inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 
     // if(jb[head] && jb[shoulderL] && jb[shoulderR]) cv::line(image, (jv[shoulderL] + jv[shoulderR])/2, jv[head] + cv::Point(0, 20), colorS, th);
     if(jb[head] && jb[shoulderL] && jb[shoulderR])
     {
-        int dist = cv::norm(jv[shoulderL]-jv[hipR])/6;
-        cv::circle(image, jv[head] + cv::Point(0, 0.0), dist, colorS, th);
+        cv::Point neck_length = (jv[head] - ((jv[shoulderL] + jv[shoulderR])*0.5))*0.8;
+        int dist = sqrt(neck_length.x * neck_length.x + neck_length.y*neck_length.y);
+        //int dist = cv::norm(jv[shoulderL].-jv[shoulderR])/3;
+        cv::circle(image, jv[head] + neck_length, dist, colorS, th);
         cv::line(image, (jv[shoulderL] + jv[shoulderR])/2, jv[head] + cv::Point(0, dist), colorS, th);
     } 
     if(jb[shoulderL] && jb[shoulderR]) cv::line(image, jv[shoulderL], jv[shoulderR], colorS, th);
@@ -255,20 +268,37 @@ inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 
     if(jb[kneeR] && jb[footR]) cv::line(image, jv[kneeR], jv[footR], colorS, th);
 }
 
-
-inline void drawVel(cv::Mat &image, const skeleton13 pose, const skeleton13_vel vel, std::array<int, 3> color = {0, 0, 200}, int th =1) 
+inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 3> color = {0, 0, 200}, int th =1) 
 {
-    skeleton13_b jb = jointTest(pose);
-    skeleton13_v jv = jointConvert(pose);
+    stampedPose sk;
+    sk.pose = pose;
+    sk.conf = {1};
+    drawSkeleton(image, sk, color, th);
+}
+
+inline void drawVel(cv::Mat &image, const stampedPose sk, const skeleton13_vel vel, std::array<int, 3> color = {0, 0, 200}, int th =1) 
+{
+    skeleton13_b jb = jointTest(sk);
+    skeleton13_v jv = jointConvert(sk.pose);
     skeleton13_v jvel = jointConvert(vel);
     auto colorS = CV_RGB(color[0], color[1], color[2]);
 
     // plot detected joints
-    for (size_t i = 0; i < pose.size(); i++)
+    for (size_t i = 0; i < jv.size(); i++)
         if (jb[i])
             cv::arrowedLine(image, jv[i], jv[i]+jvel[i], colorS, th);
 
 }
+
+inline void drawVel(cv::Mat &image, const skeleton13 pose, const skeleton13_vel vel, std::array<int, 3> color = {0, 0, 200}, int th =1) 
+{
+    stampedPose sk;
+    sk.pose = pose;
+    sk.conf = {1};
+    drawVel(image, sk, vel, color, th);
+}
+
+
 inline void HSVtoRGB(float H, float S,float V, int &R, int &G, int &B){
     // if(H>360 || H<0 || S>100 || S<0 || V>100 || V<0){
     //     cout<<"The givem HSV values are not in valid range"<<endl;
@@ -433,12 +463,23 @@ inline skeleton13 extractSkeletonFromYARP(const T &gt_container)
 {
     skeleton13 result;
     T *gt = gt_container.get(1).asList();
-    if(!gt || gt->size() != result.size()*2) return result;
+    if(!gt || gt->size() < result.size()*2) return result;
     for (auto i = 0; i < result.size(); i++) {
         joint &j = result[i];
         j.u = gt->get(i*2).asFloat64();
         j.v = gt->get(i*2+1).asFloat64();
     }
+    return result;
+}
+
+template <typename T>
+inline confidence13 extractConfidenceFromYARP(const T &gt_container)
+{
+    confidence13 result;
+    T *gt = gt_container.get(1).asList();
+    if(!gt || gt->size() < result.size()*3) return result;
+    for(auto i = 0; i < result.size(); i++)
+        result[i] = gt->get(i+result.size()*2).asFloat64();
     return result;
 }
 
