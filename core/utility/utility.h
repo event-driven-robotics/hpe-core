@@ -138,8 +138,13 @@ inline skeleton13_v jointConvert(skeleton13 pose)
 template <typename T>
 inline void print_skeleton(const T &s) 
 {
+    std::cout << "[ ";
     for(auto &t : s)
-        std::cout << t.u << " " << t.v << std::endl;
+        std::cout << t.u << " ";
+    std::cout << std::endl << "  ";
+    for(auto &t : s)
+        std::cout << t.v << " ";
+    std::cout << "]" << std::endl;
 }
 
 inline bool poseNonZero(skeleton13 pose)
@@ -272,7 +277,7 @@ inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 
 {
     stampedPose sk;
     sk.pose = pose;
-    sk.conf = {1};
+    sk.conf.fill(1.0);
     drawSkeleton(image, sk, color, th);
 }
 
@@ -294,7 +299,7 @@ inline void drawVel(cv::Mat &image, const skeleton13 pose, const skeleton13_vel 
 {
     stampedPose sk;
     sk.pose = pose;
-    sk.conf = {1};
+    sk.conf.fill(1.0);
     drawVel(image, sk, vel, color, th);
 }
 
