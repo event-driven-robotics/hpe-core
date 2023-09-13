@@ -124,6 +124,17 @@ inline skeleton13_b jointTest(stampedPose sk)
 }
 
 
+inline bool testConfidence(stampedPose pose)
+{
+    const static float validity_threshold = 0.4f;
+    float skel_conf = (pose.conf[head] + pose.conf[shoulderR] + pose.conf[shoulderL])/3;
+    if (skel_conf>validity_threshold)
+        return true;
+    else
+        return false;
+}
+
+
 inline skeleton13_v jointConvert(skeleton13 pose)
 {
     skeleton13_v result;
