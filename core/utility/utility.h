@@ -124,6 +124,17 @@ inline skeleton13_b jointTest(stampedPose sk)
 }
 
 
+inline bool valid_skel(stampedPose pose)
+{
+    float validity_threshold = 0.5;
+    float skel_conf = (pose.conf[head] + pose.conf[shoulderR] + pose.conf[shoulderL])/3;
+    if (skel_conf>validity_threshold)
+        return true;
+    else
+        return false;
+}
+
+
 inline skeleton13_v jointConvert(skeleton13 pose)
 {
     skeleton13_v result;
@@ -146,6 +157,7 @@ inline void print_skeleton(const T &s)
         std::cout << t.v << " ";
     std::cout << "]" << std::endl;
 }
+
 
 inline bool poseNonZero(skeleton13 pose)
 {
@@ -218,6 +230,7 @@ inline skeleton13 coco18_to_dhp19(const skeleton18 skeleton_in)
     skeleton_out[footR] = skeleton_in[coco::footR];
     return skeleton_out;
 }
+
 
 inline skeleton13 body25_to_dhp19(const skeleton25 skeleton_in)
 {
