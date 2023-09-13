@@ -126,7 +126,7 @@ inline skeleton13_b jointTest(stampedPose sk)
 
 inline bool valid_skel(stampedPose pose)
 {
-    float validity_threshold = 0.5;
+    float validity_threshold = 0.4;
     float skel_conf = (pose.conf[head] + pose.conf[shoulderR] + pose.conf[shoulderL])/3;
     if (skel_conf>validity_threshold)
         return true;
