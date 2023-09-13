@@ -158,7 +158,6 @@ inline void print_skeleton(const T &s)
     std::cout << "]" << std::endl;
 }
 
-
 inline bool poseNonZero(skeleton13 pose)
 {
     bool nonZero = false;
@@ -230,7 +229,6 @@ inline skeleton13 coco18_to_dhp19(const skeleton18 skeleton_in)
     skeleton_out[footR] = skeleton_in[coco::footR];
     return skeleton_out;
 }
-
 
 inline skeleton13 body25_to_dhp19(const skeleton25 skeleton_in)
 {
