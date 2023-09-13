@@ -584,5 +584,3 @@ inline void drawProgressBar(cv::Mat &image, double percentage)
     cv::rectangle(image, box_prog, CV_RGB(255, 255, 255), cv::FILLED);
     cv::rectangle(image, box_border, CV_RGB(0, 0, 0), 2);
 }
-
-}
