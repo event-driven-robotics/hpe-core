@@ -115,20 +115,19 @@ inline skeleton13_b jointTest(skeleton13 pose)
     return result;
 }
 
-inline skeleton13_b jointTest(stampedPose sk)
+inline skeleton13_b jointTest(stampedPose sk, double threshold = 0.4)
 {
     skeleton13_b result;
     for(size_t i = 0; i < sk.pose.size(); i++)
-        result[i] = (sk.pose[i].u > 0.0f || sk.pose[i].v > 0.0f) && (sk.conf[i] > 0.4);
+        result[i] = (sk.pose[i].u > 0.0f || sk.pose[i].v > 0.0f) && (sk.conf[i] > threshold);
     return result;
 }
 
 
-inline bool testConfidence(stampedPose pose)
+inline bool testConfidence(stampedPose pose, double threshold = 0.4)
 {
-    const static float validity_threshold = 0.4f;
     float skel_conf = (pose.conf[head] + pose.conf[shoulderR] + pose.conf[shoulderL])/3;
-    if (skel_conf>validity_threshold)
+    if (skel_conf>threshold)
         return true;
     else
         return false;
