@@ -38,7 +38,7 @@ with open(args.calib_labels, "r") as stream:
         print(exc)
 
 # TODO make the times a parameter that can be set
-frame_times = np.linspace(10.0, 20.0, 5)
-labeler = DvsLabeler(dvs_helper.events, (480, 640, 3))
-out = labeler.label_data(frame_times, labels, duration=0.02)
+frame_times = np.linspace(1.0, 12.0, 5)
+labeler = DvsLabeler(dvs_helper.events, (720, 1280, 3))
+out = labeler.label_data(frame_times, labels, duration=0.007)
 labeler.save_labeled_points(args.output_path)

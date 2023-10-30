@@ -18,10 +18,11 @@ from . import utils
 
 class C3dHelper:
 
-    def __init__(self, file_path):
+    def __init__(self, file_path, wand_zero_time=False, delay=0.0):
         
         self.reader = c3d.Reader(open(file_path, 'rb'))
-        
+        self.wand_zero = wand_zero_time
+        self.delay = delay
         self.calculate_frame_times()
 
         # the obtained transforms are saved in a dict for later use if needed
@@ -37,6 +38,10 @@ class C3dHelper:
         each frame. When there is a jump in the number of points (5)
         it should be the moment the lights are turned on.
         """
+
+        if not self.wand_zero:
+            self.start_time = 0.0
+            return self.start_time
 
         n_points= []
         for i, points, analog in self.reader.read_frames():
@@ -62,6 +67,7 @@ class C3dHelper:
     def calculate_frame_times(self):
 
         self.find_start_time()
+        self.start_time += self.delay
 
         rate = self.reader.point_rate # vicon rate
         time_step = 1.0 / rate # t between frames
@@ -144,8 +150,22 @@ class C3dHelper:
             camera_side = camera_points['camera:side'][:3]
             camera_top = camera_points['camera:top'][:3]
         except Exception as e:
-            print(e)
+            # print(e)
             pass
+        
+        # TODO remove, just for test
+        try:
+            labels = [
+                'camera:cam_back',
+                'camera:cam_right',
+                'camera:cam_left'
+                ]
+            camera_points = self.filter_dict_labels(self.get_points_dict(frame_id), labels)
+            camera_front = camera_points['camera:cam_right'][:3]
+            camera_side = camera_points['camera:cam_left'][:3]
+            camera_top = camera_points['camera:cam_back'][:3]
+        except Exception as e:
+            print(e)
             
         
         # mid point between top and side marker
@@ -199,8 +219,10 @@ class C3dHelper:
         transformed_points = vicon_points.copy()
 
         for f, points in zip(transformed_points['frame_ids'], transformed_points['points']):
-
-            T  = self.marker_T_at_frame_vector(f)
+            try:
+                T  = self.marker_T_at_frame_vector(f)
+            except Exception as e:
+                T = np.eye(4)
 
             for pl in points:
                 points[pl] = T @ np.append(points[pl], 1.0)
@@ -234,7 +256,11 @@ class DvsHelper():
 
         self.loaded_events = False
         self.file_path = file_path
-        self.flash_time = self.read_annotation(file_path)
+        try:
+            self.flash_time = self.read_annotation(file_path)
+        except Exception as e:
+            print("no manual zero time found, using zero instead")
+            self.flash_time = 0.0
 
     def read_annotation(self, file_path):
         """

@@ -33,6 +33,9 @@ parser.add_argument('--intrinsic',
                     help='intrinsic calibration for the camera')
 parser.add_argument('--extrinsic', default='./config/extrinsic_test.npy')
 parser.add_argument('--output_path', help='path to output video', required=True)
+parser.add_argument('--all_points', default=False)
+parser.add_argument('--camera_resolution', default=(640, 480), nargs='+', type=int)
+parser.add_argument('--vicon_delay', default=0.0, type=float)
 
 args = parser.parse_args()
 
@@ -44,13 +47,16 @@ dvs_helper = DvsHelper(dvs_file_path)
 
 # load c3d vicon data
 c3d_file_path = args.vicon_path
-c3d_helper = C3dHelper(c3d_file_path)
+c3d_helper = C3dHelper(c3d_file_path, args.vicon_delay)
 
 with open(args.labels, "r") as stream:
     try:
         labels = yaml.safe_load(stream)
     except yaml.YAMLError as exc:
         print(exc)
+
+if args.all_points:
+    labels = [l.strip() for l in c3d_helper.reader.point_labels]
 
 print(f"Loaded labels: {labels}")
 
@@ -89,16 +95,17 @@ def get_projected_points(frame_id):
     return projected_points
 
 # Define the codec and create VideoWriter object
+resolution = args.camera_resolution
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-out = cv2.VideoWriter(args.output_path, fourcc, 30.0, (640, 480))
+out = cv2.VideoWriter(args.output_path, fourcc, 30.0, resolution)
 
 for i in tqdm(range(c3d_helper.reader.first_frame, int(c3d_helper.reader.frame_count), 3)):
     projected_points = get_projected_points(i);
     
-    frame = np.ones((480, 640, 3), dtype=np.uint8)
+    frame = np.ones((resolution[1], resolution[0], 3), dtype=np.uint8)
 
     ts_start = c3d_helper.frame_times[i]
-    frame = utils.extract_frame(dvs_helper.events, ts_start, ts_start + 0.01, (480, 640, 3))
+    frame = utils.extract_frame(dvs_helper.events, ts_start, ts_start + 0.01, (resolution[1], resolution[0], 3))
 
     frame = vis_utils.plot_2d_points(frame, projected_points)
     out.write(frame.astype(np.uint8))
