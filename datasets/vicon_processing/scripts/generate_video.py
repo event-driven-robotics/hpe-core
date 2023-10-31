@@ -9,7 +9,7 @@ import argparse
 import yaml
 
 
-sys.path.append('/home/schiavazza/code/hpe/hpe-core/datasets/')
+sys.path.append('/local_code/hpe-core/datasets/')
 
 from vicon_processing.src.projection import ProjectionHelper
 from vicon_processing.src.data_helpers import DvsLabeler, DvsHelper, C3dHelper
@@ -47,7 +47,7 @@ dvs_helper = DvsHelper(dvs_file_path)
 
 # load c3d vicon data
 c3d_file_path = args.vicon_path
-c3d_helper = C3dHelper(c3d_file_path, args.vicon_delay)
+c3d_helper = C3dHelper(c3d_file_path, delay=args.vicon_delay)
 
 with open(args.labels, "r") as stream:
     try:

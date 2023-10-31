@@ -49,10 +49,14 @@ class ProjectionHelper():
         
         for k, vicon_frame in enumerate(vicon_points_dict['points']):
             for i, l in enumerate(labels):
+
+                vicon_time = vicon_points_dict['times'][k]
+                dvs_id = (np.abs(dvs_points_dict['times'] - vicon_time)).argmin()
+
                 try:
                     # vicon_points = vicon_points_dict['points'][vicon_frame][l][:3]
                     world_points[k*n_points + i, :3] = vicon_frame[l][:3]
-                    p_dict = dvs_points_dict['points'][k][l]
+                    p_dict = dvs_points_dict['points'][dvs_id][l]
                     image_points[k*n_points + i, :2] = [p_dict['x'], p_dict['y']]
                 except Exception as e:
                     print("The stored image labels probably don't match with the vicon labels used.")
@@ -184,8 +188,12 @@ class ProjectionHelper():
         T[-1, -1] = 1.0
 
         return T
-    
+
     def find_R_t(self):
+        T, result = self._find_R_t()
+        return T
+    
+    def _find_R_t(self):
         """The functiom finds the transformation (rotation and translation) that best 
         project the world_points to image_points using the intrinsic parameters K.
         im = K @ (R | t) @ P_w"""
@@ -194,7 +202,7 @@ class ProjectionHelper():
 
         # in the initial configuration we assume that the frame is almost correct already
         # we start with zero rotation and traslation
-        start_m = np.zeros((6, 1))
+        start_m = np.zeros((6, ))
         # the parameters are encoded in a 6d vector. The first 3 represent the rotation and
         # the last 3 the translation
         # the rotation in encoded using euler angles in xyz order
@@ -263,7 +271,7 @@ class ProjectionHelper():
         T[:-1, -1] = t
         T[-1, -1] = 1.0
 
-        return T
+        return T, result
     
     def T_to_transform(self, T):
         Tr = np.zeros((4, 4))

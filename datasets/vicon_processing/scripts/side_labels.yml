@@ -1,0 +1,95 @@
+points:
+- P3:HEDO:
+    x: 791
+    y: 185
+  P3:LFOO:
+    x: 835
+    y: 636
+  P3:RFOO:
+    x: 742
+    y: 637
+  P3:RHNO:
+    x: 710
+    y: 405
+- P3:HEDO:
+    x: 789
+    y: 165
+  P3:LFOO:
+    x: 1004
+    y: 587
+  P3:RFOO:
+    x: 770
+    y: 619
+  P3:RHNO:
+    x: 729
+    y: 397
+- P3:HEDO:
+    x: 747
+    y: 140
+  P3:LFOO:
+    x: 844
+    y: 583
+  P3:RFOO:
+    x: 577
+    y: 589
+  P3:RHNO:
+    x: 643
+    y: 351
+- P3:HEDO:
+    x: 434
+    y: 136
+  P3:LFOO:
+    x: 567
+    y: 583
+  P3:RFOO:
+    x: 389
+    y: 612
+  P3:RHNO:
+    x: 344
+    y: 379
+- P3:HEDO:
+    x: 393
+    y: 179
+  P3:LFOO:
+    x: 472
+    y: 598
+  P3:RFOO:
+    x: 188
+    y: 590
+  P3:RHNO:
+    x: 306
+    y: 362
+times:
+- !!python/object/apply:numpy.core.multiarray.scalar
+  - &id001 !!python/object/apply:numpy.dtype
+    args:
+    - f8
+    - false
+    - true
+    state: !!python/tuple
+    - 3
+    - <
+    - null
+    - null
+    - null
+    - -1
+    - -1
+    - 0
+  - !!binary |
+    AAAAAAAA8D8=
+- !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    AAAAAAAADkA=
+- !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    AAAAAAAAGkA=
+- !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    AAAAAACAIkA=
+- !!python/object/apply:numpy.core.multiarray.scalar
+  - *id001
+  - !!binary |
+    AAAAAAAAKEA=
