@@ -18,11 +18,14 @@ from . import utils
 
 class C3dHelper:
 
-    def __init__(self, file_path, wand_zero_time=False, delay=0.0):
+    def __init__(self, file_path, wand_zero_time=False, delay=0.0, camera_markers=True):
         
         self.reader = c3d.Reader(open(file_path, 'rb'))
         self.wand_zero = wand_zero_time
         self.delay = delay
+        self.camera_markers = camera_markers
+        if not self.camera_markers:
+            print("Selected the option to not use the markers on the camera, the identity transformation will be used instead")
         self.calculate_frame_times()
 
         # the obtained transforms are saved in a dict for later use if needed
@@ -123,6 +126,10 @@ class C3dHelper:
         the 3 marker placed on the camera.
         Returns the 4x4 transformation matrix T that transform points from world frame to the marker frame
         The function actually first computes the inverse transformation from marker frame to world and then inverts the matrix"""
+
+        # if self.camera_markers is False, use a zero T
+        if not self.camera_markers:
+            return np.eye(4) 
         
         # different sequences sometime use different labels for the camera markers
         # this should not be necessary in the final version. The vicon processing should keep the labels consistent.

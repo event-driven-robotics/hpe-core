@@ -165,7 +165,7 @@ class ProjectionHelper():
 
         s, r, t = cv2.solvePnP(proj_points, 
                     img_points, 
-                    self.K, self.D)
+                    self.K, self.D, flags=cv2.SOLVEPNP_SQPNP)
         
         T = np.zeros((4, 4))
         T[:3, :3] = Rotation.from_rotvec(r.reshape(3, )).as_matrix()
@@ -175,6 +175,10 @@ class ProjectionHelper():
         return T
     
     def find_R_t_opencv_ransac(self):
+        T, s = self._find_R_t_opencv_ransac()
+        return T
+    
+    def _find_R_t_opencv_ransac(self):
         proj_points = np.copy(self.world_points[:, :-1])
         img_points = np.copy(self.image_points[:, :-1])
 
@@ -187,13 +191,13 @@ class ProjectionHelper():
         T[:3, -1] = t.reshape(3, )
         T[-1, -1] = 1.0
 
-        return T
+        return T, s
 
-    def find_R_t(self):
-        T, result = self._find_R_t()
+    def find_R_t(self, constrain_translation=False):
+        T, result = self._find_R_t(constrain_translation=constrain_translation)
         return T
     
-    def _find_R_t(self):
+    def _find_R_t(self, constrain_translation=False):
         """The functiom finds the transformation (rotation and translation) that best 
         project the world_points to image_points using the intrinsic parameters K.
         im = K @ (R | t) @ P_w"""
@@ -243,19 +247,24 @@ class ProjectionHelper():
         # it should limit the movement of the camera to only 25 (mm ?) = 2.5 cm combined = 5 cm per axis
         A = np.zeros((6, 6))
         A[3:, 3:] = np.eye(3)
-        translation_constraint = LinearConstraint(A, lb=-10, ub=10, keep_feasible=False)
+        translation_constraint = LinearConstraint(A, lb=-30, ub=30, keep_feasible=False)
 
         # again, not used
         # positive_depth = NonlinearConstraint(_front_camera_constraint, lb=0.0, ub=np.inf, keep_feasible=False)
-        
-        result = minimize(utils._geometric_error_with_K_2, start_m, 
-                                                                constraints = [
-                                                                    translation_constraint, 
-                                                                    # positive_depth
-                                                                    ],
+        if not constrain_translation:
+            result = minimize(utils._geometric_error_with_K_2, start_m, 
                                                                 args=(self.world_points, 
                                                                 self.image_points, 
                                                                 self.K, self.D))
+        else:
+            result = minimize(utils._geometric_error_with_K_2, start_m, 
+                                                                    constraints = [
+                                                                        translation_constraint, 
+                                                                        # positive_depth
+                                                                        ],
+                                                                    args=(self.world_points, 
+                                                                    self.image_points, 
+                                                                    self.K, self.D))
         
         if result.success is False:
             warnings.warn(result.message)

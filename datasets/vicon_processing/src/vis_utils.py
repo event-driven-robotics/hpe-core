@@ -87,7 +87,7 @@ def plot_2d_points(frame, points, color=(255, 0, 0)):
     for p in points:
         if np.isnan(p).any():
             continue
-        cv2.circle(frame, p[:2].astype(int), 5, color, -1)
+        cv2.circle(frame, p[:2].astype(int), 8, color, -1)
 
     return frame
 

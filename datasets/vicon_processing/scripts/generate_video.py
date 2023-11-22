@@ -8,7 +8,7 @@ from tqdm import tqdm
 import argparse
 import yaml
 
-
+sys.path.append('/home/schiavazza/code/hpe/hpe-core/datasets/')
 sys.path.append('/local_code/hpe-core/datasets/')
 
 from vicon_processing.src.projection import ProjectionHelper
@@ -36,6 +36,7 @@ parser.add_argument('--output_path', help='path to output video', required=True)
 parser.add_argument('--all_points', default=False)
 parser.add_argument('--camera_resolution', default=(640, 480), nargs='+', type=int)
 parser.add_argument('--vicon_delay', default=0.0, type=float)
+parser.add_argument('--no_camera_markers', action=argparse.BooleanOptionalAction)
 
 args = parser.parse_args()
 
@@ -47,7 +48,7 @@ dvs_helper = DvsHelper(dvs_file_path)
 
 # load c3d vicon data
 c3d_file_path = args.vicon_path
-c3d_helper = C3dHelper(c3d_file_path, delay=args.vicon_delay)
+c3d_helper = C3dHelper(c3d_file_path, delay=args.vicon_delay, camera_markers=not args.no_camera_markers)
 
 with open(args.labels, "r") as stream:
     try:
@@ -63,6 +64,7 @@ print(f"Loaded labels: {labels}")
 # import transformation
 T = np.load(args.extrinsic)
 
+print(f"using extrinsics: {T}")
 
 # reading events
 print('Loading events... (may take a while)')

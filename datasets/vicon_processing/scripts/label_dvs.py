@@ -5,6 +5,7 @@ import yaml
 import cv2
 import argparse
 
+sys.path.append('/home/schiavazza/code/hpe/hpe-core/datasets/')
 sys.path.append('/local_code/hpe-core/datasets/')
 
 from vicon_processing.src.data_helpers import DvsLabeler, DvsHelper
@@ -38,7 +39,7 @@ with open(args.calib_labels, "r") as stream:
         print(exc)
 
 # TODO make the times a parameter that can be set
-frame_times = np.linspace(0.1, 1.2, 5)
+frame_times = np.linspace(2, 15, 5)
 labeler = DvsLabeler(dvs_helper.events, (720, 1280, 3))
-out = labeler.label_data(frame_times, labels, duration=0.007)
+out = labeler.label_data(frame_times, labels, duration=0.01)
 labeler.save_labeled_points(args.output_path)

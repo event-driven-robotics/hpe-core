@@ -9,6 +9,7 @@ from matplotlib.patches import Rectangle
 from tqdm import tqdm
 import argparse
 
+sys.path.append('/home/schiavazza/code/hpe/hpe-core/datasets/')
 sys.path.append('/local_code/hpe-core/datasets/')
 
 from vicon_processing.src.projection import ProjectionHelper
@@ -74,6 +75,6 @@ proj_helper.import_camera_calbration(args.intrinsic);
 proj_helper.image_points
 
 # find transform
-T = proj_helper.find_R_t()
+T = proj_helper.find_R_t_opencv()
 
 np.save(args.output_path, T)
