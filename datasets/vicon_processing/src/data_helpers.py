@@ -314,7 +314,7 @@ class DvsHelper():
 
 class DvsLabeler():
 
-    def __init__(self, events, img_shape):
+    def __init__(self, img_shape, events=None):
 
         self.events = events
         self.img_shape = img_shape
@@ -327,7 +327,24 @@ class DvsLabeler():
         if event == cv2.EVENT_LBUTTONDOWN:
             print(f"{x}, {y}")
 
-    def label_data(self, times, labels, duration=0.02):
+    def generate_frames(self, times, save_folder, duration=0.02):
+        self.dvs_frames = []
+
+        if not os.path.exists(save_folder):
+            os.makedirs(save_folder)
+
+        for t in times:
+            dvs_frame = utils.extract_frame(self.events, t, t+duration, self.img_shape)
+            self.dvs_frames.append(dvs_frame)
+
+            cv2.imwrite(os.path.join(save_folder, f"frame_{t}.png"), dvs_frame)
+
+        # save frames times
+        np.savetxt(os.path.join(save_folder, "times.txt"), times, fmt="%.9f")
+
+        return save_folder
+
+    def label_data(self, frames_folder, labels):
         """
         Create the labels for the image points. The parameter 'times' controlls at which times
         the labels are recorded. 
@@ -339,16 +356,24 @@ class DvsLabeler():
         }
         self.dvs_frames = []
 
-        for t in times:
-            dvs_frame = utils.extract_frame(self.events, t, t+duration, self.img_shape)
+        for filenameext in os.listdir(frames_folder):
+            file_name, ext = os.path.splitext(filenameext)
+            if ext != ".png":
+                continue
+
+            dvs_frame = cv2.imread(os.path.join(frames_folder, filenameext))
             self.dvs_frames.append(dvs_frame)
 
             # extract the points
             points_dict, frame = self.label_frame(dvs_frame, labels)
 
-            cv2.imwrite(f"/home/schiavazza/code/hpe/vicon_recordings/data/frame_{t}.png", frame)
+            labeled_folder_path = os.path.join(frames_folder, "labelled/")
+            cv2.imwrite(os.path.join(labeled_folder_path, filenameext), frame)
 
             dict_out['points'].append(points_dict)
+        
+        times = np.loadtxt(os.path.join(frames_folder, "times.txt"))
+        for t in times:
             dict_out['times'].append(t)
 
         cv2.destroyWindow('image')
