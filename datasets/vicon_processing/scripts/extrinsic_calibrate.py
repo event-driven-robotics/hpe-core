@@ -78,4 +78,6 @@ proj_helper.image_points
 # find transform
 T = proj_helper.find_R_t_opencv()
 
+print(f"\nEstimated Transform: \n{T}\n")
+
 np.save(args.output_path, T)

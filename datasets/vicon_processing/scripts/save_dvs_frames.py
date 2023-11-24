@@ -29,7 +29,7 @@ dvs_helper = DvsHelper(dvs_file_path)
 dvs_helper.read_events()
 
 # TODO make the times a parameter that can be set
-frame_times = np.linspace(2, 15, 5)
+frame_times = np.linspace(1, 15, 20)
 labeler = DvsLabeler((720, 1280, 3), dvs_helper.events)
 frames_folder = labeler.generate_frames(frame_times, args.output_path, duration=0.05)
 

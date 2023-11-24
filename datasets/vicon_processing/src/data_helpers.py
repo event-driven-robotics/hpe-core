@@ -337,7 +337,7 @@ class DvsLabeler():
             dvs_frame = utils.extract_frame(self.events, t, t+duration, self.img_shape)
             self.dvs_frames.append(dvs_frame)
 
-            cv2.imwrite(os.path.join(save_folder, f"frame_{t}.png"), dvs_frame)
+            cv2.imwrite(os.path.join(save_folder, f"frame_{int(t)}.png"), dvs_frame)
 
         # save frames times
         np.savetxt(os.path.join(save_folder, "times.txt"), times, fmt="%.9f")
@@ -367,8 +367,15 @@ class DvsLabeler():
             # extract the points
             points_dict, frame = self.label_frame(dvs_frame, labels)
 
-            labeled_folder_path = os.path.join(frames_folder, "labelled/")
-            cv2.imwrite(os.path.join(labeled_folder_path, filenameext), frame)
+            labeled_folder_path = os.path.join(frames_folder, "labeled")
+            if not os.path.exists(labeled_folder_path):
+                os.makedirs(labeled_folder_path)
+            file_save_path = os.path.join(labeled_folder_path, filenameext)
+
+            try:
+                cv2.imwrite(file_save_path, frame)
+            except Exception as e:
+                print(e)
 
             dict_out['points'].append(points_dict)
         
@@ -414,6 +421,10 @@ class DvsLabeler():
 
             if current_label_id >= len(labels):
                 finished = True
+
+        img = np.copy(frame)
+        for p in points:
+            cv2.circle(img, np.asarray(p, dtype=int), 6, (255, 0, 0), -1)
 
         points_dict = {}
         for p, l in zip(points, labels):

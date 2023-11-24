@@ -160,19 +160,28 @@ class ProjectionHelper():
         return T
     
     def find_R_t_opencv(self):
+        T, s = self._find_R_t_opencv()
+        return T
+    
+    def _find_R_t_opencv(self):
         proj_points = np.copy(self.world_points[:, :-1])
         img_points = np.copy(self.image_points[:, :-1])
 
-        s, r, t = cv2.solvePnP(proj_points, 
+        s, r, t, e = cv2.solvePnPGeneric(proj_points, 
                     img_points, 
                     self.K, self.D, flags=cv2.SOLVEPNP_SQPNP)
+        
+        r = r[0]
+        t = t[0]
+        e = e[0][0]
+        
         
         T = np.zeros((4, 4))
         T[:3, :3] = Rotation.from_rotvec(r.reshape(3, )).as_matrix()
         T[:3, -1] = t.reshape(3, )
         T[-1, -1] = 1.0
 
-        return T
+        return T, e
     
     def find_R_t_opencv_ransac(self):
         T, s = self._find_R_t_opencv_ransac()
