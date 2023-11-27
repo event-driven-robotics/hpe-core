@@ -333,14 +333,22 @@ class DvsLabeler():
         if not os.path.exists(save_folder):
             os.makedirs(save_folder)
 
+        save_data = []
+
         for t in times:
             dvs_frame = utils.extract_frame(self.events, t, t+duration, self.img_shape)
             self.dvs_frames.append(dvs_frame)
 
-            cv2.imwrite(os.path.join(save_folder, f"frame_{int(t)}.png"), dvs_frame)
+            img_path = os.path.join(save_folder, f"frame_{str(t)}.png")
+            cv2.imwrite(img_path, dvs_frame)
+
+            save_data.append([t, f"frame_{str(t)}.png"])
 
         # save frames times
-        np.savetxt(os.path.join(save_folder, "times.txt"), times, fmt="%.9f")
+        # np.savetxt(os.path.join(save_folder, "times.txt"), times, fmt="%.9f")
+
+        with open(os.path.join(save_folder, "times.yml"), 'w') as f:
+            yaml.dump(save_data, f, default_flow_style=False)
 
         return save_folder
 
@@ -356,10 +364,16 @@ class DvsLabeler():
         }
         self.dvs_frames = []
 
-        for filenameext in os.listdir(frames_folder):
+        with open(os.path.join(frames_folder, "times.yml")) as f:
+            times = yaml.load(f, Loader=yaml.Loader)
+
+        print(times)
+
+        for t, filenameext in times:
             file_name, ext = os.path.splitext(filenameext)
             if ext != ".png":
                 continue
+            print(f"Labeling {filenameext}")
 
             dvs_frame = cv2.imread(os.path.join(frames_folder, filenameext))
             self.dvs_frames.append(dvs_frame)
@@ -378,9 +392,6 @@ class DvsLabeler():
                 print(e)
 
             dict_out['points'].append(points_dict)
-        
-        times = np.loadtxt(os.path.join(frames_folder, "times.txt"))
-        for t in times:
             dict_out['times'].append(t)
 
         cv2.destroyWindow('image')
