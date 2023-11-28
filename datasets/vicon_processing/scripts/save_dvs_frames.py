@@ -21,21 +21,22 @@ parser.add_argument('--output_path',
                     required=True)
 parser.add_argument('--n_frames',
                     help='Number of frames to generate, the frames will be taken between start_time and end_time with linspace', 
-                    default = 5)
+                    default = 5, type=int)
 parser.add_argument('--start_time',
                     help='Start time from which to take the frames, default: 2.0', 
-                    default = 2.0)
+                    default = 2.0, type=float)
 parser.add_argument('--end_time',
                     help='End time for taking the frames, default: 15.0', 
-                    default = 15.0)
+                    default = 15.0, type=float)
 args = parser.parse_args()
+
+frame_times = np.linspace(args.start_time, args.end_time, args.n_frames)
 
 # import the DVS data
 dvs_file_path = args.dvs_path
 dvs_helper = DvsHelper(dvs_file_path)
 dvs_helper.read_events()
 
-frame_times = np.linspace(args.start_time, args.end_time, args.n_frames)
 labeler = DvsLabeler((720, 1280, 3), dvs_helper.events)
 frames_folder = labeler.generate_frames(frame_times, args.output_path, duration=0.005)
 
