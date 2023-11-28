@@ -379,7 +379,10 @@ class DvsLabeler():
             self.dvs_frames.append(dvs_frame)
 
             # extract the points
-            points_dict, frame = self.label_frame(dvs_frame, labels)
+            success, points_dict, frame = self.label_frame(dvs_frame, labels)
+            if not success:
+                continue
+
 
             labeled_folder_path = os.path.join(frames_folder, "labeled")
             if not os.path.exists(labeled_folder_path):
@@ -428,7 +431,10 @@ class DvsLabeler():
             cv2.imshow("image", img)
 
             cv2.setMouseCallback('image', on_click)
-            cv2.waitKey(100)
+            c = cv2.waitKey(100)
+            if ' ' == chr(c & 255):
+                print("space pressed, skipping")
+                return False, None, None
 
             if current_label_id >= len(labels):
                 finished = True
@@ -444,4 +450,4 @@ class DvsLabeler():
                 'y': int(p[1])
             }
 
-        return points_dict, img
+        return True, points_dict, img
