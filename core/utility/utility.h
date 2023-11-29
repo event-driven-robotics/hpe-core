@@ -248,7 +248,7 @@ inline skeleton13 body25_to_dhp19(const skeleton25 skeleton_in)
     return skeleton_out;
 }
 
-inline void drawSkeleton(cv::Mat &image, const stampedPose sk, std::array<int, 3> color = {0, 0, 200}, int th =1, int conf_th = 0.4) 
+inline void drawSkeleton(cv::Mat &image, const stampedPose sk, std::array<int, 3> color = {0, 0, 200}, int th =1, double conf_th = 0.4) 
 {
     skeleton13_b jb = jointTest(sk, conf_th);
     skeleton13_v jv = jointConvert(sk.pose);
@@ -291,7 +291,7 @@ inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 
     drawSkeleton(image, sk, color, th);
 }
 
-inline void drawVel(cv::Mat &image, const stampedPose sk, const skeleton13_vel vel, std::array<int, 3> color = {0, 0, 200}, int th =1, int conf_th = 0.4) 
+inline void drawVel(cv::Mat &image, const stampedPose sk, const skeleton13_vel vel, std::array<int, 3> color = {0, 0, 200}, int th =1, double conf_th = 0.4) 
 {
     skeleton13_b jb = jointTest(sk, conf_th);
     skeleton13_v jv = jointConvert(sk.pose);
