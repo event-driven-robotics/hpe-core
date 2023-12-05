@@ -99,15 +99,15 @@ def get_projected_points(frame_id):
 # Define the codec and create VideoWriter object
 resolution = args.camera_resolution
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-out = cv2.VideoWriter(args.output_path, fourcc, 30.0, resolution)
+out = cv2.VideoWriter(args.output_path, fourcc, 100.0, resolution)
 
-for i in tqdm(range(c3d_helper.reader.first_frame, int(c3d_helper.reader.frame_count), 3)):
+for i in tqdm(range(c3d_helper.reader.first_frame, int(c3d_helper.reader.frame_count), 1)):
     projected_points = get_projected_points(i);
     
     frame = np.ones((resolution[1], resolution[0], 3), dtype=np.uint8)
 
     ts_start = c3d_helper.frame_times[i]
-    frame = utils.extract_frame(dvs_helper.events, ts_start, ts_start + 0.01, (resolution[1], resolution[0], 3))
+    frame = utils.extract_frame(dvs_helper.events, ts_start - 0.0025, ts_start + 0.0025, (resolution[1], resolution[0], 3))
 
     frame = vis_utils.plot_2d_points(frame, projected_points)
     out.write(frame.astype(np.uint8))
