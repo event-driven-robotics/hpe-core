@@ -82,12 +82,12 @@ def plot_frame(ax, T, arrow_length=200):
 
     ax.quiver(X, Y, Z, U, V, W, colors=colors, length=arrow_length, normalize=True)
 
-def plot_2d_points(frame, points, color=(255, 0, 0)):
+def plot_2d_points(frame, points, color=(255, 0, 0), size = 8):
     
     for p in points:
         if np.isnan(p).any():
             continue
-        cv2.circle(frame, p[:2].astype(int), 8, color, -1)
+        cv2.circle(frame, p[:2].astype(int), size, color, -1)
 
     return frame
 
