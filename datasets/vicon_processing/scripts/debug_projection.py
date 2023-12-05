@@ -45,7 +45,8 @@ args = parser.parse_args()
 # import the DVS data
 dvs_file_path = args.dvs_path
 dvs_helper = DvsHelper(dvs_file_path)
-
+dvs_helper.read_events()
+dvs_move_time = dvs_helper.find_start_moving_time()
 
 # load c3d vicon data
 c3d_file_path = args.vicon_path
@@ -67,7 +68,11 @@ T = np.load(args.extrinsic)
 
 print(f"using extrinsics: {T}")
 
-c3d_helper.find_start_time()
+vicon_move_time = c3d_helper.find_start_moving_time()
+time_difference = dvs_move_time - vicon_move_time
+print(f"found time difference: {time_difference}")
+c3d_helper.set_delay(time_difference)
+
 
 proj_helper = ProjectionHelper()
 proj_helper.import_camera_calbration(args.intrinsic);

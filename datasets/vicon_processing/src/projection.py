@@ -161,6 +161,7 @@ class ProjectionHelper():
     
     def find_R_t_opencv(self):
         T, s = self._find_R_t_opencv()
+        print(f"Error at the end: {s}")
         return T
     
     def _find_R_t_opencv(self):
@@ -200,7 +201,7 @@ class ProjectionHelper():
         T[:3, -1] = t.reshape(3, )
         T[-1, -1] = 1.0
 
-        return T, s
+        return T, inl
 
     def find_R_t(self, constrain_translation=False):
         T, result = self._find_R_t(constrain_translation=constrain_translation)

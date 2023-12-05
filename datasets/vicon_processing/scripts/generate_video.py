@@ -71,7 +71,11 @@ print('Loading events... (may take a while)')
 dvs_helper.read_events()
 print('Done loading events, generating video...')
 
-c3d_helper.find_start_time()
+dvs_move_time = dvs_helper.find_start_moving_time()
+vicon_move_time = c3d_helper.find_start_moving_time()
+time_difference = dvs_move_time - vicon_move_time
+print(f"found time difference: {time_difference}")
+c3d_helper.set_delay(time_difference)
 
 proj_helper = ProjectionHelper()
 proj_helper.import_camera_calbration(args.intrinsic);
