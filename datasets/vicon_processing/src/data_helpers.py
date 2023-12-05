@@ -26,6 +26,7 @@ class C3dHelper:
         self.camera_markers = camera_markers
         if not self.camera_markers:
             print("Selected the option to not use the markers on the camera, the identity transformation will be used instead")
+        
         self.calculate_frame_times()
 
         # the obtained transforms are saved in a dict for later use if needed
@@ -33,10 +34,29 @@ class C3dHelper:
         self.markers_T = {}
         self.process_all_frames()
 
+    def find_start_moving_time(self):
+        """Finds the time when the camera starts moving
+        This can be used for synchorinizing the dvs data"""
 
+        poses = []
+        for i in range(1, self.reader.frame_count):
+            T = self.marker_T_at_frame_vector(i)
+            poses.append(T)
+        poses = np.array(poses)
+
+        # find the start time
+        # search when the variation in pose between frames is more that 3
+        # TODO adjust value and make configurable
+        idx  = np.argmax(
+            np.abs(np.diff(poses[:, 0, 3])) > 3)
+ 
+        vicon_start_moving = self.frame_times[idx]
+        return vicon_start_moving
+        
 
     def find_start_time_stick(self):
         """
+        NOT USED ANYMORE
         To synchronize the camera recording and the vicon data
         we take as start time the moment the lights on the calibration 
         stick turn on. 
@@ -70,23 +90,24 @@ class C3dHelper:
         self.start_time = start_frame_id * time_step
         return self.start_time
     
-    def calculate_frame_times(self):
+    def set_delay(self, delay):
+        self.delay = delay
+        self.calculate_frame_times()
 
-        self.find_start_time()
-        self.start_time += self.delay
+    def calculate_frame_times(self):
+        """Each frame does not have a timestamp, however the realative times 
+        can be calculated from the known fixed rate """
+
+        self.start_time = 0.0
+        self.start_time -= self.delay
 
         rate = self.reader.point_rate # vicon rate
         time_step = 1.0 / rate # t between frames
 
-        n_points= []
-        for i, points, analog in self.reader.read_frames():
-            valid_points = points[points[:, 0] > 0.0]
-            n_points.append(valid_points.shape[0])
-
-        times = np.linspace(0, self.reader.frame_count * time_step,
+        times = np.linspace(self.start_time, self.reader.frame_count * time_step,
                     self.reader.frame_count)
         # the zero time is when the calibration stick lights turn on
-        times -= self.start_time
+        
         self.frame_times = times
 
         return self.frame_times
@@ -284,14 +305,10 @@ class DvsHelper():
 
         self.loaded_events = False
         self.file_path = file_path
-        try:
-            self.flash_time = self.read_annotation(file_path)
-        except Exception as e:
-            print("no manual zero time found, using zero instead")
-            self.flash_time = 0.0
 
     def read_annotation(self, file_path):
         """
+        NOT USED ANYMORE
         The annotation is only the flash time in the dvs recording
         the time needs to be labelled manually. Using mustard the data is
         saved in a file ground_truth.csv
@@ -314,9 +331,6 @@ class DvsHelper():
         dvs_data = importIitYarp(filePathOrName=self.file_path)
         self.events = dvs_data['data']['left']['dvs']
 
-        # adjust the time given the synchronized beginning
-        self.events['ts'] -= self.flash_time
-
         self.loaded_events = True
 
         return self.events
@@ -332,6 +346,22 @@ class DvsHelper():
 
         self.labeled_points = data_loaded
         return self.labeled_points
+    
+    def find_start_moving_time(self):
+        """The camera start moving time is determined by the event rate
+        The time can then be used to synchronize the dvs with the vicon data"""
+        if not self.loaded_events:
+            self.read_events()
+
+        # search only the first 2 seconds
+        id_range_end = np.searchsorted(self.events['ts'], 2.0)
+        times = self.events['ts'][:id_range_end]
+        duration = times[-1]- times[0]
+        time_bins = np.linspace(times[0], times[-1], int(1000 * duration)) # 1000 bins per second
+
+        hist, bin_edges = np.histogram(times, time_bins)
+        idx = np.argmax(np.diff(hist) > 1000)
+        return bin_edges[idx]
 
 class DvsLabeler():
 
