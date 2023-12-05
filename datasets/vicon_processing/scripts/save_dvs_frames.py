@@ -38,6 +38,6 @@ dvs_helper = DvsHelper(dvs_file_path)
 dvs_helper.read_events()
 
 labeler = DvsLabeler((720, 1280, 3), dvs_helper.events)
-frames_folder = labeler.generate_frames(frame_times, args.output_path, duration=0.005)
+frames_folder = labeler.generate_frames(frame_times, args.output_path, duration=0.02)
 
 print(f"created frames and saved them in {frames_folder} \n the frames times are saved in the .txt file")

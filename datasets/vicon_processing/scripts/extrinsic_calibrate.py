@@ -62,7 +62,7 @@ c3d_helper.reader.frame_count
 
 vicon_labeled_frames = c3d_helper.get_frame_time(labels_times)
 print(c3d_helper.frame_times)
-vicon_points = c3d_helper.get_vicon_points(vicon_labeled_frames, labels)
+vicon_points = c3d_helper.get_vicon_points_interpolated(vicon_labeled_frames, labels, labels_times)
 vicon_points_mark = c3d_helper.transform_points_to_marker_frame(vicon_points)
 # vicon_points_mark = vicon_points
 print(vicon_labeled_frames)
@@ -76,7 +76,7 @@ proj_helper.import_camera_calbration(args.intrinsic);
 proj_helper.image_points
 
 # find transform
-T = proj_helper.find_R_t_opencv()
+T = proj_helper.find_R_t()
 
 print(f"\nEstimated Transform: \n{T}\n")
 

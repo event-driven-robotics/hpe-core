@@ -33,7 +33,9 @@ class C3dHelper:
         self.markers_T = {}
         self.process_all_frames()
 
-    def find_start_time(self):
+
+
+    def find_start_time_stick(self):
         """
         To synchronize the camera recording and the vicon data
         we take as start time the moment the lights on the calibration 
@@ -120,7 +122,7 @@ class C3dHelper:
         }
         return new_dict
 
-    def marker_T_at_frame_vector(self, frame_id):
+    def marker_T_at_frame_vector(self, frame_id, time=-1):
         """
         This method returns the tranformation T that described the frame of reference defined by
         the 3 marker placed on the camera.
@@ -131,48 +133,17 @@ class C3dHelper:
         if not self.camera_markers:
             return np.eye(4) 
         
-        # different sequences sometime use different labels for the camera markers
-        # this should not be necessary in the final version. The vicon processing should keep the labels consistent.
-        try:
-            labels = [
-                'event_camera:side',
-                'event_camera:front',
-                'event_camera:top'
-                ]
-            camera_points = self.filter_dict_labels(self.get_points_dict(frame_id), labels)
-            camera_front = camera_points['event_camera:front'][:3]
-            camera_side = camera_points['event_camera:side'][:3]
-            camera_top = camera_points['event_camera:top'][:3]
-        except:
-            pass
-
-        try:
-            labels = [
-                'camera:side',
-                'camera:front',
-                'camera:top'
-                ]
-            camera_points = self.filter_dict_labels(self.get_points_dict(frame_id), labels)
-            camera_front = camera_points['camera:front'][:3]
-            camera_side = camera_points['camera:side'][:3]
-            camera_top = camera_points['camera:top'][:3]
-        except Exception as e:
-            # print(e)
-            pass
-        
-        # TODO remove, just for test
-        try:
-            labels = [
-                'camera:cam_back',
-                'camera:cam_right',
-                'camera:cam_left'
-                ]
-            camera_points = self.filter_dict_labels(self.get_points_dict(frame_id), labels)
-            camera_front = camera_points['camera:cam_right'][:3]
-            camera_side = camera_points['camera:cam_left'][:3]
-            camera_top = camera_points['camera:cam_back'][:3]
-        except Exception as e:
-            print(e)
+        labels = [
+            'camera:cam_back',
+            'camera:cam_right',
+            'camera:cam_left'
+            ]
+        camera_points = self.filter_dict_labels(self.get_points_dict(frame_id), labels)
+        if time > 0:
+            camera_points = self.get_vicon_points_interpolated([frame_id], labels, [time])['points'][0]
+        camera_front = camera_points['camera:cam_right'][:3]
+        camera_side = camera_points['camera:cam_left'][:3]
+        camera_top = camera_points['camera:cam_back'][:3]
             
         
         # mid point between top and side marker
@@ -206,6 +177,54 @@ class C3dHelper:
 
         return np.copy(T)
     
+    def interpolate_point_dict(self, dict_t1, dict_t2, f):
+        # desired time should be between 0.0 and 1.0
+
+        out_dict = {}
+
+        for l in dict_t1.keys():
+            p1 = dict_t1[l]
+            p2 = dict_t2[l]
+
+            p_n = p1 + (p2 - p1) * f
+            out_dict[l] = p_n
+
+        return out_dict
+
+    
+    def get_vicon_points_interpolated(self, frames_id, labels, desired_times):
+        """the frames is represent the ids of the frames corresponding to the label
+        times floored to match with a vicon frame. The next id gives the upper bound
+        We can use the two values to interpolate to the right time"""
+
+        # vicon_points_frames = [self.get_points_dict(idx) for idx in frames_id]
+        # vicon_points_frames = [self.filter_dict_labels(old_dict, labels) 
+        #                     for old_dict in vicon_points_frames]
+        # vicon_points_frames = [self.interpolate_point_dict(old_dict, f_id, des_t) 
+        #                     for old_dict, f_id, des_t in zip(vicon_points_frames, frames_id, desired_times)]
+        vicon_points_frames = []
+        for idx, d_t in zip(frames_id, desired_times):
+            vicon_points_frame_t1 = self.get_points_dict(idx - 1)
+            vicon_points_frame_t2 = self.get_points_dict(idx)
+
+            vicon_points_frame_t1 = self.filter_dict_labels(vicon_points_frame_t1, labels)
+            vicon_points_frame_t2 = self.filter_dict_labels(vicon_points_frame_t2, labels)
+
+            t1 = self.frame_times[idx - 1]
+            t2 = self.frame_times[idx]
+            f = (d_t - t1) / (t2 - t1)
+            vicon_points_frame = self.interpolate_point_dict(vicon_points_frame_t1, vicon_points_frame_t2, f)
+
+            vicon_points_frames.append(vicon_points_frame)
+        
+        out = {
+            'points': vicon_points_frames,
+            'times': desired_times,
+            'frame_ids': (frames_id)
+        }
+        
+        return out
+    
     def get_vicon_points(self, frames_id, labels):
         vicon_points_frames = [self.get_points_dict(idx) for idx in frames_id]
         vicon_points_frames = [self.filter_dict_labels(old_dict, labels) 
@@ -225,9 +244,11 @@ class C3dHelper:
 
         transformed_points = vicon_points.copy()
 
-        for f, points in zip(transformed_points['frame_ids'], transformed_points['points']):
+        for f, t,points in zip(transformed_points['frame_ids'], 
+                             transformed_points['times'],
+                             transformed_points['points']):
             try:
-                T  = self.marker_T_at_frame_vector(f)
+                T  = self.marker_T_at_frame_vector(f, time=t)
             except Exception as e:
                 T = np.eye(4)
 
@@ -426,7 +447,7 @@ class DvsLabeler():
             img = np.copy(frame)
             cv2.putText(img, f"Click on: {labels[current_label_id]}", (30, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
             for p in points:
-                cv2.circle(img, np.asarray(p, dtype=int), 6, (255, 0, 0), -1)
+                cv2.circle(img, np.asarray(p, dtype=int), 4, (255, 0, 0), -1)
             cv2.imshow("image", img)
 
             cv2.setMouseCallback('image', on_click)
