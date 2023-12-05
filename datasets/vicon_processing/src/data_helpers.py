@@ -31,6 +31,7 @@ class C3dHelper:
         # the obtained transforms are saved in a dict for later use if needed
         # the keys are the frame ids
         self.markers_T = {}
+        self.process_all_frames()
 
     def find_start_time(self):
         """
@@ -96,15 +97,14 @@ class C3dHelper:
         return frame_ids
     
     def get_points_frame(self, frame_id):
-        frame_points_all = None
+        assert frame_id > 0 and frame_id < self.reader.frame_count
+
+        return self.frame_points[frame_id]
+    
+    def process_all_frames(self):
+        self.frame_points = {}
         for i, points, analog in self.reader.read_frames():
-            if i == frame_id:
-                frame_points_all = points
-                break
-        if frame_points_all is not None:
-            return frame_points_all
-        print(f"The recording does not have the frame id {frame_id}")
-        return None
+            self.frame_points[i] = points
     
     def get_points_dict(self, frame_id):
         points = self.get_points_frame(frame_id)
@@ -421,7 +421,6 @@ class DvsLabeler():
             if event == cv2.EVENT_LBUTTONDOWN:
                 current_label_id += 1
                 points.append([x, y])
-                
                 
         while not finished:
             img = np.copy(frame)
