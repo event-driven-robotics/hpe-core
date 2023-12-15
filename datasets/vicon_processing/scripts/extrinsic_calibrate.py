@@ -35,6 +35,7 @@ parser.add_argument('--intrinsic',
 parser.add_argument('--output_path', help='path where to save the transformation that can be used as extrinsic calibration', required=True)
 parser.add_argument('--vicon_delay', default=0.0, type=float)
 parser.add_argument('--no_camera_markers', action=argparse.BooleanOptionalAction)
+parser.add_argument('--move_synch', action=argparse.BooleanOptionalAction)
 
 
 args = parser.parse_args()
@@ -46,9 +47,7 @@ dvs_helper = DvsHelper(dvs_file_path)
 dvs_helper.read_points_labels(args.annotated_points);
 # extract the time of the labeled points
 print(dvs_helper.labeled_points)
-labels_times = dvs_helper.labeled_points['times']
-dvs_helper.read_events()
-dvs_move_time = dvs_helper.find_start_moving_time()
+labels_times = dvs_helper.labeled_points['times'][:]
 
 print(labels_times)
 labels = list(dvs_helper.labeled_points['points'][0].keys())
@@ -60,10 +59,14 @@ c3d_file_path = args.vicon_path
 c3d_helper = C3dHelper(c3d_file_path, delay=args.vicon_delay, camera_markers=not args.no_camera_markers)
 print(f"Labels in c3d file{c3d_helper.reader.point_labels}")
 
-vicon_move_time = c3d_helper.find_start_moving_time()
-time_difference = dvs_move_time - vicon_move_time
-print(f"found time difference: {time_difference}")
-c3d_helper.set_delay(time_difference)
+if args.move_synch:
+    dvs_helper.read_events()
+    dvs_move_time = dvs_helper.find_start_moving_time()
+    
+    vicon_move_time = c3d_helper.find_start_moving_time()
+    time_difference = dvs_move_time - vicon_move_time
+    print(f"found time difference: {time_difference}")
+    c3d_helper.set_delay(time_difference)
 
 vicon_labeled_frames = c3d_helper.get_frame_time(labels_times)
 print(f"frame time for vicon: {c3d_helper.frame_times}")

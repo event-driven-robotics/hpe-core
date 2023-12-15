@@ -35,9 +35,10 @@ parser.add_argument('--intrinsic',
 parser.add_argument('--extrinsic', default='./config/extrinsic_test.npy')
 parser.add_argument('--frames_folder', help='path to frames folder', required=True)
 parser.add_argument('--all_points', default=False)
-parser.add_argument('--camera_resolution', default=(640, 480), nargs='+', type=int)
+parser.add_argument('--camera_resolution', default=(1280, 720), nargs='+', type=int)
 parser.add_argument('--vicon_delay', default=0.0, type=float)
 parser.add_argument('--no_camera_markers', action=argparse.BooleanOptionalAction)
+parser.add_argument('--move_synch', action=argparse.BooleanOptionalAction)
 
 args = parser.parse_args()
 
@@ -45,8 +46,6 @@ args = parser.parse_args()
 # import the DVS data
 dvs_file_path = args.dvs_path
 dvs_helper = DvsHelper(dvs_file_path)
-dvs_helper.read_events()
-dvs_move_time = dvs_helper.find_start_moving_time()
 
 # load c3d vicon data
 c3d_file_path = args.vicon_path
@@ -60,6 +59,7 @@ with open(args.labels, "r") as stream:
 
 if args.all_points:
     labels = [l.strip() for l in c3d_helper.reader.point_labels]
+    labels = labels[:]
 
 print(f"Loaded labels: {labels}")
 
@@ -68,10 +68,14 @@ T = np.load(args.extrinsic)
 
 print(f"using extrinsics: {T}")
 
-vicon_move_time = c3d_helper.find_start_moving_time()
-time_difference = dvs_move_time - vicon_move_time
-print(f"found time difference: {time_difference}")
-c3d_helper.set_delay(time_difference)
+if args.move_synch:
+    dvs_helper.read_events()
+    dvs_move_time = dvs_helper.find_start_moving_time()
+    
+    vicon_move_time = c3d_helper.find_start_moving_time()
+    time_difference = dvs_move_time - vicon_move_time
+    print(f"found time difference: {time_difference}")
+    c3d_helper.set_delay(time_difference)
 
 
 proj_helper = ProjectionHelper()
@@ -108,11 +112,19 @@ for t, filenameext in times:
     if ext != ".png":
         continue
 
-    labeled_folder = os.path.join(args.frames_folder, "labeled")
-    if not os.path.exists(os.path.join(labeled_folder, filenameext)):
-        continue
+    image_folder = os.path.join(args.frames_folder, "labeled")
+    if not os.path.exists(os.path.join(image_folder, filenameext)):
+        
+        # if the labeled frame is not available, show the non labeled one
+        image_folder = args.frames_folder
     
-    dvs_frame = cv2.imread(os.path.join(labeled_folder, filenameext))
+    img_path = os.path.join(image_folder, filenameext)
+    
+    try: 
+        dvs_frame = cv2.imread(img_path)
+    except Exception as e:
+        print(e)
+        continue
     projected_points = get_projected_points(t)
 
     dvs_frame = vis_utils.plot_2d_points(dvs_frame, projected_points, color=(0, 0, 255), size=4)
