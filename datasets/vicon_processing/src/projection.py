@@ -230,9 +230,6 @@ class ProjectionHelper():
         T[:3, -1] = t.reshape(3, )
         T[-1, -1] = 1.0
 
-<<<<<<< Updated upstream
-        return T, s
-=======
         # measure error
         if s is False:
             err = np.inf
@@ -244,7 +241,6 @@ class ProjectionHelper():
         
 
         return T, err
->>>>>>> Stashed changes
 
     def find_R_t(self, constrain_translation=False):
         T, result = self._find_R_t(constrain_translation=constrain_translation)
