@@ -159,6 +159,34 @@ class ProjectionHelper():
 
         return T
     
+    def find_R_t_opencv_refine(self):
+        T = self.find_R_t_opencv()
+
+        # measure error
+        r = np.array(Rotation.from_matrix(T[:3, :3]).as_rotvec())
+        t = np.array(T[:3, -1])
+        m = np.concatenate((r, t))
+        print(r)
+        print(t)
+
+        proj_points = np.copy(self.world_points[:, :-1])
+        img_points = np.copy(self.image_points[:, :-1])
+        r, t = cv2.solvePnPRefineLM(proj_points, img_points, self.K, self.D, r, t)
+
+        T = np.zeros((4, 4))
+        T[:3, :3] = Rotation.from_rotvec(r.reshape(3, )).as_matrix()
+        T[:3, -1] = t.reshape(3, )
+        T[-1, -1] = 1.0
+
+        # measure error
+        m = np.concatenate((r, t))
+        # m = np.squeeze(m, -1)
+        err = utils._geometric_error_with_K_2(m, self.world_points, self.image_points, self.K, self.D)
+        print(f"Error at the end: {err}")
+
+        return T
+        
+    
     def find_R_t_opencv(self):
         T, s = self._find_R_t_opencv()
         return T
@@ -188,19 +216,35 @@ class ProjectionHelper():
         return T
     
     def _find_R_t_opencv_ransac(self):
+
         proj_points = np.copy(self.world_points[:, :-1])
         img_points = np.copy(self.image_points[:, :-1])
 
         s, r, t, inl = cv2.solvePnPRansac(proj_points, 
                     img_points, 
-                    self.K, self.D)
+                    self.K, self.D,
+                    reprojectionError=7)
         
         T = np.zeros((4, 4))
         T[:3, :3] = Rotation.from_rotvec(r.reshape(3, )).as_matrix()
         T[:3, -1] = t.reshape(3, )
         T[-1, -1] = 1.0
 
+<<<<<<< Updated upstream
         return T, s
+=======
+        # measure error
+        if s is False:
+            err = np.inf
+        else:
+            m = np.concatenate((r, t))
+            m = np.squeeze(m, -1)
+            err = utils._geometric_error_with_K_2(m, self.world_points[inl[:, 0]], self.image_points[inl[:, 0]], self.K, self.D)
+        print(f"Error at the end: {err}")
+        
+
+        return T, err
+>>>>>>> Stashed changes
 
     def find_R_t(self, constrain_translation=False):
         T, result = self._find_R_t(constrain_translation=constrain_translation)
