@@ -68,7 +68,7 @@ def _geometric_error_with_K_2(m, world_points, image_points, K, D):
         #     K
         # )
 
-        return (np.linalg.norm(image_points[:, :2] - projected, axis=1)).sum()
+        return ((np.linalg.norm(image_points[:, :2] - projected, axis=1))).mean()
 
 def project_to_frame(points, K):
     """

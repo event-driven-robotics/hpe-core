@@ -189,6 +189,7 @@ class ProjectionHelper():
     
     def find_R_t_opencv(self):
         T, s = self._find_R_t_opencv()
+        print(f"Error at the end: {s}")
         return T
     
     def _find_R_t_opencv(self):

@@ -37,6 +37,7 @@ parser.add_argument('--all_points', default=False)
 parser.add_argument('--camera_resolution', default=(640, 480), nargs='+', type=int)
 parser.add_argument('--vicon_delay', default=0.0, type=float)
 parser.add_argument('--no_camera_markers', action=argparse.BooleanOptionalAction)
+parser.add_argument('--move_synch', action=argparse.BooleanOptionalAction)
 
 args = parser.parse_args()
 
@@ -66,12 +67,17 @@ T = np.load(args.extrinsic)
 
 print(f"using extrinsics: {T}")
 
-# reading events
-print('Loading events... (may take a while)')
-dvs_helper.read_events()
-print('Done loading events, generating video...')
+if args.move_synch:
+    # reading events
+    print('Loading events... (may take a while)')
+    dvs_helper.read_events()
+    print('Done loading events, generating video...')
 
-c3d_helper.find_start_time()
+    dvs_move_time = dvs_helper.find_start_moving_time()
+    vicon_move_time = c3d_helper.find_start_moving_time()
+    time_difference = dvs_move_time - vicon_move_time
+    print(f"found time difference: {time_difference}")
+    c3d_helper.set_delay(time_difference)
 
 proj_helper = ProjectionHelper()
 proj_helper.import_camera_calbration(args.intrinsic);
