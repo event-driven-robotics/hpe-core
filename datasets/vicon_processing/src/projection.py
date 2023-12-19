@@ -65,9 +65,6 @@ class ProjectionHelper():
         self.world_points = world_points
         self.image_points = image_points
 
-        print(f"Number of 3d points: {len(self.world_points)}")
-        print(f"Number of image points: {len(self.image_points)}")
-
         assert self.world_points.shape[0] == self.image_points.shape[0], "Not equal numbers of image and 3D points"
 
     def undistort_image_points(self):
@@ -239,7 +236,6 @@ class ProjectionHelper():
             m = np.squeeze(m, -1)
             err = utils._geometric_error_with_K_2(m, self.world_points[inl[:, 0]], self.image_points[inl[:, 0]], self.K, self.D)
         print(f"Error at the end: {err}")
-        
 
         return T, err
 
@@ -373,3 +369,12 @@ class ProjectionHelper():
     def project_to_frame_opencv(self, points):
         rep_points, _ = cv2.projectPoints(points[:, :-1], np.zeros((3,)), np.zeros((3,)), self.K, self.D)
         return np.hstack((rep_points[:, 0, :], np.ones((rep_points.shape[0], 1))))
+    
+    def measure_error(self, T):
+
+        r = Rotation.from_matrix(T[:3, :3]).as_euler('XYZ')
+        t = T[:3, -1]
+        m = np.concatenate((r, t))
+
+        return utils._geometric_error_with_K_2(m, self.world_points, self.image_points, 
+                                               self.K, self.D)

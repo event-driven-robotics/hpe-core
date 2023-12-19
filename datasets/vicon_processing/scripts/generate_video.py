@@ -33,7 +33,7 @@ parser.add_argument('--intrinsic',
                     help='intrinsic calibration for the camera')
 parser.add_argument('--extrinsic', default='./config/extrinsic_test.npy')
 parser.add_argument('--output_path', help='path to output video', required=True)
-parser.add_argument('--all_points', default=False)
+parser.add_argument('--all_points', action=argparse.BooleanOptionalAction)
 parser.add_argument('--camera_resolution', default=(640, 480), nargs='+', type=int)
 parser.add_argument('--vicon_delay', default=0.0, type=float)
 parser.add_argument('--no_camera_markers', action=argparse.BooleanOptionalAction)
@@ -45,6 +45,9 @@ args = parser.parse_args()
 # import the DVS data
 dvs_file_path = args.dvs_path
 dvs_helper = DvsHelper(dvs_file_path)
+print('Loading events... (may take a while)')
+dvs_helper.read_events()
+print('Done loading events, generating video...')
 
 
 # load c3d vicon data
@@ -68,11 +71,6 @@ T = np.load(args.extrinsic)
 print(f"using extrinsics: {T}")
 
 if args.move_synch:
-    # reading events
-    print('Loading events... (may take a while)')
-    dvs_helper.read_events()
-    print('Done loading events, generating video...')
-
     dvs_move_time = dvs_helper.find_start_moving_time()
     vicon_move_time = c3d_helper.find_start_moving_time()
     time_difference = dvs_move_time - vicon_move_time
@@ -113,9 +111,9 @@ for i in tqdm(range(c3d_helper.reader.first_frame, int(c3d_helper.reader.frame_c
     frame = np.ones((resolution[1], resolution[0], 3), dtype=np.uint8)
 
     ts_start = c3d_helper.frame_times[i]
-    frame = utils.extract_frame(dvs_helper.events, ts_start - 0.0025, ts_start + 0.0025, (resolution[1], resolution[0], 3))
+    frame = utils.extract_frame(dvs_helper.events, ts_start, ts_start + 0.005, (resolution[1], resolution[0], 3))
 
-    frame = vis_utils.plot_2d_points(frame, projected_points)
+    frame = vis_utils.plot_2d_points(frame, projected_points, size=5)
     out.write(frame.astype(np.uint8))
 
 out.release()

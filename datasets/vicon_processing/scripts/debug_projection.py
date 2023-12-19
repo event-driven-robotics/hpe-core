@@ -34,7 +34,7 @@ parser.add_argument('--intrinsic',
                     help='intrinsic calibration for the camera')
 parser.add_argument('--extrinsic', default='./config/extrinsic_test.npy')
 parser.add_argument('--frames_folder', help='path to frames folder', required=True)
-parser.add_argument('--all_points', default=False)
+parser.add_argument('--all_points', action=argparse.BooleanOptionalAction)
 parser.add_argument('--camera_resolution', default=(1280, 720), nargs='+', type=int)
 parser.add_argument('--vicon_delay', default=0.0, type=float)
 parser.add_argument('--no_camera_markers', action=argparse.BooleanOptionalAction)
