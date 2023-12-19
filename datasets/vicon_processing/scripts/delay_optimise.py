@@ -1,5 +1,6 @@
 import numpy as np
 import sys
+import os
 import matplotlib.pyplot as plt
 import matplotlib.animation
 import yaml
@@ -8,6 +9,7 @@ from scipy.spatial.transform import Rotation
 from matplotlib.patches import Rectangle
 from tqdm import tqdm
 import argparse
+import scipy.optimize
 
 sys.path.append('/home/schiavazza/code/hpe/hpe-core/datasets/')
 sys.path.append('/local_code/hpe-core/datasets/')
@@ -53,8 +55,8 @@ print(labels)
 min_error = np.inf
 best_delay = 0.2
 
-for delay in tqdm(np.linspace(0.22, 0.4, 100)):
-    # load c3d vicon data
+def error_delay(delay):
+
     c3d_file_path = args.vicon_path
     c3d_helper = C3dHelper(c3d_file_path, delay=delay, camera_markers=not args.no_camera_markers)
 
@@ -74,8 +76,11 @@ for delay in tqdm(np.linspace(0.22, 0.4, 100)):
     error = proj_helper.measure_error(T)
     # print(f"measured error for d:{delay} -> {error}")
 
-    if error < min_error:
-        min_error = error
-        best_delay = delay
+    return error
 
+res = scipy.optimize.minimize(error_delay, 0.0, tol=1e-6, bounds=[(0.0, None)])
+
+print(res)
+best_delay = res.x[0]
 print(f"Best delay: {best_delay}")
+np.savetxt(os.path.join(args.dvs_path, "../vicon_d_delay.txt"), [best_delay], fmt="%.9f")
