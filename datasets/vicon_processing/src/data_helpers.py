@@ -99,13 +99,14 @@ class C3dHelper:
         can be calculated from the known fixed rate """
 
         self.start_time = 0.0
-        self.start_time -= self.delay
+        # self.start_time -= self.delay
 
         rate = self.reader.point_rate # vicon rate
         time_step = 1.0 / rate # t between frames
 
         times = np.linspace(self.start_time, self.reader.frame_count * time_step,
                     self.reader.frame_count)
+        times -= self.delay
         # the zero time is when the calibration stick lights turn on
         
         self.frame_times = times
@@ -387,7 +388,8 @@ class DvsLabeler():
         save_data = []
 
         for t in times:
-            dvs_frame = utils.extract_frame(self.events, t, t+duration, self.img_shape)
+            min_t = max(0.0, t-duration)
+            dvs_frame = utils.extract_frame(self.events, min_t, t, self.img_shape)
             self.dvs_frames.append(dvs_frame)
 
             img_path = os.path.join(save_folder, f"frame_{str(t)}.png")
