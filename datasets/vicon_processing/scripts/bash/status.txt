@@ -1,0 +1,143 @@
+box_f1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+box_s1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+drum_f1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+drum_s1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+jump_f1: 
+	static: 
+		FAIL 
+	dynamic: 
+		FAIL 
+jump_f2: 
+	static: 
+		FAIL 
+	dynamic: 
+		FAIL 
+jump_s1: 
+	static: 
+		SUCCESS 
+jump_s2: 
+	static: 
+		FAIL 
+	dynamic: 
+		FAIL 
+march_f1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+march_s1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+mix_f1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+mix_s1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+monkey_f1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+monkey_s1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+pick_f1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+pick_s1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+pour_f1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+pour_s1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+side_f1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+side_s1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+sit-drum_f1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+sit-drum_s1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+sit_f1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+sit-mix_f1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+sit-mix_s1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+sit-pour_f1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+sit-pour_s1: 
+sit-pour_s2: 
+sit_s1: 
+skater_f1: 
+skater_s1: 
+star_f1: 
+star_s1: 
+tennis_f1: 
+	dynamic: 
+		SUCCESS 
+tennis_s1: 
+walk_f1: 
+walk_s1: 
+	dynamic: 
+		SUCCESS 

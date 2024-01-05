@@ -34,6 +34,7 @@ parser.add_argument('--intrinsic',
                     default='./config/temp_calib.txt', 
                     help='intrinsic calibration for the camera')
 parser.add_argument('--extrinsic', default=None, help="the extrinsic transformation to use")
+parser.add_argument('--output', required=True, help="txt file where to write the optmial delay found")
 
 parser.add_argument('--no_camera_markers', action=argparse.BooleanOptionalAction)
 
@@ -56,7 +57,8 @@ min_error = np.inf
 best_delay = 0.2
 
 def error_delay(delay):
-
+    if delay < 0:
+        return np.inf
     c3d_file_path = args.vicon_path
     c3d_helper = C3dHelper(c3d_file_path, delay=delay, camera_markers=not args.no_camera_markers)
 
@@ -75,12 +77,11 @@ def error_delay(delay):
 
     error = proj_helper.measure_error(T)
     # print(f"measured error for d:{delay} -> {error}")
-
     return error
 
-res = scipy.optimize.minimize(error_delay, 0.0, tol=1e-6, bounds=[(0.0, None)])
+res = scipy.optimize.minimize_scalar(error_delay, tol=1e-9, bounds=(0.15, 0.4), method='bounded')
 
 print(res)
-best_delay = res.x[0]
+best_delay = res.x
 print(f"Best delay: {best_delay}")
-np.savetxt(os.path.join(args.dvs_path, "../vicon_d_delay.txt"), [best_delay], fmt="%.9f")
+np.savetxt(os.path.join(args.dvs_path, f"../{args.output}"), [best_delay], fmt="%.9f")

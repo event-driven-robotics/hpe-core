@@ -17,6 +17,6 @@ do
     output_dynamic="${base_dir}/${atis_d_frames}/"
 
     python3 ../save_dvs_frames.py --dvs_path ${input_static} --output_path ${output_static}
-    python3 ../save_dvs_frames.py --dvs_path ${input_dynamic} --output_path ${output_dynamic} --time_window 0.005
+    python3 ../save_dvs_frames.py --dvs_path ${input_dynamic} --output_path ${output_dynamic} --time_window 0.002
 
 done

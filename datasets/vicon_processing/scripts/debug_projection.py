@@ -51,15 +51,15 @@ dvs_helper = DvsHelper(dvs_file_path)
 c3d_file_path = args.vicon_path
 c3d_helper = C3dHelper(c3d_file_path, delay=args.vicon_delay, camera_markers=not args.no_camera_markers)
 
-with open(args.labels, "r") as stream:
-    try:
-        labels = yaml.safe_load(stream)
-    except yaml.YAMLError as exc:
-        print(exc)
-
 if args.all_points:
     labels = [l.strip() for l in c3d_helper.reader.point_labels]
     labels = labels[:]
+else:
+    with open(args.labels, "r") as stream:
+        try:
+            labels = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
 
 print(f"Loaded labels: {labels}")
 

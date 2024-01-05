@@ -116,12 +116,15 @@ class C3dHelper:
     def get_frame_time(self, times):
         frame_ids = []
         for t in times:
-            frame_ids.append(np.searchsorted(self.frame_times, t))
+            idx = np.searchsorted(self.frame_times, t)
+            if idx >= self.reader.frame_count:
+                break
+            frame_ids.append(idx)
 
         return frame_ids
     
     def get_points_frame(self, frame_id):
-        assert frame_id > 0 and frame_id < self.reader.frame_count
+        assert frame_id >= 0 and frame_id < self.reader.frame_count
 
         return self.frame_points[frame_id]
     
@@ -226,6 +229,13 @@ class C3dHelper:
         #                     for old_dict, f_id, des_t in zip(vicon_points_frames, frames_id, desired_times)]
         vicon_points_frames = []
         for idx, d_t in zip(frames_id, desired_times):
+            if idx == 0:
+                vicon_points_frames = self.get_points_dict(idx)
+
+                vicon_points_frames = self.filter_dict_labels(vicon_points_frames, labels)
+                vicon_points_frames.append(vicon_points_frame)
+                continue
+            
             vicon_points_frame_t1 = self.get_points_dict(idx - 1)
             vicon_points_frame_t2 = self.get_points_dict(idx)
 
