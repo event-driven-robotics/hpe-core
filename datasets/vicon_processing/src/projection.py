@@ -39,31 +39,32 @@ class ProjectionHelper():
         """
         Takes the world points and image points as dict with timestampts and creates
         the numpy array """
-        if vicon_points_dict is None and dvs_points_dict is None:
+        if vicon_points_dict is None or dvs_points_dict is None:
             return
         
-        n_points = len(vicon_points_dict['points'][0])
-        world_points = np.ones((n_points * len(vicon_points_dict['points']), 4))
-        image_points = np.ones((n_points * len(vicon_points_dict['points']), 3))
-        labels = list(vicon_points_dict['points'][0].keys())
-        
-        for k, vicon_frame in enumerate(vicon_points_dict['points']):
-            for i, l in enumerate(labels):
+        world_points = []
+        image_points = []
 
-                vicon_time = vicon_points_dict['times'][k]
-                dvs_id = (np.abs(dvs_points_dict['times'] - vicon_time)).argmin()
+        for dvs_frame, vicon_frame in zip(dvs_points_dict['points'], vicon_points_dict['points']):
+            labels = dvs_frame.keys()
 
+            for l in labels:
                 try:
-                    # vicon_points = vicon_points_dict['points'][vicon_frame][l][:3]
-                    world_points[k*n_points + i, :3] = vicon_frame[l][:3]
-                    p_dict = dvs_points_dict['points'][dvs_id][l]
-                    image_points[k*n_points + i, :2] = [p_dict['x'], p_dict['y']]
+                    w_p = vicon_frame[l]
+                    i_p = [
+                        dvs_frame[l]['x'],
+                        dvs_frame[l]['y'],
+                        1.0
+                    ]
+
+                    world_points.append(w_p)
+                    image_points.append(i_p)
                 except Exception as e:
                     print("The stored image labels probably don't match with the vicon labels used.")
                     print(e)
 
-        self.world_points = world_points
-        self.image_points = image_points
+        self.world_points = np.array(world_points)
+        self.image_points = np.array(image_points)
 
         assert self.world_points.shape[0] == self.image_points.shape[0], "Not equal numbers of image and 3D points"
 

@@ -42,5 +42,5 @@ with open(args.calib_labels, "r") as stream:
 
 # TODO make the times a parameter that can be set
 labeler = DvsLabeler((720, 1280, 3))
-out = labeler.label_data(args.frames_path, labels)
+out = labeler.label_data(args.frames_path, labels, manual=True)
 labeler.save_labeled_points(args.output_path)

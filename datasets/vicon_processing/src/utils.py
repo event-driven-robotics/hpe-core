@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 from scipy.spatial.transform import Rotation
+from scipy.signal import butter, lfilter, freqz, filtfilt
 
 def extract_frame(events, ts_start, ts_end, img_shape):
         """Extract a single frame from the events"""
@@ -98,3 +99,11 @@ def transform_points(points, T):
 
 
     return transformed_points
+
+def butter_lowpass(cutoff, fs, order=5):
+    return butter(order, cutoff, fs=fs, btype='low', analog=False)
+
+def butter_lowpass_filter(data, cutoff, fs, order=5):
+    b, a = butter_lowpass(cutoff, fs, order=order)
+    y = filtfilt(b, a, data)
+    return y

@@ -24,7 +24,7 @@ parser.add_argument('--n_frames',
                     default = 100, type=int)
 parser.add_argument('--start_time',
                     help='Start time from which to take the frames, default: 2.0', 
-                    default = 1.0, type=float)
+                    default = 0.0, type=float)
 parser.add_argument('--end_time',
                     help='End time for taking the frames, default: 15.0', 
                     default = 15.0, type=float)

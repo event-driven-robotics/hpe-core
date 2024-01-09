@@ -8,6 +8,7 @@ from scipy.spatial.transform import Rotation
 from matplotlib.patches import Rectangle
 from tqdm import tqdm
 import argparse
+import scipy.optimize
 
 sys.path.append('/home/schiavazza/code/hpe/hpe-core/datasets/')
 sys.path.append('/local_code/hpe-core/datasets/')
@@ -35,58 +36,67 @@ parser.add_argument('--intrinsic',
 parser.add_argument('--output_path', help='path where to save the transformation that can be used as extrinsic calibration', required=True)
 parser.add_argument('--vicon_delay', default=0.0, type=float)
 parser.add_argument('--no_camera_markers', action=argparse.BooleanOptionalAction)
-parser.add_argument('--move_synch', action=argparse.BooleanOptionalAction)
-
 
 args = parser.parse_args()
 
-# import the DVS data
-dvs_file_path = args.dvs_path
-dvs_helper = DvsHelper(dvs_file_path)
-# read the labeled 2d points
-dvs_helper.read_points_labels(args.annotated_points);
-# extract the time of the labeled points
-print(dvs_helper.labeled_points)
-labels_times = dvs_helper.labeled_points['times'][:]
+def setup_projection(delay):
 
-print(labels_times)
-labels = list(dvs_helper.labeled_points['points'][0].keys())
-print(labels)
+    # import the DVS data
+    dvs_file_path = args.dvs_path
+    dvs_helper = DvsHelper(dvs_file_path)
+    # read the labeled 2d points
+    dvs_helper.read_points_labels(args.annotated_points);
+    # extract the time of the labeled points
+    print(dvs_helper.labeled_points)
+    labels_times = dvs_helper.labeled_points['times'][:]
 
+    print(labels_times)
 
-# load c3d vicon data
-c3d_file_path = args.vicon_path
-c3d_helper = C3dHelper(c3d_file_path, delay=args.vicon_delay, camera_markers=not args.no_camera_markers)
-print(f"Labels in c3d file{c3d_helper.reader.point_labels}")
+    # load c3d vicon data
+    c3d_file_path = args.vicon_path
+    c3d_helper = C3dHelper(c3d_file_path, delay=delay, camera_markers=not args.no_camera_markers)
+    print(f"Labels in c3d file{c3d_helper.reader.point_labels}")
 
-if args.move_synch:
-    dvs_helper.read_events()
-    dvs_move_time = dvs_helper.find_start_moving_time()
+    vicon_labeled_frames = c3d_helper.get_frame_time(labels_times)
+    print(f"frame time for vicon: {c3d_helper.frame_times}")
+
+    vicon_points = c3d_helper.get_vicon_points_interpolated(dvs_helper.labeled_points)
+    print(f"vicon points: {vicon_points}")
+    vicon_points_mark = c3d_helper.transform_points_to_marker_frame(vicon_points)
+    # vicon_points_mark = vicon_points
+    print(vicon_labeled_frames)
+    c3d_helper.markers_T
+    print(f"times from dvs labels: {dvs_helper.labeled_points['times']}")
+    print(f"times from vicon labels: {vicon_points_mark['times']}")
+    dvs_helper.labeled_points['times']
+    vicon_points_mark['times']
+    proj_helper = ProjectionHelper(vicon_points_mark, dvs_helper.labeled_points)
+    proj_helper.import_camera_calbration(args.intrinsic);
+
+    return proj_helper
+
+def error_calib(delay):
+    if delay < 0:
+        return np.inf
     
-    vicon_move_time = c3d_helper.find_start_moving_time()
-    time_difference = dvs_move_time - vicon_move_time
-    print(f"found time difference: {time_difference}")
-    c3d_helper.set_delay(time_difference)
+    proj_helper = setup_projection(delay)
+    # find transform
+    T = proj_helper.find_R_t_opencv()
 
-vicon_labeled_frames = c3d_helper.get_frame_time(labels_times)
-print(f"frame time for vicon: {c3d_helper.frame_times}")
+    error = proj_helper.measure_error(T)
 
-vicon_points = c3d_helper.get_vicon_points_interpolated(vicon_labeled_frames, labels, labels_times)
-vicon_points_mark = c3d_helper.transform_points_to_marker_frame(vicon_points)
-# vicon_points_mark = vicon_points
-print(vicon_labeled_frames)
-c3d_helper.markers_T
-print(f"times from dvs labels: {dvs_helper.labeled_points['times']}")
-print(f"times from vicon labels: {vicon_points_mark['times']}")
-dvs_helper.labeled_points['times']
-vicon_points_mark['times']
-proj_helper = ProjectionHelper(vicon_points_mark, dvs_helper.labeled_points)
-proj_helper.import_camera_calbration(args.intrinsic);
-proj_helper.image_points
+    # print(f"measured error for d:{delay} -> {error}")
+    return error
 
-# find transform
-T = proj_helper.find_R_t_opencv()
+res = scipy.optimize.minimize_scalar(error_calib, tol=1e-9, bounds=(0.15, 0.4), method='bounded')
 
-print(f"\nEstimated Transform: \n{T}\n")
+print(res)
+best_delay = res.x
+print(f"Best delay: {best_delay}")
 
-np.save(args.output_path, T)
+proj_helper = setup_projection(best_delay)
+best_T = proj_helper.find_R_t_opencv()
+
+print(f"\nEstimated Transform: \n{best_T}\n")
+
+np.save(args.output_path, best_T)

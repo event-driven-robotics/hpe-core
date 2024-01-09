@@ -24,15 +24,18 @@ class C3dHelper:
         self.wand_zero = wand_zero_time
         self.delay = delay
         self.camera_markers = camera_markers
-        if not self.camera_markers:
-            print("Selected the option to not use the markers on the camera, the identity transformation will be used instead")
-        
-        self.calculate_frame_times()
 
+        self.calculate_frame_times()
         # the obtained transforms are saved in a dict for later use if needed
         # the keys are the frame ids
         self.markers_T = {}
         self.process_all_frames()
+
+        if not self.camera_markers:
+            print("Selected the option to not use the markers on the camera, the identity transformation will be used instead")
+        else:
+            self.process_camera_markers()
+        
 
     def find_start_moving_time(self):
         """Finds the time when the camera starts moving
@@ -93,6 +96,40 @@ class C3dHelper:
     def set_delay(self, delay):
         self.delay = delay
         self.calculate_frame_times()
+
+    def filter_pose(self, x, order=3, fs=100.0, cutoff=6):
+        out = np.empty_like(x)
+        
+        for i in range(x.shape[1]):
+            out[:, i] = utils.butter_lowpass_filter(x[:, i], cutoff, fs, order)
+
+        return out
+
+
+    def process_camera_markers(self):
+        labels = [
+            'camera:cam_back',
+            'camera:cam_right',
+            'camera:cam_left'
+            ]
+        vicon_points = self.get_vicon_points(range(1, self.reader.frame_count), labels)
+
+        camera_front = []
+        camera_side = []
+        camera_top = []
+        for f in vicon_points['points']:
+            camera_front.append(f['camera:cam_right'][:3])
+            camera_side.append(f['camera:cam_left'][:3])
+            camera_top.append(f['camera:cam_back'][:3])
+
+        camera_front = np.array(camera_front)
+        camera_side = np.array(camera_side)
+        camera_top = np.array(camera_top)
+
+        self.camera_front_filt = self.filter_pose(camera_front)
+        self.camera_side_filt = self.filter_pose(camera_side)
+        self.camera_top_filt = self.filter_pose(camera_top)
+
 
     def calculate_frame_times(self):
         """Each frame does not have a timestamp, however the realative times 
@@ -158,18 +195,27 @@ class C3dHelper:
         if not self.camera_markers:
             return np.eye(4) 
         
-        labels = [
-            'camera:cam_back',
-            'camera:cam_right',
-            'camera:cam_left'
-            ]
-        camera_points = self.filter_dict_labels(self.get_points_dict(frame_id), labels)
-        if time > 0:
-            camera_points = self.get_vicon_points_interpolated([frame_id], labels, [time])['points'][0]
-        camera_front = camera_points['camera:cam_right'][:3]
-        camera_side = camera_points['camera:cam_left'][:3]
-        camera_top = camera_points['camera:cam_back'][:3]
-            
+        if frame_id >= self.camera_front_filt.shape[0]:
+            return self.marker_T_at_frame_vector(frame_id-1)
+        
+        t1 = self.frame_times[frame_id -1]
+        t2 = self.frame_times[frame_id]
+        if time < 0:
+            time = t2
+        f = (time - t1) / (t2 - t1)
+        
+        camera_front = self.interpolate_point_array(
+            self.camera_front_filt[frame_id-1],
+            self.camera_front_filt[frame_id],
+            f)
+        camera_side = self.interpolate_point_array(
+            self.camera_side_filt[frame_id-1],
+            self.camera_side_filt[frame_id],
+            f)
+        camera_top = self.interpolate_point_array(
+            self.camera_top_filt[frame_id-1],
+            self.camera_top_filt[frame_id],
+            f)
         
         # mid point between top and side marker
         # even if not precise it is considered the origin of the new frame of reference
@@ -202,6 +248,10 @@ class C3dHelper:
 
         return np.copy(T)
     
+    def interpolate_point_array(self, arr1, arr2, f):
+        p_n = arr1 + (arr2 - arr1) * f
+        return p_n
+    
     def interpolate_point_dict(self, dict_t1, dict_t2, f):
         # desired time should be between 0.0 and 1.0
 
@@ -217,18 +267,22 @@ class C3dHelper:
         return out_dict
 
     
-    def get_vicon_points_interpolated(self, frames_id, labels, desired_times):
+    def get_vicon_points_interpolated(self, dvs_points):
         """the frames is represent the ids of the frames corresponding to the label
-        times floored to match with a vicon frame. The next id gives the upper bound
-        We can use the two values to interpolate to the right time"""
+        times floored to match with a vicon frame. The next id gives the upper value
+        We can use the two values to interpolate to the right time
+        
+        The input is a dict: {
+            points: [...]
+            times: [...]
+        }"""
 
-        # vicon_points_frames = [self.get_points_dict(idx) for idx in frames_id]
-        # vicon_points_frames = [self.filter_dict_labels(old_dict, labels) 
-        #                     for old_dict in vicon_points_frames]
-        # vicon_points_frames = [self.interpolate_point_dict(old_dict, f_id, des_t) 
-        #                     for old_dict, f_id, des_t in zip(vicon_points_frames, frames_id, desired_times)]
         vicon_points_frames = []
-        for idx, d_t in zip(frames_id, desired_times):
+        frames_id = self.get_frame_time(dvs_points['times'])
+        desired_times = dvs_points['times']
+
+        for i, (idx, d_t) in enumerate(zip(frames_id, desired_times)):
+            labels = dvs_points['points'][i].keys()
             if idx == 0:
                 vicon_points_frames = self.get_points_dict(idx)
 
@@ -415,7 +469,7 @@ class DvsLabeler():
 
         return save_folder
 
-    def label_data(self, frames_folder, labels):
+    def label_data(self, frames_folder, labels, manual=False):
         """
         Create the labels for the image points. The parameter 'times' controlls at which times
         the labels are recorded. 
@@ -441,11 +495,15 @@ class DvsLabeler():
             dvs_frame = cv2.imread(os.path.join(frames_folder, filenameext))
             self.dvs_frames.append(dvs_frame)
 
-            # extract the points
-            success, points_dict, frame = self.label_frame(dvs_frame, labels)
-            if not success:
-                continue
-
+            if not manual: 
+                # extract the points
+                success, points_dict, frame = self.label_frame(dvs_frame, labels)
+                if not success:
+                    continue
+            else:
+                success, points_dict, frame = self.label_frame_manual(dvs_frame)
+                if not success:
+                    continue
 
             labeled_folder_path = os.path.join(frames_folder, "labeled")
             if not os.path.exists(labeled_folder_path):
@@ -511,5 +569,59 @@ class DvsLabeler():
                 'x': int(p[0]),
                 'y': int(p[1])
             }
+
+        return True, points_dict, img
+    
+    def label_frame_manual(self, frame, subject="P11"):
+        """This is different from the previous method. It is still for labeling the frames
+        Instead of using a fixed list of labels, the user select the label for each point."""
+        points = []
+        finished = False
+        current_label_id = 0
+        points_dict = {}
+
+        # load all the marker labels
+        with open("./config/labels_tags.yml") as f:
+            marker_labels = yaml.load(f, Loader=yaml.Loader)
+
+        def on_click(event, x, y, p1, p2):
+            nonlocal current_label_id
+            nonlocal points
+            if event == cv2.EVENT_LBUTTONDOWN:
+                current_label_id += 1
+                points.append([x, y])
+
+                # query user for label id
+                print("Select a label: ", "\t".join([f"{idx}):{n}" for idx, n in enumerate(marker_labels)]))
+                label_id = input()
+                label_val = marker_labels[int(label_id)]
+
+                label = f"{subject}:{label_val}"
+                points_dict[label] = {
+                    "x": int(x),
+                    "y": int(y)
+                }
+
+                print(f"current labels: {points_dict}")
+
+                
+        while not finished:
+            img = np.copy(frame)
+            for p in points:
+                cv2.circle(img, np.asarray(p, dtype=int), 4, (255, 0, 0), -1)
+            cv2.imshow("image", img)
+
+            cv2.setMouseCallback('image', on_click)
+            c = cv2.waitKey(100)
+            if ' ' == chr(c & 255):
+                print("space pressed, skipping")
+                return False, None, None
+
+            if c==ord('k'):
+                finished = True
+
+        img = np.copy(frame)
+        for p in points:
+            cv2.circle(img, np.asarray(p, dtype=int), 6, (255, 0, 0), -1)
 
         return True, points_dict, img
