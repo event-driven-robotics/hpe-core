@@ -1,10 +1,10 @@
 box_f1: 
 	static: 
 		0.284241954 
-		FAIL 
+		ALREADY DONE
 	dynamic: 
 		0.242953575 
-		FAIL 
+		ALREADY DONE
 box_s1: 
 	static: 
 		0.274093912 
@@ -39,7 +39,7 @@ jump_f2:
 jump_s1: 
 	static: 
 		0.274426914 
-		FAIL 
+		ALREADY DONE
 jump_s2: 
 	static: 
 		NO DELAY 
@@ -48,147 +48,34 @@ jump_s2:
 march_f1: 
 	static: 
 		0.326193354 
-		FAIL 
+		ALREADY DONE
 	dynamic: 
 		0.247562735 
-		FAIL 
+		ALREADY DONE
 march_s1: 
 	static: 
 		0.311544438 
-		FAIL 
+		ALREADY DONE
 	dynamic: 
 		0.233644014 
-		FAIL 
+		ALREADY DONE
 mix_f1: 
 	static: 
 		0.275124374 
-		FAIL 
+		ALREADY DONE
 	dynamic: 
 		0.249966308 
-		FAIL 
+		ALREADY DONE
 mix_s1: 
 	static: 
 		0.312180371 
-		FAIL 
+		ALREADY DONE
 	dynamic: 
 		0.266239283 
-		SUCCESS 
+		ALREADY DONE
 monkey_f1: 
 	static: 
 		0.267845231 
 		FAIL 
 	dynamic: 
 		0.243988753 
-		FAIL 
-monkey_s1: 
-	static: 
-		0.292204132 
-		FAIL 
-	dynamic: 
-		0.254125762 
-		FAIL 
-pick_f1: 
-	static: 
-		0.268241029 
-		FAIL 
-	dynamic: 
-		0.246097334 
-		FAIL 
-pick_s1: 
-	static: 
-		0.300098211 
-		FAIL 
-	dynamic: 
-		0.150000012 
-		FAIL 
-pour_f1: 
-	static: 
-		0.272580203 
-		FAIL 
-	dynamic: 
-		0.252973656 
-		FAIL 
-pour_s1: 
-	static: 
-		0.258863941 
-		SUCCESS 
-	dynamic: 
-		0.253052450 
-		FAIL 
-side_f1: 
-	static: 
-		0.319104912 
-		FAIL 
-	dynamic: 
-		0.285073370 
-		FAIL 
-side_s1: 
-	static: 
-		0.293381009 
-		FAIL 
-	dynamic: 
-		0.264578467 
-		FAIL 
-sit-drum_f1: 
-	static: 
-		0.268265125 
-		FAIL 
-	dynamic: 
-		0.256630554 
-		FAIL 
-sit-drum_s1: 
-	static: 
-		0.277105366 
-		FAIL 
-	dynamic: 
-		0.267692465 
-		FAIL 
-sit_f1: 
-	static: 
-		0.269074287 
-		FAIL 
-	dynamic: 
-		0.277154769 
-		FAIL 
-sit-mix_f1: 
-	static: 
-		0.266904911 
-		FAIL 
-	dynamic: 
-		0.272012302 
-		FAIL 
-sit-mix_s1: 
-	static: 
-		0.284248070 
-		FAIL 
-	dynamic: 
-		0.242420779 
-		FAIL 
-sit-pour_f1: 
-	static: 
-		0.287967843 
-		FAIL 
-	dynamic: 
-		0.245491503 
-		FAIL 
-sit-pour_s1: 
-sit-pour_s2: 
-sit_s1: 
-skater_f1: 
-skater_s1: 
-star_f1: 
-star_s1: 
-tennis_f1: 
-	dynamic: 
-		0.399999648 
-		FAIL 
-tennis_s1: 
-walk_f1: 
-walk_s1: 
-	dynamic: 
-		0.237488791 
-		FAIL 
-
-
-Success: 2
-Failed: 45

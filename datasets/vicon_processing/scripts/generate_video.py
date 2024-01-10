@@ -10,6 +10,7 @@ import yaml
 
 sys.path.append('/home/schiavazza/code/hpe/hpe-core/datasets/')
 sys.path.append('/local_code/hpe-core/datasets/')
+sys.path.append('/home/iit.local/schiavazza/local_code/hpe-core/datasets/')
 
 from vicon_processing.src.projection import ProjectionHelper
 from vicon_processing.src.data_helpers import DvsLabeler, DvsHelper, C3dHelper
@@ -45,9 +46,6 @@ args = parser.parse_args()
 # import the DVS data
 dvs_file_path = args.dvs_path
 dvs_helper = DvsHelper(dvs_file_path)
-print('Loading events... (may take a while)')
-dvs_helper.read_events()
-print('Done loading events, generating video...')
 
 
 # load c3d vicon data
@@ -70,6 +68,20 @@ T = np.load(args.extrinsic)
 
 print(f"using extrinsics: {T}")
 
+<<<<<<< Updated upstream
+=======
+print('Loading events... (may take a while)')
+dvs_helper.read_events()
+print('Done loading events, generating video...')
+
+if args.move_synch:
+    dvs_move_time = dvs_helper.find_start_moving_time()
+    vicon_move_time = c3d_helper.find_start_moving_time()
+    time_difference = dvs_move_time - vicon_move_time
+    print(f"found time difference: {time_difference}")
+    c3d_helper.set_delay(time_difference)
+
+>>>>>>> Stashed changes
 proj_helper = ProjectionHelper()
 proj_helper.import_camera_calbration(args.intrinsic);
 

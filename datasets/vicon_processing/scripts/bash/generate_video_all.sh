@@ -1,4 +1,4 @@
-search_dir="/home/schiavazza/data/hpe/vicon_dataset/processed/simon"
+search_dir="/home/iit.local/schiavazza/data/vicon_hpe/simon"
 echo "${search_dir}/*/"
 status_file="./status_video.txt"
 
@@ -37,14 +37,21 @@ process_sequence () {
             delay=$(< $delay_file)
             echo "Delay s: ${delay}"
             echo -e "\t\t${delay} " >> $status_file
-            python3 ../generate_video.py --dvs_path ${input_static} --vicon_path ${c3d_file} --intrinsic ${c3d_base_dir}/calib-s.txt --extrinsic ${c3d_base_dir}/extrinsic_s.npy --output_path /home/schiavazza/Videos/vicon/output/${seq_name}_s.mp4 --labels ../config/labels_joints.yml --vicon_delay ${delay} --no_camera_markers
-            s=$?
-            if [ $s -ne 0 ]; then
-                echo -e "\t\tFAIL " >> $status_file
-                failed=$((failed + 1))
+            output_video="/home/iit.local/schiavazza/local_data/hpe/videos/${seq_name}_s.mp4"
+            echo "Saving video to: ${output_video}"
+
+            if [ -f $output_video ]; then
+                echo -e "\t\tALREADY DONE" >> $status_file
             else
-                echo -e "\t\tSUCCESS " >> $status_file
-                success=$((success + 1))
+                python3 ../generate_video.py --dvs_path ${input_static} --vicon_path ${c3d_file} --intrinsic ${c3d_base_dir}/calib-s.txt --extrinsic ${c3d_base_dir}/extrinsic_s.npy --output_path ${output_video} --labels ../config/labels_joints.yml --vicon_delay ${delay} --no_camera_markers
+                s=$?
+                if [ $s -ne 0 ]; then
+                    echo -e "\t\tFAIL " >> $status_file
+                    failed=$((failed + 1))
+                else
+                    echo -e "\t\tSUCCESS " >> $status_file
+                    success=$((success + 1))
+                fi
             fi
         else
             echo -e "\t\tNO DELAY " >> $status_file
@@ -62,14 +69,20 @@ process_sequence () {
             delay=$(< $delay_file)
             echo "Delay d: ${delay}"
             echo -e "\t\t${delay} " >> $status_file
-            python3 ../generate_video.py --dvs_path ${input_dynamic} --vicon_path ${c3d_file} --intrinsic ${c3d_base_dir}/calib-d.txt --extrinsic ${c3d_base_dir}/extrinsic_d.npy --output_path /home/schiavazza/Videos/vicon/output/${seq_name}_d.mp4 --labels ../config/labels_joints.yml --vicon_delay ${delay}
-            s=$?
-            if [ $s -ne 0 ]; then
-                echo -e "\t\tFAIL " >> $status_file
-                failed=$((failed + 1))
+            output_video="/home/iit.local/schiavazza/local_data/hpe/videos/${seq_name}_d.mp4"
+            echo "Saving video to: ${output_video}"
+            if [ -f $output_video ]; then
+                echo -e "\t\tALREADY DONE" >> $status_file
             else
-                echo -e "\t\tSUCCESS " >> $status_file
-                success=$((success + 1))
+                python3 ../generate_video.py --dvs_path ${input_dynamic} --vicon_path ${c3d_file} --intrinsic ${c3d_base_dir}/calib-d.txt --extrinsic ${c3d_base_dir}/extrinsic_d.npy --output_path ${output_video} --labels ../config/labels_joints.yml --vicon_delay ${delay}
+                s=$?
+                if [ $s -ne 0 ]; then
+                    echo -e "\t\tFAIL " >> $status_file
+                    failed=$((failed + 1))
+                else
+                    echo -e "\t\tSUCCESS " >> $status_file
+                    success=$((success + 1))
+                fi
             fi
         else
             echo -e "\t\tNO DELAY " >> $status_file
