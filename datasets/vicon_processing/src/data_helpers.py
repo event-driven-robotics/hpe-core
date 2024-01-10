@@ -469,7 +469,7 @@ class DvsLabeler():
 
         return save_folder
 
-    def label_data(self, frames_folder, labels, manual=False):
+    def label_data(self, frames_folder, labels, subject="P11", manual=False):
         """
         Create the labels for the image points. The parameter 'times' controlls at which times
         the labels are recorded. 
@@ -497,11 +497,11 @@ class DvsLabeler():
 
             if not manual: 
                 # extract the points
-                success, points_dict, frame = self.label_frame(dvs_frame, labels)
+                success, points_dict, frame = self.label_frame(dvs_frame, labels, subject=subject)
                 if not success:
                     continue
             else:
-                success, points_dict, frame = self.label_frame_manual(dvs_frame)
+                success, points_dict, frame = self.label_frame_manual(dvs_frame, subject=subject)
                 if not success:
                     continue
 
@@ -531,7 +531,7 @@ class DvsLabeler():
         with open(out_file, 'w') as yaml_file:
             yaml.dump(self.labeled_dict, yaml_file, default_flow_style=False)
 
-    def label_frame(self, frame, labels):
+    def label_frame(self, frame, labels, subject="P11"):
         points = []
         finished = False
         current_label_id = 0
@@ -565,7 +565,8 @@ class DvsLabeler():
 
         points_dict = {}
         for p, l in zip(points, labels):
-            points_dict[l] = {
+            complete_label = f"{subject}:{l}"
+            points_dict[complete_label] = {
                 'x': int(p[0]),
                 'y': int(p[1])
             }

@@ -26,6 +26,13 @@ parser.add_argument('--frames_path',
 parser.add_argument('--output_path', 
                     help='where to write the labeled points. It will generate a yaml file', 
                     required=True)
+parser.add_argument("--subject",
+                    help="name of the subject used for the labels. E.g. P11, P10 etc...",
+                    required=True)
+parser.add_argument("--manual",
+                    help="select, to manually select the label for each point",
+                    default=False,
+                    action=argparse.BooleanOptionalAction)
 
 args = parser.parse_args()
 
@@ -42,5 +49,5 @@ with open(args.calib_labels, "r") as stream:
 
 # TODO make the times a parameter that can be set
 labeler = DvsLabeler((720, 1280, 3))
-out = labeler.label_data(args.frames_path, labels, manual=True)
+out = labeler.label_data(args.frames_path, labels, subject=args.subject ,manual=args.manual)
 labeler.save_labeled_points(args.output_path)
