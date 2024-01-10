@@ -68,8 +68,6 @@ T = np.load(args.extrinsic)
 
 print(f"using extrinsics: {T}")
 
-<<<<<<< Updated upstream
-=======
 print('Loading events... (may take a while)')
 dvs_helper.read_events()
 print('Done loading events, generating video...')
@@ -81,7 +79,6 @@ if args.move_synch:
     print(f"found time difference: {time_difference}")
     c3d_helper.set_delay(time_difference)
 
->>>>>>> Stashed changes
 proj_helper = ProjectionHelper()
 proj_helper.import_camera_calbration(args.intrinsic);
 
