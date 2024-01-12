@@ -1,6 +1,7 @@
-search_dir="/home/schiavazza/data/hpe/vicon_dataset/processed/simon"
+search_dir="/home/schiavazza/data/hpe/vicon_dataset/processed/zhichao"
 echo "${search_dir}/*/"
 status_file="./status_debug.txt"
+subject="P10"
 
 failed=0
 success=0
@@ -37,7 +38,7 @@ process_sequence () {
             delay=$(< $delay_file)
             echo "Delay s: ${delay}"
             echo -e "\t\t${delay} " >> $status_file
-            python3 ../debug_projection.py --dvs_path ${input_static} --vicon_path ${c3d_file} --intrinsic ${c3d_base_dir}/calib-s.txt --extrinsic ${c3d_base_dir}/extrinsic_s.npy --frames_folder ${frames_static} --labels ../config/labels_joints.yml --vicon_delay ${delay} --no_camera_markers
+            python3 ../debug_projection.py --dvs_path ${input_static} --vicon_path ${c3d_file} --intrinsic ${c3d_base_dir}/calib-s.txt --extrinsic ${c3d_base_dir}/extrinsic_s.npy --frames_folder ${frames_static} --labels ../config/labels_joints.yml --vicon_delay ${delay} --no_camera_markers --subject $subject
             s=$?
             if [ $s -ne 0 ]; then
                 echo -e "\t\tFAIL " >> $status_file
@@ -62,7 +63,7 @@ process_sequence () {
             delay=$(< $delay_file)
             echo "Delay d: ${delay}"
             echo -e "\t\t${delay} " >> $status_file
-            python3 ../debug_projection.py --dvs_path ${input_dynamic} --vicon_path ${c3d_file} --intrinsic ${c3d_base_dir}/calib-d.txt --extrinsic ${c3d_base_dir}/extrinsic_d.npy --frames_folder ${frames_dynamic} --labels ../config/labels_joints.yml --vicon_delay ${delay}
+            python3 ../debug_projection.py --dvs_path ${input_dynamic} --vicon_path ${c3d_file} --intrinsic ${c3d_base_dir}/calib-d.txt --extrinsic ${c3d_base_dir}/extrinsic_d.npy --frames_folder ${frames_dynamic} --labels ../config/labels_joints.yml --vicon_delay ${delay} --subject $subject
             s=$?
             if [ $s -ne 0 ]; then
                 echo -e "\t\tFAIL " >> $status_file

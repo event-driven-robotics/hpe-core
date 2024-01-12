@@ -582,7 +582,9 @@ class DvsLabeler():
         points_dict = {}
 
         # load all the marker labels
-        with open("./config/labels_tags.yml") as f:
+        dirname = os.path.dirname(__file__)
+        filename = os.path.join(dirname, "../scripts/config/labels_tags.yml")
+        with open(filename) as f:
             marker_labels = yaml.load(f, Loader=yaml.Loader)
 
         def on_click(event, x, y, p1, p2):

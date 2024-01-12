@@ -1,194 +1,265 @@
 box_f1: 
 	static: 
-		0.284241954 
+		0.258961699 
 		SUCCESS 
 	dynamic: 
-		0.242953575 
+		0.235946423 
 		SUCCESS 
 box_s1: 
 	static: 
-		0.274093912 
-		FAIL 
+		0.255477422 
+		SUCCESS 
 	dynamic: 
-		0.260541291 
-		FAIL 
+		0.239913951 
+		SUCCESS 
 drum_f1: 
 	static: 
-		0.302114681 
+		0.262111094 
 		FAIL 
 	dynamic: 
-		0.260900506 
+		0.330912584 
 		FAIL 
+drum_f2: 
+	static: 
+		0.257121733 
+		SUCCESS 
+	dynamic: 
+		0.233993339 
+		SUCCESS 
 drum_s1: 
 	static: 
-		0.261409515 
-		FAIL 
+		0.252734017 
+		SUCCESS 
 	dynamic: 
-		0.296426304 
-		FAIL 
+		0.245534060 
+		SUCCESS 
 jump_f1: 
 	static: 
-		NO DELAY 
+		0.271885440 
+		SUCCESS 
 	dynamic: 
-		NO DELAY 
-jump_f2: 
-	static: 
-		NO DELAY 
-	dynamic: 
-		NO DELAY 
+		0.233513237 
+		SUCCESS 
 jump_s1: 
 	static: 
-		0.274426914 
-		SUCCESS 
+		0.257791090 
+		FAIL 
+	dynamic: 
+		0.315362252 
+		FAIL 
 jump_s2: 
 	static: 
-		NO DELAY 
-	dynamic: 
-		NO DELAY 
-march_f1: 
-	static: 
-		0.326193354 
+		0.267415059 
 		SUCCESS 
 	dynamic: 
-		0.247562735 
+		0.240716768 
+		SUCCESS 
+march_f1: 
+	static: 
+		0.255577897 
+		SUCCESS 
+	dynamic: 
+		0.226476430 
 		SUCCESS 
 march_s1: 
 	static: 
-		0.311544438 
+		0.264793383 
 		SUCCESS 
 	dynamic: 
-		0.233644014 
+		0.240184458 
 		SUCCESS 
 mix_f1: 
 	static: 
-		0.275124374 
+		0.247100717 
 		SUCCESS 
 	dynamic: 
-		0.249966308 
+		0.235033598 
 		SUCCESS 
 mix_s1: 
 	static: 
-		0.312180371 
+		0.266320892 
 		SUCCESS 
 	dynamic: 
-		0.266239283 
+		0.227452502 
 		SUCCESS 
 monkey_f1: 
 	static: 
-		0.267845231 
-		FAIL 
+		0.266546872 
+		SUCCESS 
 	dynamic: 
-		0.243988753 
-		FAIL 
+		0.242957676 
+		SUCCESS 
 monkey_s1: 
 	static: 
-		0.292204132 
+		0.265191140 
 		SUCCESS 
 	dynamic: 
-		0.254125762 
+		0.242719778 
 		SUCCESS 
 pick_f1: 
+	dynamic: 
+		0.239829227 
+		SUCCESS 
+pick_f2: 
 	static: 
-		0.268241029 
+		0.263312127 
 		SUCCESS 
 	dynamic: 
-		0.246097334 
+		0.245262512 
 		SUCCESS 
 pick_s1: 
 	static: 
-		0.300098211 
+		0.261424642 
 		SUCCESS 
 	dynamic: 
-		0.150000012 
-		FAIL 
+		0.239060646 
+		SUCCESS 
 pour_f1: 
 	static: 
-		0.272580203 
+		0.279533645 
 		SUCCESS 
 	dynamic: 
-		0.252973656 
+		0.247523588 
 		SUCCESS 
 pour_s1: 
 	static: 
-		0.258863941 
+		0.264156490 
 		SUCCESS 
 	dynamic: 
-		0.253052450 
+		0.216498154 
 		SUCCESS 
 side_f1: 
 	static: 
-		0.319104912 
-		SUCCESS 
+		NO DELAY 
 	dynamic: 
-		0.285073370 
-		SUCCESS 
+		NO DELAY 
 side_s1: 
 	static: 
-		0.293381009 
-		FAIL 
-	dynamic: 
-		0.264578467 
-		FAIL 
-sit-drum_f1: 
-	static: 
-		0.268265125 
+		0.246487805 
 		SUCCESS 
 	dynamic: 
-		0.256630554 
+		0.254605018 
+		SUCCESS 
+sit-drum_f1: 
+	static: 
+		0.261411912 
+		SUCCESS 
+	dynamic: 
+		0.245784617 
 		SUCCESS 
 sit-drum_s1: 
 	static: 
-		0.277105366 
+		0.262313722 
 		SUCCESS 
 	dynamic: 
-		0.267692465 
+		0.241687551 
 		SUCCESS 
 sit_f1: 
 	static: 
-		0.269074287 
+		0.255823841 
 		SUCCESS 
 	dynamic: 
-		0.277154769 
+		0.230972989 
 		SUCCESS 
 sit-mix_f1: 
 	static: 
-		0.266904911 
+		0.254399862 
 		SUCCESS 
 	dynamic: 
-		0.272012302 
+		0.234857793 
 		SUCCESS 
 sit-mix_s1: 
 	static: 
-		0.284248070 
+		0.289330184 
 		SUCCESS 
 	dynamic: 
-		0.242420779 
+		0.238277808 
 		SUCCESS 
 sit-pour_f1: 
 	static: 
-		0.287967843 
+		0.264207761 
 		SUCCESS 
 	dynamic: 
-		0.245491503 
+		0.238683725 
 		SUCCESS 
 sit-pour_s1: 
-sit-pour_s2: 
+	static: 
+		0.251192671 
+		SUCCESS 
+	dynamic: 
+		0.202908250 
+		SUCCESS 
 sit_s1: 
+	static: 
+		0.258603364 
+		SUCCESS 
+	dynamic: 
+		0.231749264 
+		SUCCESS 
 skater_f1: 
+	static: 
+		0.265467458 
+		SUCCESS 
+	dynamic: 
+		0.237159986 
+		SUCCESS 
 skater_s1: 
+	static: 
+		0.257328885 
+		SUCCESS 
+	dynamic: 
+		0.244086320 
+		SUCCESS 
 star_f1: 
+	static: 
+		0.265498648 
+		SUCCESS 
+	dynamic: 
+		0.217103203 
+		SUCCESS 
 star_s1: 
+	static: 
+		0.264778912 
+		SUCCESS 
+	dynamic: 
+		0.248356340 
+		SUCCESS 
 tennis_f1: 
+	static: 
+		0.265491129 
+		SUCCESS 
 	dynamic: 
-		0.399999648 
-		FAIL 
+		0.223417665 
+		SUCCESS 
 tennis_s1: 
-walk_f1: 
-walk_s1: 
+	static: 
+		0.267218426 
+		SUCCESS 
 	dynamic: 
-		0.237488791 
-		FAIL 
+		0.187961926 
+		SUCCESS 
+walk_f1: 
+	static: 
+		0.284801489 
+		SUCCESS 
+	dynamic: 
+		0.234901481 
+		SUCCESS 
+walk_f2: 
+	static: 
+		0.267700415 
+		SUCCESS 
+	dynamic: 
+		0.245574732 
+		SUCCESS 
+walk_s1: 
+	static: 
+		0.259350634 
+		SUCCESS 
+	dynamic: 
+		0.150158014 
+		SUCCESS 
 
 
-Success: 34
-Failed: 13
+Success: 69
+Failed: 4

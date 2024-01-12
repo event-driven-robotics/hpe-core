@@ -39,6 +39,10 @@ parser.add_argument('--camera_resolution', default=(1280, 720), nargs='+', type=
 parser.add_argument('--vicon_delay', default=0.0, type=float)
 parser.add_argument('--no_camera_markers', action=argparse.BooleanOptionalAction)
 parser.add_argument('--move_synch', action=argparse.BooleanOptionalAction)
+parser.add_argument('--subject',
+                    required=True,
+                    help="E.g. P11, P10 etc...")
+
 
 args = parser.parse_args()
 
@@ -58,6 +62,7 @@ else:
     with open(args.labels, "r") as stream:
         try:
             labels = yaml.safe_load(stream)
+            labels = [f"{args.subject}:{l}" for l in labels]
         except yaml.YAMLError as exc:
             print(exc)
 
@@ -88,7 +93,7 @@ def get_projected_points(t):
 
     vicon_labeled_frames = c3d_helper.get_frame_time([t])
     T_markers = c3d_helper.marker_T_at_frame_vector(vicon_labeled_frames[0], t)
-    vicon_points = c3d_helper.get_vicon_points_interpolated(vicon_labeled_frames, labels, [t])['points'][0]
+    vicon_points = c3d_helper.get_vicon_points(vicon_labeled_frames, labels)['points'][0]
     # vicon_points = c3d_helper.get_points_dict(vicon_labeled_frames[0])
     filtered_points = c3d_helper.filter_dict_labels(vicon_points, labels)
 

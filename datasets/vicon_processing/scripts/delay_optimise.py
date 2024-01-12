@@ -59,12 +59,14 @@ best_delay = 0.2
 def error_delay(delay):
     if delay < 0:
         return np.inf
+
+    print(f"Trying delay: {delay}")
     c3d_file_path = args.vicon_path
     c3d_helper = C3dHelper(c3d_file_path, delay=delay, camera_markers=not args.no_camera_markers)
 
     vicon_labeled_frames = c3d_helper.get_frame_time(labels_times)
 
-    vicon_points = c3d_helper.get_vicon_points_interpolated(vicon_labeled_frames, labels, labels_times)
+    vicon_points = c3d_helper.get_vicon_points_interpolated(dvs_helper.labeled_points)
     vicon_points_mark = c3d_helper.transform_points_to_marker_frame(vicon_points)
     # vicon_points_mark = vicon_points
     dvs_helper.labeled_points['times']

@@ -13,6 +13,11 @@ drum_f1:
 		SUCCESS 
 	dynamic: 
 		SUCCESS 
+drum_f2: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
 drum_s1: 
 	static: 
 		SUCCESS 
@@ -20,22 +25,19 @@ drum_s1:
 		SUCCESS 
 jump_f1: 
 	static: 
-		FAIL 
+		SUCCESS 
 	dynamic: 
-		FAIL 
-jump_f2: 
-	static: 
-		FAIL 
-	dynamic: 
-		FAIL 
+		SUCCESS 
 jump_s1: 
 	static: 
 		SUCCESS 
+	dynamic: 
+		SUCCESS 
 jump_s2: 
 	static: 
-		FAIL 
+		SUCCESS 
 	dynamic: 
-		FAIL 
+		SUCCESS 
 march_f1: 
 	static: 
 		SUCCESS 
@@ -67,6 +69,9 @@ monkey_s1:
 	dynamic: 
 		SUCCESS 
 pick_f1: 
+	dynamic: 
+		SUCCESS 
+pick_f2: 
 	static: 
 		SUCCESS 
 	dynamic: 
@@ -88,9 +93,9 @@ pour_s1:
 		SUCCESS 
 side_f1: 
 	static: 
-		SUCCESS 
+		FAIL 
 	dynamic: 
-		SUCCESS 
+		FAIL 
 side_s1: 
 	static: 
 		SUCCESS 
@@ -127,17 +132,57 @@ sit-pour_f1:
 	dynamic: 
 		SUCCESS 
 sit-pour_s1: 
-sit-pour_s2: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
 sit_s1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
 skater_f1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
 skater_s1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
 star_f1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
 star_s1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
 tennis_f1: 
+	static: 
+		SUCCESS 
 	dynamic: 
 		SUCCESS 
 tennis_s1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
 walk_f1: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
+walk_f2: 
+	static: 
+		SUCCESS 
+	dynamic: 
+		SUCCESS 
 walk_s1: 
+	static: 
+		SUCCESS 
 	dynamic: 
 		SUCCESS 

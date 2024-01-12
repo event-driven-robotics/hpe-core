@@ -1,81 +1,164 @@
 box_f1: 
 	static: 
-		0.284241954 
-		ALREADY DONE
+		0.258961699 
+		FAIL 
 	dynamic: 
-		0.242953575 
-		ALREADY DONE
+		0.235946423 
+		FAIL 
 box_s1: 
 	static: 
-		0.274093912 
+		0.255477422 
 		FAIL 
 	dynamic: 
-		0.260541291 
-		FAIL 
+		0.245534060 
+		SUCCESS 
 drum_f1: 
 	static: 
-		0.302114681 
+		0.262111094 
 		FAIL 
 	dynamic: 
-		0.260900506 
+		0.330912584 
+		FAIL 
+drum_f2: 
+	static: 
+		0.257121733 
+		FAIL 
+	dynamic: 
+		0.233993339 
 		FAIL 
 drum_s1: 
 	static: 
-		0.261409515 
-		FAIL 
+		0.252734017 
+		ALREADY DONE
 	dynamic: 
-		0.296426304 
-		FAIL 
+		0.245534060 
+		ALREADY DONE
 jump_f1: 
-	static: 
 		NO DELAY 
-	dynamic: 
-		NO DELAY 
-jump_f2: 
-	static: 
-		NO DELAY 
-	dynamic: 
 		NO DELAY 
 jump_s1: 
-	static: 
-		0.274426914 
-		ALREADY DONE
+		NO DELAY 
+		NO DELAY 
 jump_s2: 
 	static: 
-		NO DELAY 
-	dynamic: 
-		NO DELAY 
-march_f1: 
-	static: 
-		0.326193354 
-		ALREADY DONE
-	dynamic: 
-		0.247562735 
-		ALREADY DONE
-march_s1: 
-	static: 
-		0.311544438 
-		ALREADY DONE
-	dynamic: 
-		0.233644014 
-		ALREADY DONE
-mix_f1: 
-	static: 
-		0.275124374 
-		ALREADY DONE
-	dynamic: 
-		0.249966308 
-		ALREADY DONE
-mix_s1: 
-	static: 
-		0.312180371 
-		ALREADY DONE
-	dynamic: 
-		0.266239283 
-		ALREADY DONE
-monkey_f1: 
-	static: 
-		0.267845231 
+		0.267415059 
 		FAIL 
 	dynamic: 
-		0.243988753 
+		0.240716768 
+		FAIL 
+march_f1: 
+		NO DELAY 
+		NO DELAY 
+march_s1: 
+		NO DELAY 
+		NO DELAY 
+mix_f1: 
+	static: 
+		0.247100717 
+		FAIL 
+	dynamic: 
+		0.235033598 
+		FAIL 
+mix_s1: 
+	static: 
+		0.266320892 
+		FAIL 
+		NO DELAY 
+monkey_f1: 
+		NO DELAY 
+		NO DELAY 
+monkey_s1: 
+		NO DELAY 
+		NO DELAY 
+pick_f1: 
+		NO DELAY 
+	dynamic: 
+		0.239829227 
+		FAIL 
+pick_f2: 
+	static: 
+		0.263312127 
+		FAIL 
+	dynamic: 
+		0.245262512 
+		FAIL 
+pick_s1: 
+	static: 
+		0.261424642 
+		FAIL 
+	dynamic: 
+		0.239060646 
+		FAIL 
+pour_f1: 
+	static: 
+		0.279533645 
+		FAIL 
+	dynamic: 
+		0.247523588 
+		FAIL 
+pour_s1: 
+	static: 
+		0.264156490 
+		FAIL 
+		NO DELAY 
+side_f1: 
+		NO DELAY 
+		NO DELAY 
+side_s1: 
+		NO DELAY 
+		NO DELAY 
+sit-drum_f1: 
+		NO DELAY 
+		NO DELAY 
+sit-drum_s1: 
+		NO DELAY 
+		NO DELAY 
+sit_f1: 
+		NO DELAY 
+		NO DELAY 
+sit-mix_f1: 
+		NO DELAY 
+		NO DELAY 
+sit-mix_s1: 
+		NO DELAY 
+		NO DELAY 
+sit-pour_f1: 
+		NO DELAY 
+		NO DELAY 
+sit-pour_s1: 
+		NO DELAY 
+		NO DELAY 
+sit_s1: 
+		NO DELAY 
+		NO DELAY 
+skater_f1: 
+		NO DELAY 
+		NO DELAY 
+skater_s1: 
+		NO DELAY 
+		NO DELAY 
+star_f1: 
+		NO DELAY 
+		NO DELAY 
+star_s1: 
+		NO DELAY 
+		NO DELAY 
+tennis_f1: 
+		NO DELAY 
+		NO DELAY 
+tennis_s1: 
+		NO DELAY 
+		NO DELAY 
+walk_f1: 
+		NO DELAY 
+		NO DELAY 
+walk_f2: 
+		NO DELAY 
+		NO DELAY 
+walk_s1: 
+		NO DELAY 
+		NO DELAY 
+
+
+Success: 1
+Failed: 20

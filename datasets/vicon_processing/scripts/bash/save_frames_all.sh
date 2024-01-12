@@ -1,4 +1,4 @@
-search_dir="/data/vicon_hpe/simon"
+search_dir="/home/schiavazza/data/hpe/vicon_dataset/processed/zhichao"
 echo "${search_dir}/*/"
 for base_dir in ${search_dir}/*/   # list directories in the form "/tmp/dirname/"
 do
