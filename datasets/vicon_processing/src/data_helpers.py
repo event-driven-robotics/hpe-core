@@ -18,12 +18,13 @@ from . import utils
 
 class C3dHelper:
 
-    def __init__(self, file_path, wand_zero_time=False, delay=0.0, camera_markers=True):
+    def __init__(self, file_path, wand_zero_time=False, delay=0.0, camera_markers=True, filter_camera_markers=True):
         
         self.reader = c3d.Reader(open(file_path, 'rb'))
         self.wand_zero = wand_zero_time
         self.delay = delay
         self.camera_markers = camera_markers
+        self.filter_camera_markers = filter_camera_markers
 
         self.calculate_frame_times()
         # the obtained transforms are saved in a dict for later use if needed
@@ -126,9 +127,14 @@ class C3dHelper:
         camera_side = np.array(camera_side)
         camera_top = np.array(camera_top)
 
-        self.camera_front_filt = self.filter_pose(camera_front)
-        self.camera_side_filt = self.filter_pose(camera_side)
-        self.camera_top_filt = self.filter_pose(camera_top)
+        if self.filter_camera_markers:
+            self.camera_front_filt = self.filter_pose(camera_front)
+            self.camera_side_filt = self.filter_pose(camera_side)
+            self.camera_top_filt = self.filter_pose(camera_top)
+        else:
+            self.camera_front_filt = camera_front
+            self.camera_side_filt = camera_side
+            self.camera_top_filt = camera_top
 
 
     def calculate_frame_times(self):

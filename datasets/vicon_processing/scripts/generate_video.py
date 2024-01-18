@@ -42,6 +42,8 @@ parser.add_argument('--move_synch', action=argparse.BooleanOptionalAction)
 parser.add_argument('--subject',
                     required=True,
                     help="E.g. P11, P10 etc...")
+parser.add_argument('--no_camera_filter',
+                    action=argparse.BooleanOptionalAction)
 
 args = parser.parse_args()
 
@@ -53,7 +55,10 @@ dvs_helper = DvsHelper(dvs_file_path)
 
 # load c3d vicon data
 c3d_file_path = args.vicon_path
-c3d_helper = C3dHelper(c3d_file_path, delay=args.vicon_delay, camera_markers=not args.no_camera_markers)
+c3d_helper = C3dHelper(c3d_file_path, 
+                       delay=args.vicon_delay, 
+                       camera_markers=not args.no_camera_markers, 
+                       filter_camera_markers=not args.no_camera_filter)
 
 with open(args.labels, "r") as stream:
     try:
