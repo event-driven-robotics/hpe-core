@@ -54,7 +54,7 @@ def setup_projection(delay):
 
     # load c3d vicon data
     c3d_file_path = args.vicon_path
-    c3d_helper = C3dHelper(c3d_file_path, delay=delay, camera_markers=not args.no_camera_markers)
+    c3d_helper = C3dHelper(c3d_file_path, delay=delay, camera_markers=not args.no_camera_markers, filter_camera_markers=True)
     print(f"Labels in c3d file{c3d_helper.reader.point_labels}")
 
     vicon_labeled_frames = c3d_helper.get_frame_time(labels_times)
