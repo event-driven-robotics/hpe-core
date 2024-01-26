@@ -35,7 +35,7 @@ process_sequence () {
         delay=$(< $delay_file)
         echo "Delay s: ${delay}"
         echo -e "\t\t${delay} " >> $status_file
-        output_video="/home//schiavazza/Videos/vicon/zhichao/${seq_name}_s.mp4"
+        output_video="/home//schiavazza/Videos/vicon/zhichao2/${seq_name}_s.mp4"
         echo "Saving video to: ${output_video}"
 
         if [ -f $output_video ]; then

@@ -15,29 +15,13 @@ from scipy.spatial.transform import Rotation
 from bimvee.importIitYarp import importIitYarp
 
 from . import utils
+from vicon_processing.src.data_helpers import PointsInfo
 
 class ProjectionHelper():
 
-    # def __init__(self, world_points: np.ndarray, image_points: np.ndarray):
-    #     """
-    #     If the points come from different frames (aka different points in time)
-    #     they are assumed to be transformed in the reference frame defined by the camera markers.
-    #     If they come from a single point in time they can also be in world coordinates
-    #     """
-
-    #     assert world_points.shape[0] == image_points.shape[0]
-
-    #     self.world_points = world_points
-    #     self.image_points = image_points
-
-    #     for wp in world_points:
-    #         wp /= wp[-1]
-
-    #     self.with_calibration = False
-
-    def __init__(self, vicon_points_dict: dict=None, dvs_points_dict: dict=None):
+    def __init__(self, vicon_points_dict: PointsInfo=None, dvs_points_dict: PointsInfo=None):
         """
-        Takes the world points and image points as dict with timestampts and creates
+        Takes the world points and image points as PointsInfo with timestampts and creates
         the numpy array """
         if vicon_points_dict is None or dvs_points_dict is None:
             return
@@ -68,10 +52,11 @@ class ProjectionHelper():
 
         assert self.world_points.shape[0] == self.image_points.shape[0], "Not equal numbers of image and 3D points"
 
-    def undistort_image_points(self):
+    def undistort_image_points(self) -> np.ndarray:
         """
         Apply undistortion to image points. The function returns the undistorted points 
         and changes the saved image points to the undistoreted ones."""
+        
         try:
             print(f"Undistort points using coeffs: {self.D}")
         except:
@@ -82,13 +67,13 @@ class ProjectionHelper():
         undistorted = undistorted[:, 0, :]
         undistorted = np.hstack((undistorted, np.ones((undistorted.shape[0], 1))))  
 
-        # self.image_points = undistorted
         return undistorted
 
-    def import_camera_calbration(self, calib_file):
+    def import_camera_calbration(self, calib_file:str) -> (tuple[int, int], np.ndarray, np.ndarray):
         """Import the camera calibration from file"""
 
         calib = np.genfromtxt(calib_file, delimiter=" ", skip_header=1, dtype=object)
+
         calib_dict = {}
         keys = calib[:, 0].astype(str)
         vals = calib[:, 1].astype(float)
@@ -109,7 +94,8 @@ class ProjectionHelper():
 
         return self.img_shape, self.K, self.D
     
-    def initial_estimate(self):
+    def initial_estimate(self) -> np.ndarray:
+        """Find an inital estimate for transformation to match the projections"""
         s = self.world_points.shape[0]
         A = np.zeros((2*s, 12))
         for i in range(s):
@@ -128,14 +114,11 @@ class ProjectionHelper():
         m = eigenvectors[:, 11]
         return m
     
-    def find_projection(self):
-        """This does not use the calibration information. It finds the projection
-        matrix that includes calibration and transformation"""
-        return None
-    
-    def find_transform(self):
+    def find_transform(self) -> np.ndarray:
         """
-        It find the transformation using the calibration provided"""
+        NOT USED
+        It find the transformation using the calibration provided
+        """
 
         assert self.with_calibration is True
 
@@ -157,7 +140,8 @@ class ProjectionHelper():
 
         return T
     
-    def find_R_t_opencv_refine(self):
+    def find_R_t_opencv_refine(self) -> np.ndarray:
+        """NOT USED"""
         T = self.find_R_t_opencv()
 
         # measure error
@@ -185,12 +169,17 @@ class ProjectionHelper():
         return T
         
     
-    def find_R_t_opencv(self):
+    def find_R_t_opencv(self) -> np.ndarray:
+        "Method to only return the tranformation without the error (see next method)"
+
         T, s = self._find_R_t_opencv()
         print(f"Error at the end: {s}")
         return T
     
-    def _find_R_t_opencv(self):
+    def _find_R_t_opencv(self) -> (np.ndarray, float):
+        """Find the correct transformation that soves the Pnp problem using the opencv method
+        Returns the transformation and the error associated with that transformation"""
+
         proj_points = np.copy(self.world_points[:, :-1])
         img_points = np.copy(self.image_points[:, :-1])
 
@@ -200,8 +189,8 @@ class ProjectionHelper():
         
         r = r[0]
         t = t[0]
+        # there could be multiple solutins with multiple errors
         e = e[0][0]
-        
         
         T = np.zeros((4, 4))
         T[:3, :3] = Rotation.from_rotvec(r.reshape(3, )).as_matrix()
@@ -210,11 +199,14 @@ class ProjectionHelper():
 
         return T, e
     
-    def find_R_t_opencv_ransac(self):
+    def find_R_t_opencv_ransac(self) -> np.ndarray:
+        """Find the transformation using opncv ransac method"""
         T, s = self._find_R_t_opencv_ransac()
         return T
     
-    def _find_R_t_opencv_ransac(self):
+    def _find_R_t_opencv_ransac(self) -> (np.ndarray, float):
+        """Find the correct transformation that soves the Pnp problem using the opencv ransac method
+        Returns the transformation and the error associated with that transformation"""
 
         proj_points = np.copy(self.world_points[:, :-1])
         img_points = np.copy(self.image_points[:, :-1])
@@ -240,11 +232,11 @@ class ProjectionHelper():
 
         return T, err
 
-    def find_R_t(self, constrain_translation=False):
+    def find_R_t(self, constrain_translation:bool=False) -> np.ndarray:
         T, result = self._find_R_t(constrain_translation=constrain_translation)
         return T
     
-    def _find_R_t(self, constrain_translation=False):
+    def _find_R_t(self, constrain_translation:bool=False) -> np.ndarray:
         """The functiom finds the transformation (rotation and translation) that best 
         project the world_points to image_points using the intrinsic parameters K.
         im = K @ (R | t) @ P_w"""
@@ -329,7 +321,7 @@ class ProjectionHelper():
 
         return T, result
     
-    def T_to_transform(self, T):
+    def T_to_transform(self, T : np.ndarray) -> np.ndarray:
         Tr = np.zeros((4, 4))
 
         Tr[:3, :3] = T[:, :3]
@@ -338,7 +330,7 @@ class ProjectionHelper():
 
         return Tr
 
-    def transform_points(self, T):
+    def transform_points(self, T:np.ndarray) -> np.ndarray:
 
         transformed_points = (T @ self.world_points.transpose()).transpose()
 
@@ -347,11 +339,11 @@ class ProjectionHelper():
 
         return transformed_points
     
-    def transform_points(self, points, T):
+    def transform_points(self, points, T:np.ndarray) -> np.ndarray:
         
         return utils.transform_points(points, T)
     
-    def project_to_frame(self, points):
+    def project_to_frame(self, points:np.ndarray) -> np.ndarray:
         """
         Given a set of points, projects them on to the 2D image unsing the 
         intrinsic matrik self.K"""
@@ -367,7 +359,7 @@ class ProjectionHelper():
 
         return image_points
 
-    def project_to_frame_opencv(self, points):
+    def project_to_frame_opencv(self, points:np.ndarray) -> np.ndarray:
         rep_points, _ = cv2.projectPoints(points[:, :-1], np.zeros((3,)), np.zeros((3,)), self.K, self.D)
         return np.hstack((rep_points[:, 0, :], np.ones((rep_points.shape[0], 1))))
     

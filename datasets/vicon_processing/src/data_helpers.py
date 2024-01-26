@@ -1,22 +1,35 @@
+"""
+This file contains the class helpers to read and process the data from the 
+c3d data (from the vicon) and the event data from the cameras
+"""
+
+# TODO the different helpers could me moved to different files to improve readability
+
 import os
 import os.path
-import warnings
 
 import numpy as np
 import c3d
 import scipy.stats
 import cv2
 import yaml
-import matplotlib.pyplot as plt
-
-from scipy.optimize import minimize, NonlinearConstraint, LinearConstraint
-from scipy.spatial.transform import Rotation
 
 from bimvee.importIitYarp import importIitYarp
 
 from . import utils
 
 class PointsInfo:
+    """Class used to represent a set of points
+    Stores the point positions, the times and and the associated
+    vicon frame id
+    
+    This class is also used to represent labeled points from the dvs
+    In this case the frames_ids field is not used
+    
+    The different fields are accessed as a dictionary, e.g. example_points['times']
+    
+    Trying to retrieve or set any other field returns an error"""
+
     def __init__(self):
         self.times = None
         self.points = None
@@ -46,6 +59,7 @@ class PointsInfo:
                 raise KeyError("Invalid Key")
 
 class C3dHelper:
+    """Class for processing the c3d files"""
 
     def __init__(self, file_path, wand_zero_time=False, delay=0.0, camera_markers=True, filter_camera_markers=True):
         
@@ -65,6 +79,43 @@ class C3dHelper:
             print("Selected the option to not use the markers on the camera, the identity transformation will be used instead")
         else:
             self.process_camera_markers()
+    
+    def calculate_frame_times(self) -> np.ndarray:
+        """Each frame does not have a timestamp, however the realative times 
+        can be calculated from the known constant frame rate """
+
+        self.start_time = 0.0
+        # self.start_time -= self.delay
+
+        rate = self.reader.point_rate # vicon rate
+        time_step = 1.0 / rate # t between frames
+
+        times = np.linspace(self.start_time, self.reader.frame_count * time_step,
+                    self.reader.frame_count)
+        
+        # delay is used to synchnoize the vicon data and the dvs
+        # the value is subtracted to all the times
+        times -= self.delay
+        
+        self.frame_times = times
+
+        return self.frame_times
+    
+    def get_frame_time(self, times : list[float]) -> list[int]:
+        """Get a list of ids corresponding to the passed list of times"""
+        frame_ids = []
+        for t in times:
+            idx = np.searchsorted(self.frame_times, t)
+            if idx >= self.reader.frame_count:
+                break
+            frame_ids.append(idx)
+
+        return frame_ids
+    
+    def get_points_frame(self, frame_id: int) -> list[float]:
+        assert frame_id >= 0 and frame_id < self.reader.frame_count
+
+        return self.frame_points[frame_id]
 
     def find_start_time_stick(self):
         """
@@ -106,12 +157,16 @@ class C3dHelper:
         self.delay = delay
         self.calculate_frame_times()
 
-    def filter_pose(self, x:np.ndarray, order:int = 3, fs:int = 100.0, cutoff:int = 4) -> np.ndarray:
-        out = np.empty_like(x)
-        
-        for i in range(x.shape[1]):
-            out[:, i] = utils.butter_lowpass_filter(x[:, i], cutoff, fs, order)
+    def get_vicon_points(self, frames_id: list[int], labels:list[str]) -> PointsInfo:
+        vicon_points_frames = [self.get_points_dict(idx) for idx in frames_id]
+        vicon_points_frames = [self.filter_dict_labels(old_dict, labels) 
+                            for old_dict in vicon_points_frames]
 
+        out = PointsInfo()
+        out['points'] = vicon_points_frames
+        out['times'] = np.array([self.frame_times[idx] for idx in frames_id])
+        out['frame_ids'] = (frames_id)
+        
         return out
 
     def process_camera_markers(self):
@@ -147,44 +202,6 @@ class C3dHelper:
             self.camera_front_filt = camera_front
             self.camera_side_filt = camera_side
             self.camera_top_filt = camera_top
-
-
-    def calculate_frame_times(self) -> np.ndarray:
-        """Each frame does not have a timestamp, however the realative times 
-        can be calculated from the known constant frame rate """
-
-        self.start_time = 0.0
-        # self.start_time -= self.delay
-
-        rate = self.reader.point_rate # vicon rate
-        time_step = 1.0 / rate # t between frames
-
-        times = np.linspace(self.start_time, self.reader.frame_count * time_step,
-                    self.reader.frame_count)
-        
-        # delay is used to synchnoize the vicon data and the dvs
-        # the value is subtracted to all the times
-        times -= self.delay
-        
-        self.frame_times = times
-
-        return self.frame_times
-    
-    def get_frame_time(self, times : list[float]) -> list[int]:
-        """Get a list of ids corresponding to the passed list of times"""
-        frame_ids = []
-        for t in times:
-            idx = np.searchsorted(self.frame_times, t)
-            if idx >= self.reader.frame_count:
-                break
-            frame_ids.append(idx)
-
-        return frame_ids
-    
-    def get_points_frame(self, frame_id: int) -> list[float]:
-        assert frame_id >= 0 and frame_id < self.reader.frame_count
-
-        return self.frame_points[frame_id]
     
     def process_all_frames(self):
         self.frame_points = {}
@@ -287,7 +304,6 @@ class C3dHelper:
 
         return out_dict
 
-    
     def get_vicon_points_interpolated(self, dvs_points:PointsInfo) -> PointsInfo:
         """the frames is represent the ids of the frames corresponding to the label
         times floored to match with a vicon frame. The next id gives the upper value
@@ -325,22 +341,18 @@ class C3dHelper:
             vicon_points_frames.append(vicon_points_frame)
         
         out = PointsInfo()
-        out['points'] = vicon_points_frames,
-        out['times'] = desired_times,
+        out['points'] = vicon_points_frames
+        out['times'] = desired_times
         out['frame_ids'] = (frames_id)
         
         return out
     
-    def get_vicon_points(self, frames_id: list[int], labels:list[str]) -> PointsInfo:
-        vicon_points_frames = [self.get_points_dict(idx) for idx in frames_id]
-        vicon_points_frames = [self.filter_dict_labels(old_dict, labels) 
-                            for old_dict in vicon_points_frames]
-
-        out = PointsInfo()
-        out['points'] = vicon_points_frames,
-        out['times'] = np.array([self.frame_times[idx] for idx in frames_id])
-        out['frame_ids'] = (frames_id)
+    def filter_pose(self, x:np.ndarray, order:int = 3, fs:int = 100.0, cutoff:int = 4) -> np.ndarray:
+        out = np.empty_like(x)
         
+        for i in range(x.shape[1]):
+            out[:, i] = utils.butter_lowpass_filter(x[:, i], cutoff, fs, order)
+
         return out
     
     def transform_points_to_marker_frame(self, vicon_points:PointsInfo) -> PointsInfo:
@@ -355,6 +367,7 @@ class C3dHelper:
             try:
                 T  = self.marker_T_at_frame_vector(f, time=t)
             except Exception as e:
+                # TODO explicit error
                 T = np.eye(4)
 
             for pl in points:
@@ -547,7 +560,7 @@ class DvsLabeler():
         with open(out_file, 'w') as yaml_file:
             yaml.dump(self.labeled_dict, yaml_file, default_flow_style=False)
 
-    def label_frame(self, frame:np.ndarray, labels:list[str], subject:str="P11") -> (bool, dict, np.ndarray):
+    def label_frame(self, frame:np.ndarray, labels:list[str], subject:str="P11") -> (bool, PointsInfo, np.ndarray):
         points = []
         finished = False
         current_label_id = 0
@@ -579,7 +592,7 @@ class DvsLabeler():
         for p in points:
             cv2.circle(img, np.asarray(p, dtype=int), 6, (255, 0, 0), -1)
 
-        points_dict = {}
+        points_dict = PointsInfo()
         for p, l in zip(points, labels):
             complete_label = f"{subject}:{l}"
             points_dict[complete_label] = {
@@ -589,13 +602,13 @@ class DvsLabeler():
 
         return True, points_dict, img
     
-    def label_frame_manual(self, frame:np.ndarray, subject:str="P11") -> (bool, dict, np.ndarray):
+    def label_frame_manual(self, frame:np.ndarray, subject:str="P11") -> (bool, PointsInfo, np.ndarray):
         """This is different from the previous method. It is still for labeling the frames
         Instead of using a fixed list of labels, the user select the label for each point."""
         points = []
         finished = False
         current_label_id = 0
-        points_dict = {}
+        points_dict = PointsInfo()
 
         # load all the marker labels
         dirname = os.path.dirname(__file__)

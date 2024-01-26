@@ -1,4 +1,4 @@
-search_dir="/home/schiavazza/data/hpe/vicon_dataset/processed/zhichao"
+search_dir="/home/schiavazza/data/hpe/vicon_dataset/processed/gaurvi"
 echo "${search_dir}/*/"
 
 status_file="./status.txt"
