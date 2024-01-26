@@ -31,9 +31,9 @@ class PointsInfo:
     Trying to retrieve or set any other field returns an error"""
 
     def __init__(self):
-        self.times = None
-        self.points = None
-        self.frame_ids = None
+        self.times = []
+        self.points = []
+        self.frame_ids = []
         
     def __getitem__(self, key):
         match key:
@@ -560,7 +560,7 @@ class DvsLabeler():
         with open(out_file, 'w') as yaml_file:
             yaml.dump(self.labeled_dict, yaml_file, default_flow_style=False)
 
-    def label_frame(self, frame:np.ndarray, labels:list[str], subject:str="P11") -> (bool, PointsInfo, np.ndarray):
+    def label_frame(self, frame:np.ndarray, labels:list[str], subject:str="P11") -> (bool, dict, np.ndarray):
         points = []
         finished = False
         current_label_id = 0
@@ -592,7 +592,7 @@ class DvsLabeler():
         for p in points:
             cv2.circle(img, np.asarray(p, dtype=int), 6, (255, 0, 0), -1)
 
-        points_dict = PointsInfo()
+        points_dict = {}
         for p, l in zip(points, labels):
             complete_label = f"{subject}:{l}"
             points_dict[complete_label] = {
@@ -602,13 +602,13 @@ class DvsLabeler():
 
         return True, points_dict, img
     
-    def label_frame_manual(self, frame:np.ndarray, subject:str="P11") -> (bool, PointsInfo, np.ndarray):
+    def label_frame_manual(self, frame:np.ndarray, subject:str="P11") -> (bool, dict, np.ndarray):
         """This is different from the previous method. It is still for labeling the frames
         Instead of using a fixed list of labels, the user select the label for each point."""
         points = []
         finished = False
         current_label_id = 0
-        points_dict = PointsInfo()
+        points_dict = {}
 
         # load all the marker labels
         dirname = os.path.dirname(__file__)
