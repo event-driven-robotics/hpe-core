@@ -1,7 +1,7 @@
-search_dir="/home/schiavazza/data/hpe/vicon_dataset/processed/gaurvi"
+search_dir="/home/iit.local/schiavazza/data/vicon_hpe/zhichao"
 echo "${search_dir}/*/"
-status_file="./status_video.txt"
-subject="P8"
+status_file="./status_video_zhichao.txt"
+subject="P10"
 
 failed=0
 success=0
@@ -35,7 +35,7 @@ process_sequence () {
         delay=$(< $delay_file)
         echo "Delay s: ${delay}"
         echo -e "\t\t${delay} " >> $status_file
-        output_video="/home//schiavazza/Videos/vicon/gaurvi/${seq_name}_s.mp4"
+        output_video="/home/iit.local/schiavazza/local_data/hpe/videos/zhichao/${seq_name}_s.mp4"
         echo "Saving video to: ${output_video}"
 
         if [ -f $output_video ]; then
@@ -62,7 +62,7 @@ process_sequence () {
         delay=$(< $delay_file)
         echo "Delay d: ${delay}"
         echo -e "\t\t${delay} " >> $status_file
-        output_video="/home/schiavazza/Videos/vicon/gaurvi/${seq_name}_d.mp4"
+        output_video="/home/iit.local/schiavazza/local_data/hpe/videos/zhichao/${seq_name}_d.mp4"
         echo "Saving video to: ${output_video}"
         if [ -f $output_video ]; then
             echo -e "\t\tALREADY DONE" >> $status_file
