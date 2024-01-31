@@ -1,5 +1,5 @@
-search_dir="/home/schiavazza/data/hpe/vicon_dataset/processed/arren"
-subject="P7"
+search_dir="/home/schiavazza/data/hpe/vicon_dataset/processed/roberta"
+subject="P2"
 echo "${search_dir}/*/"
 for base_dir in ${search_dir}/*/   # list directories in the form "/tmp/dirname/"
 do

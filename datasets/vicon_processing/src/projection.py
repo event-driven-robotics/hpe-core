@@ -169,9 +169,7 @@ class ProjectionHelper():
         return T
         
     
-    def find_R_t_opencv(self) -> np.ndarray:
-        "Method to only return the tranformation without the error (see next method)"
-
+    def find_R_t_opencv(self):
         T, s = self._find_R_t_opencv()
         print(f"Error at the end: {s}")
         return T
@@ -204,9 +202,7 @@ class ProjectionHelper():
         T, s = self._find_R_t_opencv_ransac()
         return T
     
-    def _find_R_t_opencv_ransac(self) -> (np.ndarray, float):
-        """Find the correct transformation that soves the Pnp problem using the opencv ransac method
-        Returns the transformation and the error associated with that transformation"""
+    def _find_R_t_opencv_ransac(self):
 
         proj_points = np.copy(self.world_points[:, :-1])
         img_points = np.copy(self.image_points[:, :-1])
@@ -229,6 +225,7 @@ class ProjectionHelper():
             m = np.squeeze(m, -1)
             err = utils._geometric_error_with_K_2(m, self.world_points[inl[:, 0]], self.image_points[inl[:, 0]], self.K, self.D)
         print(f"Error at the end: {err}")
+        
 
         return T, err
 
