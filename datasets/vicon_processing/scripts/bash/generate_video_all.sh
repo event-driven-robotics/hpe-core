@@ -1,7 +1,7 @@
-search_dir="/home/schiavazza/data/hpe/vicon_dataset/processed/zhichao"
+search_dir="/home/schiavazza/data/hpe/vicon_dataset/processed/gaurvi"
 echo "${search_dir}/*/"
 status_file="./status_video.txt"
-subject="P10"
+subject="P8"
 
 failed=0
 success=0
@@ -35,13 +35,13 @@ process_sequence () {
         delay=$(< $delay_file)
         echo "Delay s: ${delay}"
         echo -e "\t\t${delay} " >> $status_file
-        output_video="/home//schiavazza/Videos/vicon/zhichao2/${seq_name}_s.mp4"
+        output_video="/home//schiavazza/Videos/vicon/gaurvi/${seq_name}_s.mp4"
         echo "Saving video to: ${output_video}"
 
         if [ -f $output_video ]; then
             echo -e "\t\tALREADY DONE" >> $status_file
         else
-            python3 ../generate_video.py --dvs_path ${input_static} --vicon_path ${c3d_file} --intrinsic ${c3d_base_dir}/calib-s.txt --extrinsic ${c3d_base_dir}/extrinsic_s.npy --output_path ${output_video} --labels ../config/labels_joints.yml --vicon_delay ${delay} --no_camera_markers --subject $subject
+            python3 ../generate_video.py --dvs_path ${input_static} --vicon_path ${c3d_file} --intrinsic ${c3d_base_dir}/calib-s.txt --extrinsic ${c3d_base_dir}/extrinsic_s.npy --output_path ${output_video} --labels ../config/labels_joints.yml --vicon_delay ${delay} --no_camera_markers --subject $subject --no_camera_filter
             s=$?
             if [ $s -ne 0 ]; then
                 echo -e "\t\tFAIL " >> $status_file
@@ -62,12 +62,12 @@ process_sequence () {
         delay=$(< $delay_file)
         echo "Delay d: ${delay}"
         echo -e "\t\t${delay} " >> $status_file
-        output_video="/home/schiavazza/Videos/vicon/zhichao/${seq_name}_d.mp4"
+        output_video="/home/schiavazza/Videos/vicon/gaurvi/${seq_name}_d.mp4"
         echo "Saving video to: ${output_video}"
         if [ -f $output_video ]; then
             echo -e "\t\tALREADY DONE" >> $status_file
         else
-            python3 ../generate_video.py --dvs_path ${input_dynamic} --vicon_path ${c3d_file} --intrinsic ${c3d_base_dir}/calib-d.txt --extrinsic ${c3d_base_dir}/extrinsic_d.npy --output_path ${output_video} --labels ../config/labels_joints.yml --vicon_delay ${delay} --subject $subject
+            python3 ../generate_video.py --dvs_path ${input_dynamic} --vicon_path ${c3d_file} --intrinsic ${c3d_base_dir}/calib-d.txt --extrinsic ${c3d_base_dir}/extrinsic_d.npy --output_path ${output_video} --labels ../config/labels_joints.yml --vicon_delay ${delay} --subject $subject --no_camera_filter
             s=$?
             if [ $s -ne 0 ]; then
                 echo -e "\t\tFAIL " >> $status_file

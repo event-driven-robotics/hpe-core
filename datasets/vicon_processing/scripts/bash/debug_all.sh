@@ -1,7 +1,7 @@
-search_dir="/home/schiavazza/data/hpe/vicon_dataset/processed/zhichao"
+search_dir="/home/schiavazza/data/hpe/vicon_dataset/processed/arren"
 echo "${search_dir}/*/"
 status_file="./status_debug.txt"
-subject="P10"
+subject="P7"
 
 failed=0
 success=0

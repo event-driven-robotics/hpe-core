@@ -62,7 +62,7 @@ def error_delay(delay):
 
     print(f"Trying delay: {delay}")
     c3d_file_path = args.vicon_path
-    c3d_helper = C3dHelper(c3d_file_path, delay=delay, camera_markers=not args.no_camera_markers)
+    c3d_helper = C3dHelper(c3d_file_path, delay=delay, camera_markers=not args.no_camera_markers, filter_camera_markers=False)
 
     vicon_labeled_frames = c3d_helper.get_frame_time(labels_times)
 

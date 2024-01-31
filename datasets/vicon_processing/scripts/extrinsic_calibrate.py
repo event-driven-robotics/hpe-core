@@ -34,7 +34,6 @@ parser.add_argument('--intrinsic',
                     help='intrinsic calibration for the camera')
 
 parser.add_argument('--output_path', help='path where to save the transformation that can be used as extrinsic calibration', required=True)
-parser.add_argument('--vicon_delay', default=0.0, type=float)
 parser.add_argument('--no_camera_markers', action=argparse.BooleanOptionalAction)
 
 args = parser.parse_args()

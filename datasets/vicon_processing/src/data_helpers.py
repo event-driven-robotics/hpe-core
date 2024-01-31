@@ -347,7 +347,7 @@ class C3dHelper:
         
         return out
     
-    def filter_pose(self, x:np.ndarray, order:int = 3, fs:int = 100.0, cutoff:int = 4) -> np.ndarray:
+    def filter_pose(self, x:np.ndarray, order:int = 3, fs:int = 100.0, cutoff:int = 3) -> np.ndarray:
         out = np.empty_like(x)
         
         for i in range(x.shape[1]):
@@ -359,7 +359,7 @@ class C3dHelper:
         """The vicon_points is a dict containing the points and the the times"""
         # self.find_markers_p0()
 
-        transformed_points = vicon_points.copy()
+        transformed_points = vicon_points
 
         for f, t,points in zip(transformed_points['frame_ids'], 
                              transformed_points['times'],
@@ -395,7 +395,6 @@ class C3dHelper:
         points_all = np.hstack((points_all, np.ones((points_all.shape[0], 1))))
 
         return np.array(points_all)
-
 
 class DvsHelper():
     def __init__(self, file_path):

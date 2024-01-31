@@ -159,6 +159,8 @@ The `label_all.sh` script uses the fixed labels method.
 The default markers used by the `label_all.sh` script should already work for all sequences.
 **Careful that the marker used when the camera is static of moving slowly are different from when the camera is moving fast.**
 
+Labeling all the sequences can take a while. The `label_all.sh` script can be stopped (ctrl+c) at any time. Runnig it again will ignore all the sequences that have already been labeled.
+
 ### Calibration
 
 If the labeling is done it should be strightforward. Just run the script: `scripts/extrinsic_calibrate.py` with the proper arguments. A projetion matrix will be saved.
@@ -179,8 +181,6 @@ After the extrinsic calibration is found we can find the optimal delay for each 
 Run the script: `scripts/bash/delay_optimise_all.sh`. Again change the path at the beginnig of the script to the desired one. The script will save the delay in a file inside the sequence folder.
 
 To run delay optimisation on a single sequence use: `scritps/delay_optimise.py`
-
-
 
 ### Degug
 

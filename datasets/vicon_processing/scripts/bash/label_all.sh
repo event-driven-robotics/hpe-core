@@ -1,5 +1,5 @@
-search_dir="/home/schiavazza/data/hpe/vicon_dataset/processed/gaurvi"
-subject="P8"
+search_dir="/home/schiavazza/data/hpe/vicon_dataset/processed/arren"
+subject="P7"
 echo "${search_dir}/*/"
 for base_dir in ${search_dir}/*/   # list directories in the form "/tmp/dirname/"
 do
@@ -31,7 +31,7 @@ do
         echo "Labeling ${input_dynamic}"
         echo $type
         if [ "$type" = "s" ]; then
-            echo "Type: slow"
+            echo "Type: slow"               
             python3 ../label_dvs.py --dvs_path ${input_dynamic} --frames_path ${frames_dynamic} --output_path ${frames_dynamic}/labeled_points.yml --calib_labels ../config/calib_labels_slow.yml --subject ${subject}
         else
             echo "Type: fast"
