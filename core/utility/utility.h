@@ -250,14 +250,20 @@ inline skeleton13 body25_to_dhp19(const skeleton25 skeleton_in)
 
 inline void drawSkeleton(cv::Mat &image, const stampedPose sk, std::array<int, 3> color = {0, 0, 200}, int th =1, double conf_th = 0.4) 
 {
-    skeleton13_b jb = jointTest(sk, conf_th);
+
+    static cv::Mat blank = cv::Mat(image.size(), CV_8UC3);
+    blank.setTo(cv::Vec3b(0.0, 0.0, 0.0));
+    skeleton13_b jb = jointTest(sk.pose);
     skeleton13_v jv = jointConvert(sk.pose);
     auto colorS = CV_RGB(color[0], color[1], color[2]);
+    auto cs = colorS;
 
     // plot detected joints
-    for (size_t i = 1; i < sk.pose.size(); i++)
+    for (size_t i = 1; i < sk.pose.size(); i++) {
+        cs = sk.conf[i] > conf_th ? colorS : sk.conf[i]/conf_th*colorS;
         if (jb[i])
-            cv::drawMarker(image, jv[i], colorS, cv::MARKER_TILTED_CROSS, 8);
+            cv::drawMarker(blank, jv[i], cs, cv::MARKER_TILTED_CROSS, 8);
+    }
 
     // if(jb[head]) cv::circle(image, jv[head]+ cv::Point(0, 10), 10, colorS, th);
     // if(jb[head] && jb[shoulderL] && jb[shoulderR]) cv::line(image, (jv[shoulderL] + jv[shoulderR])/2, jv[head] + cv::Point(0, 20), colorS, th);
@@ -266,21 +272,36 @@ inline void drawSkeleton(cv::Mat &image, const stampedPose sk, std::array<int, 3
         cv::Point neck_length = (jv[head] - ((jv[shoulderL] + jv[shoulderR])*0.5))*0.8;
         int dist = sqrt(neck_length.x * neck_length.x + neck_length.y*neck_length.y);
         //int dist = cv::norm(jv[shoulderL].-jv[shoulderR])/3;
-        cv::circle(image, jv[head] + neck_length, dist, colorS, th);
-        cv::line(image, (jv[shoulderL] + jv[shoulderR])/2, jv[head] + cv::Point(0, dist), colorS, th);
-    } 
-    if(jb[shoulderL] && jb[shoulderR]) cv::line(image, jv[shoulderL], jv[shoulderR], colorS, th);
-    if(jb[shoulderL] && jb[elbowL]) cv::line(image, jv[shoulderL], jv[elbowL], colorS, th);
-    if(jb[shoulderR] && jb[elbowR]) cv::line(image, jv[shoulderR], jv[elbowR], colorS, th);
-    if(jb[elbowL] && jb[handL]) cv::line(image, jv[elbowL], jv[handL], colorS, th);
-    if(jb[elbowR] && jb[handR]) cv::line(image, jv[elbowR], jv[handR], colorS, th);
-    if(jb[shoulderL] && jb[hipL]) cv::line(image, jv[shoulderL], jv[hipL], colorS, th);
-    if(jb[shoulderR] && jb[hipR]) cv::line(image, jv[shoulderR], jv[hipR], colorS, th);
-    if(jb[hipL] && jb[hipR]) cv::line(image, jv[hipL], jv[hipR], colorS, th);
-    if(jb[hipL] && jb[kneeL]) cv::line(image, jv[hipL], jv[kneeL], colorS, th);
-    if(jb[hipR] && jb[kneeR]) cv::line(image, jv[hipR], jv[kneeR], colorS, th);
-    if(jb[kneeL] && jb[footL]) cv::line(image, jv[kneeL], jv[footL], colorS, th);
-    if(jb[kneeR] && jb[footR]) cv::line(image, jv[kneeR], jv[footR], colorS, th);
+        cs = sk.conf[head] > conf_th ? colorS : colorS* sk.conf[head]/conf_th;
+        cv::circle(blank, jv[head] + neck_length, dist, cs, th);
+        cv::line(blank, (jv[shoulderL] + jv[shoulderR])/2, jv[head] + cv::Point(0, dist), cs, th);
+    }
+    cs = sk.conf[head] > conf_th ? colorS : sk.conf[head]/conf_th*colorS*0.5;
+    if(jb[shoulderL] && jb[shoulderR]) cv::line(blank, jv[shoulderL], jv[shoulderR], cs, th);
+    cs = sk.conf[elbowL] > conf_th ? colorS : sk.conf[elbowL]/conf_th*colorS*0.5;
+    if(jb[shoulderL] && jb[elbowL]) cv::line(blank, jv[shoulderL], jv[elbowL], cs, th);
+    cs = sk.conf[elbowR] > conf_th ? colorS : sk.conf[elbowR]/conf_th*colorS*0.5;
+    if(jb[shoulderR] && jb[elbowR]) cv::line(blank, jv[shoulderR], jv[elbowR], cs, th);
+    cs = sk.conf[handL] > conf_th ? colorS : sk.conf[handL]/conf_th*colorS*0.5;
+    if(jb[elbowL] && jb[handL]) cv::line(blank, jv[elbowL], jv[handL], cs, th);
+    cs = sk.conf[handR] > conf_th ? colorS : sk.conf[handR]/conf_th*colorS*0.5;
+    if(jb[elbowR] && jb[handR]) cv::line(blank, jv[elbowR], jv[handR], cs, th);
+    cs = sk.conf[hipL] > conf_th ? colorS : sk.conf[hipL]/conf_th*colorS*0.5;
+    if(jb[shoulderL] && jb[hipL]) cv::line(blank, jv[shoulderL], jv[hipL], cs, th);
+    cs = sk.conf[hipR] > conf_th ? colorS : sk.conf[hipR]/conf_th*colorS*0.5;
+    if(jb[shoulderR] && jb[hipR]) cv::line(blank, jv[shoulderR], jv[hipR], cs, th);
+    cs = sk.conf[hipL] > conf_th ? colorS : sk.conf[hipL]/conf_th*colorS*0.5;
+    if(jb[hipL] && jb[hipR]) cv::line(blank, jv[hipL], jv[hipR], cs, th);
+    cs = sk.conf[kneeL] > conf_th ? colorS : sk.conf[kneeL]/conf_th*colorS*0.5;
+    if(jb[hipL] && jb[kneeL]) cv::line(blank, jv[hipL], jv[kneeL], cs, th);
+    cs = sk.conf[kneeR] > conf_th ? colorS : sk.conf[kneeR]/conf_th*colorS*0.5;
+    if(jb[hipR] && jb[kneeR]) cv::line(blank, jv[hipR], jv[kneeR], cs, th);
+    cs = sk.conf[footL] > conf_th ? colorS : sk.conf[footL]/conf_th*colorS*0.5;
+    if(jb[kneeL] && jb[footL]) cv::line(blank, jv[kneeL], jv[footL], cs, th);
+    cs = sk.conf[footR] > conf_th ? colorS : sk.conf[footR]/conf_th*colorS*0.5;
+    if(jb[kneeR] && jb[footR]) cv::line(blank, jv[kneeR], jv[footR], cs, th);
+
+    image += blank;
 }
 
 inline void drawSkeleton(cv::Mat &image, const skeleton13 pose, std::array<int, 3> color = {0, 0, 200}, int th =1) 
