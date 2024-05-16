@@ -46,6 +46,10 @@ Python scripts can be used to compare different detectors and velocity estimatio
 ### Datasets and Conversion
 
 Scripts to convert datasets into common formats to easily facilitate valid comparisons
+Human Pose is defined with 13 joints: with the following map for joints:
+KEYPOINTS_MAP = {'head': 0, 'shoulder_right': 1, 'shoulder_left': 2, 'elbow_right': 3, 'elbow_left': 4,
+                     'hip_left': 5, 'hip_right': 6, 'wrist_right': 7, 'wrist_left': 8, 'knee_right': 9, 'knee_left': 10,
+                     'ankle_right': 11, 'ankle_left': 12}
 
 ### Authors
 
