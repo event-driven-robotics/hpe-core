@@ -33,8 +33,10 @@ def import_yarp_skeleton_data(yarp_file_path: pathlib.Path) -> Dict:
         exit()
 
     for li, line in enumerate(content):
-        tss, points, head_size, torso_size = pattern.findall(line)[0]
-            
+        try:
+            tss, points, head_size, torso_size = pattern.findall(line)[0]
+        except:
+            continue
         points = np.array(list(filter(None, points.split(' ')))).astype(int).reshape(-1, 2)
         for d, label in zip(points, HPECoreSkeleton.KEYPOINTS_MAP):
             data_dict[label].append(d)

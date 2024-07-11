@@ -108,11 +108,15 @@ def superimpose_pose(img_in, pose, num_classes=13, tensors=True, filename=None):
     cv2.waitKey(100)
 
 
-def add_skeleton(img, keypoints, color, lines=None, normalised=True, th=0.1, confidence=False, upper=False, text=False):
+def add_skeleton(img, keypoints, color, lines=None, normalised=True, th=0.1, confidence=False, upper=False, text=False, flip = True):
+    # keypoints should be a 1D vector.
     if len(img.shape) == 2:
         img = cv2.cvtColor(img.astype('uint8'), cv2.COLOR_GRAY2BGR)
     if normalised:
         h, w, _ = img.shape
+        if flip:
+            w, h, _ = img.shape
+
     else:
         h = w = 1
     if keypoints.size % 3 == 0:
@@ -126,6 +130,10 @@ def add_skeleton(img, keypoints, color, lines=None, normalised=True, th=0.1, con
             continue
         x = int(keypoints[i * dim] * w)
         y = int(keypoints[i * dim + 1] * h)
+        if flip:
+            y = int(keypoints[i * dim] * h)
+            x = int(keypoints[i * dim + 1] * w)
+
         if dim == 3:
             if confidence:
                 radius = int(keypoints[i * dim + 2] * 10)
@@ -141,10 +149,13 @@ def add_skeleton(img, keypoints, color, lines=None, normalised=True, th=0.1, con
             #                 0.5, color, thickness=1, lineType=cv2.LINE_AA)
     if lines is not None:
         kps_2d = np.reshape(keypoints, [-1, dim])
+        if flip:
+            kps_2d = kps_2d[:,1::-1]
         kps_dict = get_kps_names_hpecore(kps_2d)
         for [jointa, jointb] in lines_in_skeleton:
-            if kps_dict[jointa][2] < th or kps_dict[jointb][2] < th:
-                continue
+            if confidence:
+                if kps_dict[jointa][2] < th or kps_dict[jointb][2] < th:
+                    continue
             if upper and (jointa not in upper_joints or jointb not in upper_joints):
                 continue
             # print('kps_dict[jointa]', kps_dict[jointa][0])
@@ -154,6 +165,39 @@ def add_skeleton(img, keypoints, color, lines=None, normalised=True, th=0.1, con
             y2 = int(kps_dict[jointb][1] * h)
 
             cv2.line(img, (x1, y1), (x2, y2), color, thickness=2)
+    return img
+
+
+def add_velocities(img, keypoint, vel, color, normalised=True, text=False, flip=True):
+    if len(img.shape) == 2:
+        img = cv2.cvtColor(img.astype('uint8'), cv2.COLOR_GRAY2BGR)
+    if normalised:
+        h, w, _ = img.shape
+    else:
+        h = w = 1
+    if keypoint.size % 3 == 0:
+        dim = 3
+    else:
+        dim = 2
+    vel = np.reshape(vel, [-1, 2])
+    count = 0
+    for i in range(len(keypoint) // dim):
+
+        x = int(keypoint[i * dim] * w)
+        y = int(keypoint[i * dim + 1] * h)
+        vx = int(vel[count, 0])
+        vy = int(vel[count, 1])
+        if flip:
+            y = int(keypoint[i * dim] * w)
+            x = int(keypoint[i * dim + 1] * h)
+            vy = int(vel[count, 0])
+            vx = int(vel[count, 1])
+        cv2.arrowedLine(img, [x,y], [x+vx,y+vy], color, 2)
+        # cv2.circle(img, (x, y), radius, color, 2)
+        if text:
+            img = cv2.putText(img, str(f"{keypoint[i * dim + 2]:.3f}"), (x, y), cv2.FONT_HERSHEY_SIMPLEX,
+                              0.5, color, thickness=1, lineType=cv2.LINE_AA)
+        count += 1
     return img
 
 # if __name__ == "__main__":

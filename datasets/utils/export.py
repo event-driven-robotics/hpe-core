@@ -146,7 +146,8 @@ def get_movenet_keypoints(pose: Dict, h_frame=1, w_frame=1, add_visibility=True,
     return keypoints
 
 
-def get_hpecore_keypoints(pose: Dict, h_frame=1, w_frame=1, add_visibility=True):
+def get_hpecore_keypoints(pose: Dict, h_frame=1, w_frame=1, add_visibility=True, upperbody=False):
+    # todo: add upperbody functionality to this function
     keypoints = []
     pose_hpecore = numpy.zeros([len(HPECoreSkeleton.KEYPOINTS_MAP), 2], float)
     for key, value in HPECoreSkeleton.KEYPOINTS_MAP.items():
