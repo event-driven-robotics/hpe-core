@@ -112,7 +112,7 @@ def add_skeleton(img, keypoints, color, lines=None, normalised=True, th=0.1, con
     # keypoints should be a 1D vector.
     if len(img.shape) == 2:
         img = cv2.cvtColor(img.astype('uint8'), cv2.COLOR_GRAY2BGR)
-    if normalised:
+    if not normalised:
         h, w, _ = img.shape
         if flip:
             w, h, _ = img.shape
