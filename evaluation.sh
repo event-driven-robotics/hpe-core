@@ -1,0 +1,1 @@
+python3 evaluation/evaluate_hpe.py -d /home/cpham-iit.local/data/h36m/test/EV2/ -p /home/cpham-iit.local/data/gamer_toy/eval -o /home/cpham-iit.local/data/output_hpe_test/ -pck 0.4 0.6 0.8 -mpjpe -lat 
