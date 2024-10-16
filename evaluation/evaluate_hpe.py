@@ -362,6 +362,9 @@ def plot_latency(output_folder_path, ds_name, timestamps, algo_names, latencies)
         # ax.plot(timestamps[pi], coord_pred, color=algo_colors[pi], marker="None", label=f'{algo_names[pi]}', linestyle='-', alpha=1.0)
         ax.plot(timestamps[pi], coord_pred, marker="None", label=f'{algo_names[pi]}', linestyle='-', alpha=1.0)
 
+        #Print avg latency
+        avg_latency = np.mean(latency)
+        print(f'avg latency {algo_names[pi]}', avg_latency)
         y_lim_min = min(y_lim_min, min(latency))
         y_lim_max = max(y_lim_max, max(latency))
     # ax.plot(timestamps, latencies, marker=".", linestyle='-', alpha=1.0)
@@ -735,7 +738,9 @@ def main(args):
 
                 latency.append(predictions[:, 1])
                 results['datasets'][results_key]['latency'][algo_name] = np.mean(predictions[:, 1])
-                # latency = np.mean(predictions[:, 1])
+                #print averge latency
+                # avg_latency = np.mean(predictions[:, 1])
+                # print('averge latency: ', avg_latency)
                 # results['datasets'][results_key]['latency'][algo_name] = np.arange(1)
                 # results['datasets'][results_key]['latency'][algo_name][0] = np.mean(latency)
             
