@@ -16,23 +16,37 @@ from evaluation.utils import metrics as metrics_utils, plots as plots_utils
 from evaluation.utils.plots import plot_poses
 from visualization import add_skeleton
 
-def viz_prediction_all_joints(skeletons_gt, skeletons_predictions):
+def viz_prediction_all_joints(algo_names, skeletons_predictions):
      res = [480, 640]
      image = np.zeros(res, np.uint8)
      thickness = 2
      count = 0
+    #  file_path = save_video
+     file_path = '/home/cpham-iit.local/data/h36m/videos/gnn_eval.mp4'
+     frame_width = 640
+     frame_height = 480
+     fps = 30
+     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+     output = cv2.VideoWriter(file_path, fourcc, fps, (frame_width, frame_height))
+     print('saving video')
      image = cv2.cvtColor(image.astype('uint8'), cv2.COLOR_GRAY2BGR)
-     image = add_skeleton(image, skeletons_predictions[0], (255, 0, 0), lines=True, normalised=False)
-     image = cv2.resize(image, (res[1], res[0]))
-     
-     pass
+
+     for i in range(len(skeletons_predictions[0])):
+        print('skt type',skeletons_predictions[0][i,:])
+        image1 = add_skeleton(image, skeletons_predictions[0][i,:], (255, 0, 0), lines=True, normalised=False)
+        image2 = add_skeleton(image,skeletons_predictions[1][i,:], (0,255,0), lines=True, normalised=False)
+        image1 = cv2.resize(image1, (res[1], res[0]))
+        image2 = cv2.resize(image2,(res[1], res[0]))
+        dst = cv2.addWeighted(image1,1,image2,1,0)
+        output.write(dst)
+     return dst
 
 def main(args):
     plt.close('all')
     output_folder_path = Path('/home/cpham-iit.local/data/h36m/videos/')
 
     # predictions_folder = Path(args.predictions_path)
-    predictions_path = Path('/home/cpham-iit.local/data/eval/cam2_S1_Directions')
+    predictions_path = Path('/home/cpham-iit.local/data/h36m/ledge/eval/cam2_S9_Greeting_1')
 
     predictions_file_path = list(predictions_path.glob('**/*.csv'))
     print(predictions_file_path)
@@ -47,7 +61,6 @@ def main(args):
     skeletons_predictions = []
     timestamps = []
     latency = []
-
     #parse prediction
     for pred_path in predictions_file_path:
         print('pred path',pred_path)
@@ -74,7 +87,11 @@ def main(args):
                                                         len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), -1)
         algorithm_names.append(algo_name)
         skeletons_predictions.append(skeletons_pred)
-        print('skt pred',len(skeletons_predictions))
+
+        # print('skt pred',skeletons_pred[0,:].shape)
+    viz_prediction_all_joints(algorithm_names, skeletons_predictions)
+        
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='...')
     parser.add_argument('-p', '--predictions_path',
