@@ -109,6 +109,7 @@ def superimpose_pose(img_in, pose, num_classes=13, tensors=True, filename=None):
 
 
 def add_skeleton(img, keypoints, color, lines=None, normalised=True, th=0.1, confidence=False, upper=False, text=False):
+    keypoints = keypoints.reshape([-1])
     if len(img.shape) == 2:
         img = cv2.cvtColor(img.astype('uint8'), cv2.COLOR_GRAY2BGR)
     if normalised:
