@@ -8,7 +8,7 @@ MoveNet is an ultra fast and accurate model that detects 17 keypoints of a body.
 This is A Pytorch implementation of MoveNet inspired from the [Movenet.Pytorch](https://github.com/fire717/movenet.pytorch) modified to detect 13 keypoints trained on EROS, an event based representation, only consisting of the inference code.
 
 
-## Instalation
+## Installation
 
 This can be installed in a few different ways:
 
@@ -19,10 +19,14 @@ This can be installed in a few different ways:
     $ cd <workspace>
     $ git clone git@github.com:event-driven-robotics/hpe-core.git
     $ cd hpe-core/example/movenet
-    $ docker build -t movenet - < Dockerfile
+    $ docker build -t moveEnet - < Dockerfile
     ```
-:bulb: `<workspace>` is the parent directory of choice in which the repository is cloned
-This will create a Docker image names movenet. Before running docker, instruct the host to accept GUI windows with the following command:
+-`<workspace>` is the parent directory of choice in which the repository is cloned
+- If your computer does not have a GPU, replace `Dockerfile` with `Dockerfile_cpu` 
+
+his will create a Docker image names movenet. 
+
+Before running docker, instruct the host to accept GUI windows with the following command:
     
 ```shell
     $ xhost local:docker
