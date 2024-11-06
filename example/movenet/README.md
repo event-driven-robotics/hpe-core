@@ -9,6 +9,7 @@ This is A Pytorch implementation of a variation of MoveNet inspired from the [Mo
 
 ![moveEnet](https://github.com/user-attachments/assets/9ea56f92-a22a-4202-8340-1a0a6faeec73)
 
+For complete explanation, refer to the [MoveEnet](https://openaccess.thecvf.com/content/CVPR2023W/EventVision/papers/Goyal_MoveEnet_Online_High-Frequency_Human_Pose_Estimation_With_an_Event_Camera_CVPRW_2023_paper.pdf) paper.
 
 ## Installation
 
@@ -91,3 +92,14 @@ A event sample from the [event-human 3.6m dataset](https://zenodo.org/records/78
 ```
 Note: You can point the -write_video path to the host volume if you mounted one while creating the container.
 
+### Quantitative evaluation
+
+For evaluation with hpe-core scripts, csv files can be created. 
+- First use the export_eros.py scripts of the appropriate dataset from [here](https://github.com/event-driven-robotics/hpe-core/tree/moveEnet_offline/datasets)
+  or download a sample with eros images from [here](https://github.com/event-driven-robotics/hpe-core/issues/115)
+  
+```shell
+$ python3 evaluate.py --write_output --eval_img_path <<location_of_eros_frames>> \
+  --eval_label_path <<location_to_json_file>> \
+  --results_path <<location_to_save_csv_folder>>
+```
