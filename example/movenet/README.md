@@ -5,12 +5,14 @@
 ## Intro
 
 MoveNet is an ultra fast and accurate model that detects 17 keypoints of a body.
-This is A Pytorch implementation of MoveNet inspired from the [Movenet.Pytorch](https://github.com/fire717/movenet.pytorch) modified to detect 13 keypoints trained on EROS, an event based representation, only consisting of the inference code.
+This is A Pytorch implementation of a variation of MoveNet inspired from the [Movenet.Pytorch](https://github.com/fire717/movenet.pytorch), modified to detect 13 keypoints trained on EROS, an event based representation. This example only consists of the inference code.
+
+![moveEnet](https://github.com/user-attachments/assets/9ea56f92-a22a-4202-8340-1a0a6faeec73)
 
 
 ## Installation
 
-This can be installed in a few different ways:
+The environment can be installed in 2 different ways:
 
 1. Compile the Docker file to create the environment.
 
