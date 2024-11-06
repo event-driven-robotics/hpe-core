@@ -77,7 +77,7 @@ def import_file(data_dvs_file):
     elif os.path.splitext(filename)[1] == '.h5':
         data_dvs = import_h5(data_dvs_file)
     else:
-        data_dvs = import_dvs(filePathOrName=os.path.join(data_dvs_file))
+        data_dvs = import_dvs(filePathOrName=data_dvs_file)
     print('File imported.')
     return data_dvs
 
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     parser.add_argument('-stop', help='Set to an integer value to stop early after these frames', default=None, type=int)
     parser.add_argument('-rep', help='Representation eros or ef', default='eros', type=str)
     parser.add_argument('-n', help='Number of events in constant count event frame [7500]', default=7500, type=int)
-    parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=True, help="Run in dev mode.")
+    parser.add_argument("-dev", type=str2bool, nargs='?', const=True, default=False, help="Run in dev mode.")
     parser.add_argument("-ts_scaler", help='', default=1.0, type=float)
     parser.add_argument('-visualise', type=str2bool, nargs='?', default=True, help="Visualise Results [TRUE]")
 

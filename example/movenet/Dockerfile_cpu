@@ -1,6 +1,6 @@
 
 # base image
-FROM nvidia/cuda:11.5.1-cudnn8-devel-ubuntu20.04
+FROM ubuntu:focal
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -12,8 +12,8 @@ RUN apt-get update && \
 # CUDA PUBLIC KEYS UPDATE #
 ###########################
 
-RUN sudo apt-key del 7fa2af80
-RUN sudo apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/3bf863cc.pub
+#RUN sudo apt-key del 7fa2af80
+#RUN sudo apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/3bf863cc.pub
 
 ##########
 # PYTHON #
@@ -106,11 +106,10 @@ RUN pip3 install \
 #   YARP   #
 ############
 
-ARG EVENT_DRIVEN_VERSION=1.5
+ARG EVENT_DRIVEN_VERSION=v1.5
 ARG YARP_VERSION=3.6.0
 ARG YCM_VERSION=0.14.0
 # mustard first release
-ARG MUSTARD_COMMIT=18e702892f6028c69a2a9e224f459bc26147b20e
 ARG BUILD_TYPE=Release
 ARG SOURCE_FOLDER=/usr/local
 ARG OPENGL=0
@@ -149,8 +148,6 @@ RUN cd $SOURCE_FOLDER && \
     git clone https://github.com/robotology/ycm.git && \
     cd ycm && \
     git checkout v$YCM_VERSION && \
-#    # FIXME: remove this line after gitlab fix!!!!!
-#    sed -ie 's/libeigen/cantonios/g' 3rdparty/eigen3.cmake && \
     mkdir build && cd build && \
     cmake .. && \
     make -j `nproc` install
@@ -182,7 +179,7 @@ ENV QT_X11_NO_MITSHM 1
 RUN cd $SOURCE_FOLDER && \
     git clone https://github.com/robotology/event-driven.git && \
     cd event-driven && \
-    git checkout v$EVENT_DRIVEN_VERSION && \
+    git checkout $EVENT_DRIVEN_VERSION && \
     mkdir build && cd build && \
     cmake -DVLIB_CLOCK_PERIOD_NS=1000 \
           -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
@@ -193,21 +190,13 @@ RUN cd $SOURCE_FOLDER && \
 
 
 # install BIMVEE
-RUN python3 -m pip install setuptools Cython numpy scipy bimvee  # numpy==1.21.4 if using python3.7
+RUN python3 -m pip install setuptools Cython numpy scipy  # numpy==1.21.4 if using python3.7
+RUN pip install bimvee
 #RUN cd $SOURCE_FOLDER && \
 #    git clone https://github.com/event-driven-robotics/bimvee --recurse-submodules && \
 #    cd bimvee && \
 #    git checkout $BIMVEE_COMMIT && \
 #    python3 setup.py install
-
-
-# install MUSTARD
-RUN cd $SOURCE_FOLDER && \
-    git clone https://github.com/event-driven-robotics/mustard && \
-    cd mustard && \
-    git checkout $MUSTARD_COMMIT && \
-    python3 setup.py install
-
 
 
 ############
@@ -216,7 +205,7 @@ RUN cd $SOURCE_FOLDER && \
 
 # download hpe-core
 RUN cd $SOURCE_FOLDER && \
-    git clone git@github.com:event-driven-robotics/hpe-core.git && \
+    git clone https://github.com/event-driven-robotics/hpe-core.git && \
     cd hpe-core && \
     git checkout $HPE_BRANCH
 
@@ -228,12 +217,11 @@ RUN cd $SOURCE_FOLDER/hpe-core/core && \
 
 # install movenet dependencies
 RUN cd $SOURCE_FOLDER/hpe-core/example/movenet && \
-    git checkout movenet_integration && \
     python3 -m pip install --upgrade pip && \
     python3 -m pip install -r requirements.txt && \
     mkdir build && cd build && \
     cmake .. && make install -j$(nproc)
 
-RUN export PYTHONPATH=$PYTHONPATH:$SOURCE_FOLDER/hpe-core/
+RUN export PYTHONPATH=$PYTHONPATH:$SOURCE_FOLDER/hpe-core
 
 WORKDIR $SOURCE_FOLDER/hpe-core/example/movenet
