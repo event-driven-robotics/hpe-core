@@ -16,9 +16,8 @@ import numpy as np
 import sys, csv
 import h5py
 
-sys.path.append('/home/ggoyal/code/hpe-core')
-sys.path.append('/home/ggoyal/code/bimvee')
-# sys.path.append('/home/ggoyal/code/hpe-core/example/movenet')
+sys.path.append('.')
+sys.path.append('../../../hpe-core')
 #
 # from lib import init, MoveNet, Task
 from datasets.utils.parsing import import_yarp_skeleton_data, batchIterator

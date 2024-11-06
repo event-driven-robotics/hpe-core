@@ -8,9 +8,11 @@ MoveNet is an ultra fast and accurate model that detects 17 keypoints of a body.
 This is A Pytorch implementation of MoveNet inspired from the [Movenet.Pytorch](https://github.com/fire717/movenet.pytorch) modified to detect 13 keypoints trained on EROS, an event based representation, only consisting of the inference code.
 
 
-## How To Run
-1. Compile the Docker file to create the environment.
+## Instalation
 
+This can be installed in a few different ways:
+
+1. Compile the Docker file to create the environment.
 
 - Download the repository and build the Docker image
     ```shell
@@ -29,7 +31,7 @@ This will create a Docker image names movenet. Before running docker, instruct t
 Then run a container with the right parameters:
 
 ```shell
-    $ docker run -it --privileged --network host -v /dev/bus/usb:/dev/bus/usb \
+    $ docker run -it --privileged --network host -v /dev/bus/usb:/dev/bus/usb 
     -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY \
     --name <container_name> movenet:latest
 ```
@@ -42,27 +44,44 @@ The meaning of the options are:
 * -e DISPLAY=unix$DISPLAY : set the environment variable for X11 forwarding
 * --name : name your container so you remember it, if not specified docker will assign a random name that you will have to remember
 
-In case you wish to load any data present on host system, load its path when creating the container but adding another parameters in the command in the the format: `-v /path/on/host:/usr/local/data`
+In case you wish to load any data present on host system or save results to a location external to the docker container, load a path as a volume when creating the container by adding another parameters in the command in the format: `
+-v /path/on/host:/usr/local/data`
 
-## Usage
+2. Create a python environment on you local machine. 
+If you want to run this offline only, this option can be used. 
+ - Create a virtual environment and enter it.
+ - Install dependencies from the requirements.txt:
+
+```shell
+  $ python3 -m pip install --upgrade pip && python3 -m pip install -r requirements.txt
+```
+ - Add hpe core to your PYTHONPATH
+```shell
+  $ export PYTHONPATH=$PYTHONPATH:/path/to/hpe-core/
+```
+## Usage (Inference)
+
 To reopen a running container: 
 ```shell
     $ docker exec -it <container_name> bash
   ```
 
-To run the movenet app, run 
+### Online Inference on Camera input
+To run online pose estimation on a camera input, in commandline, run:  
 ```shell
     $ yarpmanager
   ```
 
-and load the file `/usr/local/hpe-core/examples/movenet/yarpmanagerapplication.xml`. Run all and connect all to detect pose from the camera input
+then load the file `/usr/local/hpe-core/examples/movenet/yarpmanagerapplication.xml`. Run all and connect all to detect pose from the camera input
 
-To create csv files from a stored dataset of eros frames:
+### Offline Inference on a data sample
+
+A event sample from the [event-human 3.6m dataset](https://zenodo.org/records/7842598) is provided. To see the result on it, run: 
 
 ```shell
-  $ python3 evaluate.py --write_output --eval_img_path <<location_of_eros_frames>> \ 
-  --eval_label_path <<location_to_json_file>> \
-  --results_path <<location_to_save_csv_folder>>
-
-
+    $ mkdir data && cd data && wget https://github.com/user-attachments/files/17645984/cam2_S1_Directions.zip
+    $ unzip cam2_S1_Directions.zip && cd ..
+    $ python3 moveEnet-offline.py -visualise False -write_video data/cam2_S1_Directions/moveEnet.mp4 -input data/cam2_S1_Directions/ch0dvs/
 ```
+Note: You can point the -write_video path to the host volume if you mounted one while creating the container.
+
