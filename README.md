@@ -30,7 +30,7 @@ Compile and link the core C++ library in your application to use the event-based
 * asynchronous pose fusion of joint velocity and detection
 * event representation methods to be compatible with convolutional neural networks.
 
-### PyCore
+### [PyCore](https://github.com/event-driven-robotics/hpe-core/tree/main/pycore)
 
 Importable python libraries for joint detection
 * event-based movenet: MoveEnet built on PyTorch
@@ -44,16 +44,10 @@ Some example applications are available giving ideas on how to use the HPE-core 
 
 Python scripts can be used to compare different detectors and velocity estimation combinations
 
-### Datasets and Conversion
+### [Datasets and Conversion](https://github.com/event-driven-robotics/hpe-core/tree/main/datasets)
 
-Scripts to convert datasets into common formats to easily facilitate valid comparisons
+Scripts to convert datasets into common formats to easily facilitate valid comparisons, and consistency
 
-Human Pose is defined with 13 joints: with the following map for joints:
-```Python
-KEYPOINTS_MAP = {'head': 0, 'shoulder_right': 1, 'shoulder_left': 2, 'elbow_right': 3, 'elbow_left': 4,
-                     'hip_left': 5, 'hip_right': 6, 'wrist_right': 7, 'wrist_left': 8, 'knee_right': 9, 'knee_left': 10,
-                     'ankle_right': 11, 'ankle_left': 12}
-```
 ### Authors
 
 > [@arrenglover](https://www.linkedin.com/in/arren-glover/)
