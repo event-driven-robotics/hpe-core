@@ -14,6 +14,8 @@ Please cite:
     pages     = {4023-4032}
 }
 ```
+article: [MoveEnet: Online High-Frequency Human Pose Estimation With an Event Camera](https://github.com/user-attachments/files/17659249/MoveEnet-CVPR-WEBV2023.pdf)
+
 also for the eH3.6m dataset:
 ```
 https://zenodo.org/record/7842598
