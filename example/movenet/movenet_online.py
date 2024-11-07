@@ -28,8 +28,8 @@ class MovenetModule(yarp.RFModule):
         self.output_port = yarp.Port()
         self.stamp = yarp.Stamp()
         # self.counter = 0
-        self.image_w = 640  # Size of image expected from the framer.
-        self.image_h = 480  #
+        self.image_w = cfg['w']  # Size of image expected from the framer.
+        self.image_h = cfg['h']  #
         # self.np_input = None
         self.yarp_image = yarp.ImageMono()
         self.yarp_sklt_out = yarp.Bottle()
@@ -39,8 +39,8 @@ class MovenetModule(yarp.RFModule):
         self.resultsPath = '/outputs'
         self.image_w_model = 192  # Size of the image expected by the model
         self.image_h_model = 192  #
-        self.output_w = 640  # Size of the image expected by yarp
-        self.output_h = 480  #
+        # self.output_w = 640  # Size of the image expected by yarp
+        # self.output_h = 480  #
         self.fname = None
         self.fname_ts = None
         self.last_timestamp = 0.0

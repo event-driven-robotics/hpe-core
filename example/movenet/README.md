@@ -5,22 +5,31 @@
 ## Intro
 
 MoveNet is an ultra fast and accurate model that detects 17 keypoints of a body.
-This is A Pytorch implementation of MoveNet inspired from the [Movenet.Pytorch](https://github.com/fire717/movenet.pytorch) modified to detect 13 keypoints trained on EROS, an event based representation, only consisting of the inference code.
+This is A Pytorch implementation of a variation of MoveNet inspired from the [Movenet.Pytorch](https://github.com/fire717/movenet.pytorch), modified to detect 13 keypoints trained on EROS, an event based representation. This example only consists of the inference code.
 
+![moveEnet](https://github.com/user-attachments/assets/9ea56f92-a22a-4202-8340-1a0a6faeec73)
 
-## How To Run
+For complete explanation, refer to the [MoveEnet](https://openaccess.thecvf.com/content/CVPR2023W/EventVision/papers/Goyal_MoveEnet_Online_High-Frequency_Human_Pose_Estimation_With_an_Event_Camera_CVPRW_2023_paper.pdf) paper.
+
+## Installation
+
+The environment can be installed in 2 different ways:
+
 1. Compile the Docker file to create the environment.
-
 
 - Download the repository and build the Docker image
     ```shell
     $ cd <workspace>
     $ git clone git@github.com:event-driven-robotics/hpe-core.git
     $ cd hpe-core/example/movenet
-    $ docker build -t movenet - < Dockerfile
+    $ docker build -t moveEnet - < Dockerfile
     ```
-:bulb: `<workspace>` is the parent directory of choice in which the repository is cloned
-This will create a Docker image names movenet. Before running docker, instruct the host to accept GUI windows with the following command:
+-`<workspace>` is the parent directory of choice in which the repository is cloned
+- If your computer does not have a GPU, replace `Dockerfile` with `Dockerfile_cpu` 
+
+his will create a Docker image names movenet. 
+
+Before running docker, instruct the host to accept GUI windows with the following command:
     
 ```shell
     $ xhost local:docker
@@ -29,7 +38,7 @@ This will create a Docker image names movenet. Before running docker, instruct t
 Then run a container with the right parameters:
 
 ```shell
-    $ docker run -it --privileged --network host -v /dev/bus/usb:/dev/bus/usb \
+    $ docker run -it --privileged --network host -v /dev/bus/usb:/dev/bus/usb 
     -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=unix$DISPLAY \
     --name <container_name> movenet:latest
 ```
@@ -42,27 +51,55 @@ The meaning of the options are:
 * -e DISPLAY=unix$DISPLAY : set the environment variable for X11 forwarding
 * --name : name your container so you remember it, if not specified docker will assign a random name that you will have to remember
 
-In case you wish to load any data present on host system, load its path when creating the container but adding another parameters in the command in the the format: `-v /path/on/host:/usr/local/data`
+In case you wish to load any data present on host system or save results to a location external to the docker container, load a path as a volume when creating the container by adding another parameters in the command in the format: `
+-v /path/on/host:/usr/local/data`
 
-## Usage
+2. Create a python environment on you local machine. 
+If you want to run this offline only, this option can be used. 
+ - Create a virtual environment and enter it.
+ - Install dependencies from the requirements.txt:
+
+```shell
+  $ python3 -m pip install --upgrade pip && python3 -m pip install -r requirements.txt
+```
+ - Add hpe core to your PYTHONPATH
+```shell
+  $ export PYTHONPATH=$PYTHONPATH:/path/to/hpe-core/
+```
+## Usage (Inference)
+
 To reopen a running container: 
 ```shell
     $ docker exec -it <container_name> bash
   ```
 
-To run the movenet app, run 
+### Online Inference on Camera input
+To run online pose estimation on a camera input, in commandline, run:  
 ```shell
     $ yarpmanager
   ```
 
-and load the file `/usr/local/hpe-core/examples/movenet/yarpmanagerapplication.xml`. Run all and connect all to detect pose from the camera input
+then load the file `/usr/local/hpe-core/examples/movenet/yarpmanagerapplication.xml`. Run all and connect all to detect pose from the camera input
 
-To create csv files from a stored dataset of eros frames:
+### Offline Inference on a data sample
+
+A event sample from the [event-human 3.6m dataset](https://zenodo.org/records/7842598) is provided. To see the result on it, run: 
 
 ```shell
-  $ python3 evaluate.py --write_output --eval_img_path <<location_of_eros_frames>> \ 
+    $ mkdir data && cd data && wget https://github.com/user-attachments/files/17645984/cam2_S1_Directions.zip
+    $ unzip cam2_S1_Directions.zip && cd ..
+    $ python3 moveEnet-offline.py -visualise False -write_video data/cam2_S1_Directions/moveEnet.mp4 -input data/cam2_S1_Directions/ch0dvs/
+```
+Note: You can point the -write_video path to the host volume if you mounted one while creating the container.
+
+### Quantitative evaluation
+
+For evaluation with hpe-core scripts, csv files can be created. 
+- First use the export_eros.py scripts of the appropriate dataset from [here](https://github.com/event-driven-robotics/hpe-core/tree/moveEnet_offline/datasets)
+  or download a sample with eros images from [here](https://github.com/event-driven-robotics/hpe-core/issues/115)
+  
+```shell
+$ python3 evaluate.py --write_output --eval_img_path <<location_of_eros_frames>> \
   --eval_label_path <<location_to_json_file>> \
   --results_path <<location_to_save_csv_folder>>
-
-
 ```

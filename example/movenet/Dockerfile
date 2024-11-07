@@ -109,7 +109,6 @@ RUN pip3 install \
 ARG EVENT_DRIVEN_VERSION=1.5
 ARG YARP_VERSION=3.6.0
 ARG YCM_VERSION=0.14.0
-ARG BIMVEE_COMMIT=3670bcc9c75608df1cfdef06f3f1a34b0ca68d43
 # mustard first release
 ARG MUSTARD_COMMIT=18e702892f6028c69a2a9e224f459bc26147b20e
 ARG BUILD_TYPE=Release
@@ -194,12 +193,12 @@ RUN cd $SOURCE_FOLDER && \
 
 
 # install BIMVEE
-RUN python3 -m pip install setuptools Cython numpy==1.21.4 scipy  # numpy==1.21.4 if using python3.7
-RUN cd $SOURCE_FOLDER && \
-    git clone https://github.com/event-driven-robotics/bimvee --recurse-submodules && \
-    cd bimvee && \
-    git checkout $BIMVEE_COMMIT && \
-    python3 setup.py install
+RUN python3 -m pip install setuptools Cython numpy scipy bimvee  # numpy==1.21.4 if using python3.7
+#RUN cd $SOURCE_FOLDER && \
+#    git clone https://github.com/event-driven-robotics/bimvee --recurse-submodules && \
+#    cd bimvee && \
+#    git checkout $BIMVEE_COMMIT && \
+#    python3 setup.py install
 
 
 # install MUSTARD
@@ -235,6 +234,6 @@ RUN cd $SOURCE_FOLDER/hpe-core/example/movenet && \
     mkdir build && cd build && \
     cmake .. && make install -j$(nproc)
 
-RUN export PYTHONPATH=$PYTHONPATH:$SOURCE_FOLDER/hpe-core
+RUN export PYTHONPATH=$PYTHONPATH:$SOURCE_FOLDER/hpe-core/
 
 WORKDIR $SOURCE_FOLDER/hpe-core/example/movenet

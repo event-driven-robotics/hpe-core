@@ -30,7 +30,7 @@ Compile and link the core C++ library in your application to use the event-based
 * asynchronous pose fusion of joint velocity and detection
 * event representation methods to be compatible with convolutional neural networks.
 
-### PyCore
+### [PyCore](https://github.com/event-driven-robotics/hpe-core/tree/main/pycore)
 
 Importable python libraries for joint detection
 * event-based movenet: MoveEnet built on PyTorch
@@ -38,14 +38,15 @@ Importable python libraries for joint detection
 ### [Examples](https://github.com/event-driven-robotics/hpe-core/tree/main/example)
 
 Some example applications are available giving ideas on how to use the HPE-core libraries
+- MoveEnet inference code in corresponding example [here](https://github.com/event-driven-robotics/hpe-core/tree/main/example/movenet)
 
 ### [Evaluation](https://github.com/event-driven-robotics/hpe-core/tree/main/evaluation)
 
 Python scripts can be used to compare different detectors and velocity estimation combinations
 
-### Datasets and Conversion
+### [Datasets and Conversion](https://github.com/event-driven-robotics/hpe-core/tree/main/datasets)
 
-Scripts to convert datasets into common formats to easily facilitate valid comparisons
+Scripts to convert datasets into common formats to easily facilitate valid comparisons, and consistency
 
 ### Authors
 

@@ -26,7 +26,7 @@ def main(cfg):
 
     run_task = Task(cfg, model)
 
-    run_task.modelLoad("models/mpii_pre-trained.pth")
+    run_task.modelLoad("models/e97_valacc0.81209.pth")
 
     run_task.evaluate(data_loader, fastmode=True)
     # run_task.infer_video(data_loader,'/home/ggoyal/data/h36m/tester/out.avi')

@@ -264,6 +264,8 @@ def arg_parser(cfg):
     parser.add_argument('--debug', help='Use for various uses across debugging modalities', action='store_true',
                         default=False, required=False)
     parser.add_argument("--confidence_th", help='Threshold value under which joints are not shown', default=0.01, type=float)
+    parser.add_argument('--h', help='Epochs', default=480, type=int)
+    parser.add_argument('--w', help='Epochs', default=640, type=int)
 
     args = parser.parse_args()
 
