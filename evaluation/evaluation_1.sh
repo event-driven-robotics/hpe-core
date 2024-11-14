@@ -1,0 +1,1 @@
+python3 evaluate_hpe.py -d /home/cpham-iit.local/data/h36m/EV2 -p /home/cpham-iit.local/data/h36m/ledge/eval -o /home/cpham-iit.local/data/test_ledge_gnn_eval_laptop -pck 0.4 0.6 0.8 -mpjpe -lat
