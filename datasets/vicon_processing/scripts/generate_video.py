@@ -8,9 +8,9 @@ from tqdm import tqdm
 import argparse
 import yaml
 
-sys.path.append('/home/schiavazza/code/hpe/hpe-core/datasets/')
-sys.path.append('/local_code/hpe-core/datasets/')
-sys.path.append('/home/iit.local/schiavazza/local_code/hpe-core/datasets/')
+# sys.path.append('/home/schiavazza/code/hpe/hpe-core/datasets/')
+# sys.path.append('/local_code/hpe-core/datasets/')
+sys.path.append('/home/cpham-iit.local/hpe-core/datasets/')
 
 from vicon_processing.src.projection import ProjectionHelper
 from vicon_processing.src.data_helpers import DvsLabeler, DvsHelper, C3dHelper

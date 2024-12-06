@@ -5,9 +5,9 @@ import yaml
 import cv2
 import argparse
 
-sys.path.append('/home/schiavazza/code/hpe/hpe-core/datasets/')
-sys.path.append('/local_code/hpe-core/datasets/')
-sys.path.append('/home/iit.local/schiavazza/local_code/hpe-core/datasets/')
+# sys.path.append('/home/schiavazza/code/hpe/hpe-core/datasets/')
+# sys.path.append('/local_code/hpe-core/datasets/')
+sys.path.append('/home/cpham-iit.local/hpe-core/hpe-core/datasets/')
 
 from vicon_processing.src.data_helpers import DvsLabeler, DvsHelper
 
