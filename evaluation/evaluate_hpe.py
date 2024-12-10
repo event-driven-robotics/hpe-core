@@ -797,7 +797,7 @@ def main(args):
 
                     # create table
                     header = [key for key in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.keys()]
-                    header.append('avg PCK')
+                    header.append('avg_PCK')
 
                     for (th, algos) in metric_results.items():
                         if (not (to_latex)):
@@ -868,7 +868,7 @@ def main(args):
 
             # create table
             header = [key for key in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.keys()]
-            header.append('avg PCK')
+            header.append('avg_PCK')
 
             for (th, algos) in metric_results.items():
                 if (not (to_latex)):
@@ -905,7 +905,7 @@ def main(args):
                 print("\n-= MPJPE =-")
             header = [header_str for key in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.keys() for header_str in
                       [f'{key}']]
-            header.append('avg MPJPE')
+            header.append('avg_MPJPE')
 
             tabulate_metric_over_algorithms(metric_results, header,
                                             descr=f'Global MPJPE results',
