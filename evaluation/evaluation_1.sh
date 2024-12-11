@@ -1,1 +1,1 @@
-python3 evaluate_hpe.py -d /home/cpham-iit.local/data/h36m/EV2 -p /home/cpham-iit.local/data/h36m/ledge/eval -o /home/cpham-iit.local/data/ledge10_eval -pck 0.4 0.6 0.8 -mpjpe -lat
+python3 evaluate_hpe.py -d /home/cpham-iit.local/data/h36m/EV2 -p /home/cpham-iit.local/data/h36m/ledge/eval -o /home/cpham-iit.local/data/ledge10_eval -pck 0.4 0.6 0.8 -mpjpe -lat -e movenet_cam2 -e movenet_eF -e movenet_wo_finetune -e openpose_pim 
