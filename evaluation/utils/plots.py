@@ -25,7 +25,9 @@ OTHER_COLORS = ['black', 'violet','grey', 'pink', 'blue','red','green','yellow',
 RENAMING = {'movenet_cam-24': 'moveEnet',
             'movenet_eF': 'movenet_fixedCount',
             'movenet': 'moveEnet',
-            'gl-hpe':'liftmono-hpe'
+            'gl-hpe':'liftmono-hpe',
+            'ledge_test_stepwise_unflipped': 'ledge_stable',
+            'ledge10_solo_weight_contrib_stepwise': 'ledge10_single_weight'
             }
 
 
