@@ -29,24 +29,27 @@ def viz_prediction_all_joints(algo_names, skeletons_predictions):
      fourcc = cv2.VideoWriter_fourcc(*'mp4v')
      output = cv2.VideoWriter(file_path, fourcc, fps, (frame_width, frame_height))
      print('saving video')
-     image = cv2.cvtColor(image.astype('uint8'), cv2.COLOR_GRAY2BGR)
 
      for i in range(len(skeletons_predictions[0])):
-        print('skt type',skeletons_predictions[0][i,:])
-        image1 = add_skeleton(image, skeletons_predictions[0][i,:], (255, 0, 0), lines=True, normalised=False)
-        image2 = add_skeleton(image,skeletons_predictions[1][i,:], (0,255,0), lines=True, normalised=False)
+        # print('skt type',skeletons_predictions[0][i,:])
+        image1 = cv2.cvtColor(image.astype('uint8'), cv2.COLOR_GRAY2BGR)
+        image2 = cv2.cvtColor(image.astype('uint8'), cv2.COLOR_GRAY2BGR)
+        image1 = add_skeleton(image1, skeletons_predictions[0][i,:].flatten(), (255, 0, 0), lines=True, normalised=False)
         image1 = cv2.resize(image1, (res[1], res[0]))
+        image2 = add_skeleton(image2,skeletons_predictions[1][i,:].flatten(), (0,255,0), lines=True, normalised=False)
         image2 = cv2.resize(image2,(res[1], res[0]))
         dst = cv2.addWeighted(image1,1,image2,1,0)
         output.write(dst)
-     return dst
+     cv2.destroyAllWindows()
+     output.release()
+     return None
 
 def main(args):
     plt.close('all')
     output_folder_path = Path('/home/cpham-iit.local/data/h36m/videos/')
 
     # predictions_folder = Path(args.predictions_path)
-    predictions_path = Path('/home/cpham-iit.local/data/h36m/ledge/eval/cam2_S9_Greeting_1')
+    predictions_path = Path('/home/cpham-iit.local/data/cam2_S9_Photo')
 
     predictions_file_path = list(predictions_path.glob('**/*.csv'))
     print(predictions_file_path)
@@ -77,7 +80,7 @@ def main(args):
 
         predictions_old = predictions_old[predictions_old[:, 0].argsort()]
 
-        idx = np.where(np.logical_and(predictions_old[:, 0] > 5, predictions_old[:, 0] < 15))
+        idx = np.where(np.logical_and(predictions_old[:, 0] > 5, predictions_old[:, 0] < 30))
         predictions = predictions_old[idx[0], :]
         print('predictions: ', predictions.shape)
         ts_pred = predictions[:,0]

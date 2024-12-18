@@ -20,12 +20,13 @@ class HPECoreSkeleton:
     # - we use the more common 'wrist' and 'ankle' labels instead of DHP19's 'hand' and 'foot' ones
     # - all joints are listed as first 'right' and then 'left' except for the 'hip' ones: it is not an error,
     #   it is DHP19's order
-    # KEYPOINTS_MAP = {'head': 0, 'shoulder_right': 1, 'shoulder_left': 2, 'elbow_right': 3, 'elbow_left': 4,
-    #                  'hip_left': 5, 'hip_right': 6, 'wrist_right': 7, 'wrist_left': 8, 'knee_right': 9, 'knee_left': 10,
-    #                  'ankle_right': 11, 'ankle_left': 12}
-    KEYPOINTS_MAP = {'head': 0, 'shoulder_right': 1, 'shoulder_left': 2, 'hip_left': 3, 'hip_right': 4,
-                     'elbow_right': 5, 'elbow_left': 6, 'wrist_right': 7, 'wrist_left': 8, 'knee_right': 9, 'knee_left': 10,
+    KEYPOINTS_MAP = {'head': 0, 'shoulder_right': 1, 'shoulder_left': 2, 'elbow_right': 3, 'elbow_left': 4,
+                     'hip_left': 5, 'hip_right': 6, 'wrist_right': 7, 'wrist_left': 8, 'knee_right': 9, 'knee_left': 10,
                      'ankle_right': 11, 'ankle_left': 12}
+    # KEYPOINTS_MAP = {'head': 0, 'shoulder_right': 1, 'shoulder_left': 2, 'hip_left': 3, 'hip_right': 4,
+    #                  'elbow_right': 5, 'elbow_left': 6, 'wrist_right': 7, 'wrist_left': 8, 'knee_right': 9, 'knee_left': 10,
+    #                  'ankle_right': 11, 'ankle_left': 12}
+    
     @staticmethod
     def compute_torso_sizes(skeletons: numpy.array) -> float:
 
