@@ -15,17 +15,32 @@ parser.add_argument('--mpjpe_path', help='read MPJPE PATH provided.', default="/
                     type=str)
 parser.add_argument("--pck",
                     help="select, to manually select the label for each point",
-                    default=True,
+                    default=False,
                     action=argparse.BooleanOptionalAction)
 parser.add_argument("--mpjpe",
                     help="select, to manually select the label for each point",
-                    default=False,
+                    default=True,
                     action=argparse.BooleanOptionalAction)
 
 args = parser.parse_args()
 
 PCK_metric = args.pck
 MPJPE_metric = args.mpjpe
+
+hpecore_kps_labels = {'head': 0,
+                      'shoulder_right': 1,
+                      'shoulder_left': 2,
+                      'hip_left': 3,
+                      'hip_right': 4,
+                      'elbow_right': 5,
+                      'elbow_left': 6,
+                      'wrist_right': 7,
+                      'wrist_left': 8,
+                      'knee_right': 9,
+                      'knee_left': 10,
+                      'ankle_right': 11,
+                      'ankle_left': 12
+                      }
 
 if PCK_metric:
     # Load global PCK@04 results
@@ -34,22 +49,24 @@ if PCK_metric:
     df_PCK_movenet_cam_24 = df_PCK["movenet_cam-24"]
     df_PCK_movenet_cam_24 = df_PCK_movenet_cam_24.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
     # print(df_PCK_movenet_cam_24)
-    df_PCK_movenet_cam_24 = df_PCK["movenet_cam-24"].iloc[1:14].values
+    df_PCK_movenet_cam_24 = df_PCK_movenet_cam_24.iloc[1:14].values
     df_PCK_movenet_cam_24 = [float(x) for x in df_PCK_movenet_cam_24]
     df_PCK_openpose_rgb = df_PCK["openpose_rgb"]
     df_PCK_openpose_rgb = df_PCK_openpose_rgb.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
-    df_PCK_openpose_rgb = df_PCK["openpose_rgb"].iloc[1:14].values
+    df_PCK_openpose_rgb = df_PCK_openpose_rgb.iloc[1:14].values
     df_PCK_openpose_rgb = [float(x) for x in df_PCK_openpose_rgb]
 
     df_PCK_ledge10_solo_weight_contrib_stepwise = df_PCK["ledge10_solo_weight_contrib_stepwise"]
+    # print(df_PCK_ledge10_solo_weight_contrib_stepwise)
     df_PCK_ledge10_solo_weight_contrib_stepwise = df_PCK_ledge10_solo_weight_contrib_stepwise.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
-    print(df_PCK_ledge10_solo_weight_contrib_stepwise)
-    df_PCK_ledge10_solo_weight_contrib_stepwise = df_PCK["ledge10_solo_weight_contrib_stepwise"].iloc[1:14].values
+    # print(df_PCK_ledge10_solo_weight_contrib_stepwise)
+    df_PCK_ledge10_solo_weight_contrib_stepwise = df_PCK_ledge10_solo_weight_contrib_stepwise.iloc[1:14].values
+    # print(df_PCK_ledge10_solo_weight_contrib_stepwise)
     df_PCK_ledge10_solo_weight_contrib_stepwise = [float(x) for x in df_PCK_ledge10_solo_weight_contrib_stepwise]
 
     df_PCK_ledgefull_stepwise_unflipped = df_PCK["ledge_test_stepwise_unflipped"]
     df_PCK_ledgefull_stepwise_unflipped = df_PCK_ledgefull_stepwise_unflipped.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
-    df_PCK_ledgefull_stepwise_unflipped = df_PCK["ledge_test_stepwise_unflipped"].iloc[1:14].values
+    df_PCK_ledgefull_stepwise_unflipped = df_PCK_ledgefull_stepwise_unflipped.iloc[1:14].values
     df_PCK_ledgefull_stepwise_unflipped = [float(x) for x in df_PCK_ledgefull_stepwise_unflipped]
     
 if MPJPE_metric:
@@ -58,22 +75,22 @@ if MPJPE_metric:
     df_MPJPE_movenet_cam_24 = df_MPJPE["movenet_cam-24"]
     df_MPJPE_movenet_cam_24 = df_MPJPE_movenet_cam_24.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
     # print(df_PCK_movenet_cam_24)
-    df_MPJPE_movenet_cam_24 = df_MPJPE["movenet_cam-24"].iloc[1:14].values
+    df_MPJPE_movenet_cam_24 = df_MPJPE_movenet_cam_24.iloc[1:14].values
     df_MPJPE_movenet_cam_24 = [float(x) for x in df_MPJPE_movenet_cam_24]
     df_MPJPE_openpose_rgb = df_MPJPE["openpose_rgb"]
     df_MPJPE_openpose_rgb = df_MPJPE_openpose_rgb.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
-    df_MPJPE_openpose_rgb = df_MPJPE["openpose_rgb"].iloc[1:14].values
+    df_MPJPE_openpose_rgb = df_MPJPE_openpose_rgb.iloc[1:14].values
     df_MPJPE_openpose_rgb = [float(x) for x in df_MPJPE_openpose_rgb]
 
     df_MPJPE_ledge10_solo_weight_contrib_stepwise = df_MPJPE["ledge10_solo_weight_contrib_stepwise"]
     df_MPJPE_ledge10_solo_weight_contrib_stepwise = df_MPJPE_ledge10_solo_weight_contrib_stepwise.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
     print(df_MPJPE_ledge10_solo_weight_contrib_stepwise)
-    df_MPJPE_ledge10_solo_weight_contrib_stepwise = df_MPJPE["ledge10_solo_weight_contrib_stepwise"].iloc[1:14].values
+    df_MPJPE_ledge10_solo_weight_contrib_stepwise = df_MPJPE_ledge10_solo_weight_contrib_stepwise.iloc[1:14].values
     df_MPJPE_ledge10_solo_weight_contrib_stepwise = [float(x) for x in df_MPJPE_ledge10_solo_weight_contrib_stepwise]
 
     df_MPJPE_ledgefull_stepwise_unflipped = df_MPJPE["ledge_test_stepwise_unflipped"]
     df_MPJPE_ledgefull_stepwise_unflipped = df_MPJPE_ledgefull_stepwise_unflipped.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
-    df_MPJPE_ledgefull_stepwise_unflipped = df_MPJPE["ledge_test_stepwise_unflipped"].iloc[1:14].values
+    df_MPJPE_ledgefull_stepwise_unflipped = df_MPJPE_ledgefull_stepwise_unflipped.iloc[1:14].values
     df_MPJPE_ledgefull_stepwise_unflipped = [float(x) for x in df_MPJPE_ledgefull_stepwise_unflipped]
 #Plot 
 width = 0.1
@@ -94,7 +111,7 @@ if PCK_metric:
     ax = plt.gca()
     ax.tick_params(axis='x', labelrotation = 30)
     ax.legend(fontsize = 18, loc='upper left', mode = "expand", ncol = 4, bbox_to_anchor = (0, 1.01, 1, 0.075))
-    ax.set_xticklabels(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.keys(), fontsize = 14)
+    ax.set_xticklabels(hpecore_kps_labels.keys(), fontsize = 14)
     ax.set_ylim(0, 1)
     sns.despine(bottom=True)
     plt.suptitle('Global PCK@0.4 for 20per validation set', fontsize = 18, y = 0.98)
@@ -116,7 +133,7 @@ if MPJPE_metric:
     ax = plt.gca()
     ax.tick_params(axis='x', labelrotation = 30)
     ax.legend(fontsize = 18, loc='upper left', mode = "expand", ncol = 4, bbox_to_anchor = (0, 1.01, 1, 0.075))
-    ax.set_xticklabels(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.keys(), fontsize = 14)
+    ax.set_xticklabels(hpecore_kps_labels.keys(), fontsize = 14)
     ax.set_ylim(0, 50)
     sns.despine(bottom=True)
     # plt.suptitle('Global PCK@0.4 for 20per validation set', fontsize = 18, y = 0.92)
