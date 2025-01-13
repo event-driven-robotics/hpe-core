@@ -36,40 +36,43 @@ def viz_prediction_all_joints(algo_names, skeletons_predictions, skeletons_gt, t
      for ts_idx in range(len(ts)):
         
         # print('skt type',skeletons_predictions[0][i,:])
-        cv2.rectangle(image, (520,420), (640,480), (255,255,255), int(thickness/2)) #img size [480, 640]
-        cv2.line(image, (530, 440),(550,440), (255,0,0), thickness) #MoveEnet
-        cv2.putText(image, algo_names[0], (570, 440), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), int(thickness/2), cv2.LINE_AA)
-        cv2.line(image, (530, 460),(550,460), (0,255,0), thickness) #OpenPoseRGB
-        cv2.putText(image, algo_names[1], (570, 460), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), int(thickness/2), cv2.LINE_AA)
-        # image = cv2.cvtColor(image.astype('uint8'), cv2.COLOR_GRAY2BGR)
-        # image2 = cv2.cvtColor(image.astype('uint8'), cv2.COLOR_GRAY2BGR)
-        # image3 = cv2.cvtColor(image.astype('uint8'), cv2.COLOR_GRAY2BGR)
-        # image1 = add_skeleton(image1, skeletons_predictions[0][ts_idx,:].flatten(), (255, 0, 0), lines=True, normalised=False)
-        # image1 = cv2.resize(image1, (res[1], res[0]))
-        # image2 = add_skeleton(image2,skeletons_predictions[1][ts_idx,:].flatten(), (0,255,0), lines=True, normalised=False)
-        # image2 = cv2.resize(image2,(res[1], res[0]))
-        # image3 = add_skeleton(image3,skeletons_gt[ts_idx,:].flatten(), (0,255,0), lines=True, normalised=False)
-        # image3 = cv2.resize(image3,(res[1], res[0]))
-        # dst = cv2.addWeighted(image1,1/3,image2,1/3,image3,1/3,0)
-        # cv2.rectangle(dst, (520,420), (640,480), (255,255,255), int(thickness/2)) #img size [480, 640]
-        # cv2.line(dst, (530, 440),(550,440), (255,0,0), thickness) #MoveEnet
-        # cv2.putText(dst, algo_names[0], (570, 440), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), int(thickness/2), cv2.LINE_AA)
-        # cv2.line(dst, (530, 460),(550,460), (0,255,0), thickness) #OpenPoseRGB
-        # cv2.putText(dst, algo_names[1], (570, 460), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), int(thickness/2), cv2.LINE_AA)
-        # output.write(dst)
-        image = add_skeleton(image, skeletons_predictions[0][ts_idx,:].flatten(), (255, 0, 0), lines=True, normalised=False)
-        # image1 = cv2.resize(image1, (res[1], res[0]))
-        image = add_skeleton(image,skeletons_predictions[1][ts_idx,:].flatten(), (0,255,0), lines=True, normalised=False)
-        # image2 = cv2.resize(image2,(res[1], res[0]))
-        image = add_skeleton(image,skeletons_gt[ts_idx,:].flatten(), (0,0,255), lines=True, normalised=False)
-        # print(skeletons_predictions[0][ts_idx,:].flatten())
-        # print(skeletons_predictions[1][ts_idx,:].flatten())
-        # print(skeletons_gt[ts_idx,:].flatten())
-        # exit()
-        # image3 = cv2.resize(image3,(res[1], res[0]))
-        # dst = cv2.addWeighted(image1,1/3,image2,1/3,image3,1/3,0)
-        image = image.astype('uint8')
-        output.write(image)
+        # cv2.rectangle(image, (520,420), (640,480), (255,255,255), int(thickness/2)) #img size [480, 640]
+        # cv2.line(image, (530, 440),(550,440), (255,0,0), thickness) #MoveEnet
+        # cv2.putText(image, algo_names[0], (570, 440), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), int(thickness/2), cv2.LINE_AA)
+        # cv2.line(image, (530, 460),(550,460), (0,255,0), thickness) #OpenPoseRGB
+        # cv2.putText(image, algo_names[1], (570, 460), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), int(thickness/2), cv2.LINE_AA)
+        image1 = cv2.cvtColor(image.astype('uint8'), cv2.COLOR_GRAY2BGR)
+        image2 = cv2.cvtColor(image.astype('uint8'), cv2.COLOR_GRAY2BGR)
+        image3 = cv2.cvtColor(image.astype('uint8'), cv2.COLOR_GRAY2BGR)
+        image1 = add_skeleton(image1, skeletons_predictions[0][ts_idx,:].flatten(), (255, 0, 0), lines=True, normalised=False)
+        image1 = cv2.resize(image1, (res[1], res[0]))
+        image2 = add_skeleton(image2,skeletons_predictions[1][ts_idx,:].flatten(), (0,255,0), lines=True, normalised=False)
+        image2 = cv2.resize(image2,(res[1], res[0]))
+        image3 = add_skeleton(image3,skeletons_gt[ts_idx,:].flatten(), (0,0,255), lines=True, normalised=False)
+        image3 = cv2.resize(image3,(res[1], res[0]))
+        viz_openpose_moveenet = cv2.addWeighted(image1,1,image2,1,0)
+        openpose_moveenet_GT = cv2.addWeighted(viz_openpose_moveenet,1,image3,1,0)
+        # cv2.rectangle(openpose_moveenet_GT, (520,420), (640,480), (255,255,255), int(thickness/2)) #img size [480, 640]
+        cv2.line(openpose_moveenet_GT, (530, 420),(550,420), (0,0,255), thickness) #GT
+        cv2.putText(openpose_moveenet_GT, 'GT', (570, 420), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), int(thickness/2), cv2.LINE_AA)
+        cv2.line(openpose_moveenet_GT, (530, 440),(550,440), (255,0,0), thickness) #MoveEnet
+        cv2.putText(openpose_moveenet_GT, algo_names[0], (570, 440), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), int(thickness/2), cv2.LINE_AA)
+        cv2.line(openpose_moveenet_GT, (530, 460),(550,460), (0,255,0), thickness) #OpenPoseRGB
+        cv2.putText(openpose_moveenet_GT, algo_names[1], (570, 460), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), int(thickness/2), cv2.LINE_AA)
+        output.write(openpose_moveenet_GT)
+        # image = add_skeleton(image, skeletons_predictions[0][ts_idx,:].flatten(), (255, 0, 0), lines=True, normalised=False)
+        # # image1 = cv2.resize(image1, (res[1], res[0]))
+        # image = add_skeleton(image,skeletons_predictions[1][ts_idx,:].flatten(), (0,255,0), lines=True, normalised=False)
+        # # image2 = cv2.resize(image2,(res[1], res[0]))
+        # image = add_skeleton(image,skeletons_gt[ts_idx,:].flatten(), (0,0,255), lines=True, normalised=False)
+        # # print(skeletons_predictions[0][ts_idx,:].flatten())
+        # # print(skeletons_predictions[1][ts_idx,:].flatten())
+        # # print(skeletons_gt[ts_idx,:].flatten())
+        # # exit()
+        # # image3 = cv2.resize(image3,(res[1], res[0]))
+        # # dst = cv2.addWeighted(image1,1/3,image2,1/3,image3,1/3,0)
+        # image = image.astype('uint8')
+        # output.write(image)
      cv2.destroyAllWindows()
      output.release()
      return None
@@ -342,7 +345,7 @@ if __name__ == '__main__':
     parser.add_argument('-lat', help='flag specifying that the latency must be computed', dest='lat',
                         action='store_true')
     parser.set_defaults(lat=False)
-    parser.add_argument('-f', '--frequency', help='Evaluation frequency',type=int,default=1000)
+    parser.add_argument('-f', '--frequency', help='Evaluation frequency',type=int,default=250)
     parser.add_argument('-e', '--exclude', action='append', default=[],
                         help='Exclude specific algorithms from results. Add a new -e for each algo.', required=False)
     args, unknown = parser.parse_known_args()
