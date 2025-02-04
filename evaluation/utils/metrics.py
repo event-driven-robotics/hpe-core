@@ -153,7 +153,9 @@ class MPJPE:
         count = np.zeros((13))
         for i in range(13):
             for j in range(len(self.gt_joints)):
-                if(self.predicted_joints[j,i,0]!=0 and self.predicted_joints[j,i,1]!=0):
+                # ignore -inf values in ground truth joints
+                if(self.predicted_joints[j,i,0]!=0 and self.predicted_joints[j,i,1]!=0 and self.gt_joints[j,i,1] > 0 
+                   and self.gt_joints[j,i,0] > 0):
                     dist[j,i] = np.linalg.norm(self.predicted_joints[j,i,:] - self.gt_joints[j,i,:], axis=0)
                     count[i] = count[i] + 1
         res = np.sum(dist, axis=0) / count
