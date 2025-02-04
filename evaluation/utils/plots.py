@@ -26,7 +26,7 @@ RENAMING = {'movenet_cam-24': 'moveEnet',
             'movenet_eF': 'movenet_fixedCount',
             'movenet': 'moveEnet',
             'gl-hpe':'liftmono-hpe',
-            'hpeGnn_splineConv':'ledge_singleweight_stepwise'
+            'hpeGnn_splineConv':'gnn'
             }
 
 
