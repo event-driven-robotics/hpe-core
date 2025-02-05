@@ -756,7 +756,7 @@ def main(args):
                     results['global']['mpjpe'] = dict()
 
                 if algo_name not in results['global']['mpjpe'].keys():
-                    results['global']['mpjpe'][algo_name] = metrics_utils.RMSE()
+                    results['global']['mpjpe'][algo_name] = metrics_utils.MPJPE() #update MPJPE metric
 
                 mpjpe = results['global']['mpjpe'][algo_name]
                 mpjpe.update_samples(skeletons_pred1K, skeletons_gt1K)

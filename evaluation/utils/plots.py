@@ -25,7 +25,8 @@ OTHER_COLORS = ['black', 'violet','grey']
 RENAMING = {'movenet_cam-24': 'moveEnet',
             'movenet_eF': 'movenet_fixedCount',
             'movenet': 'moveEnet',
-            'gl-hpe':'liftmono-hpe'
+            'gl-hpe':'liftmono-hpe',
+            'hpeGnn_splineConv':'gnn'
             }
 
 
