@@ -105,11 +105,11 @@ class RMSE:
             numpy.array: average of normalized RMSE values computed on x and y coordinates of all joints
             numpy.array: maximum RMSE values between the x and y coordinates of all joints
         """
-
-        rmse = np.sqrt(np.sum(np.square(self.predicted_joints - self.gt_joints), axis=0) / len(self.gt_joints))
-        normalized_rmse = (rmse / abs(np.mean(self.predicted_joints, axis=0))) * 100
-        normalized_rmse_avg = np.mean(normalized_rmse, axis=0)
-        max_normalized_rmse = np.max(normalized_rmse, axis=1)
+        if np.isinf(self.gt_joints): 
+            rmse = np.sqrt(np.sum(np.square(self.predicted_joints - self.gt_joints), axis=0) / len(self.gt_joints))
+            normalized_rmse = (rmse / abs(np.mean(self.predicted_joints, axis=0))) * 100
+            normalized_rmse_avg = np.mean(normalized_rmse, axis=0)
+            max_normalized_rmse = np.max(normalized_rmse, axis=1)
 
         return normalized_rmse.flatten(), normalized_rmse_avg.flatten(), max_normalized_rmse
 
@@ -153,8 +153,11 @@ class MPJPE:
         count = np.zeros((13))
         for i in range(13):
             for j in range(len(self.gt_joints)):
-                if(self.predicted_joints[j,i,0]!=0 and self.predicted_joints[j,i,1]!=0):
+                if(self.predicted_joints[j,i,0]!=0 and self.predicted_joints[j,i,1]!=0 and self.gt_joints[j,i,1] > 0 
+                   and self.gt_joints[j,i,0] > 0):
+                # if(self.predicted_joints[j,i,0]!=0 and self.predicted_joints[j,i,1]!=0):
                     dist[j,i] = np.linalg.norm(self.predicted_joints[j,i,:] - self.gt_joints[j,i,:], axis=0)
+                    # dist[j,i] = dist[j,i][np.isfinite(dist[j,i])] # Ignore -inf errors
                     count[i] = count[i] + 1
         res = np.sum(dist, axis=0) / count
     
