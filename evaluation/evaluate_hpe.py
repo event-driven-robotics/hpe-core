@@ -1,4 +1,5 @@
 import argparse
+import gc
 import matplotlib.pyplot as plt
 import numpy as np
 import re
@@ -14,7 +15,7 @@ from typing import Optional
 from datasets.utils import constants as ds_constants, parsing as ds_parsing
 from evaluation.utils import metrics as metrics_utils, plots as plots_utils
 from evaluation.utils.plots import plot_poses
-from evaluation.utils import visualization_hpe, evaluation_individual_joints
+from evaluation.utils import visualization_hpe
 
 # TODO:
 #   - compute oks
@@ -134,7 +135,7 @@ def plot_pck_over_thresholds(pck_thresholds_results, output_folder_path, ds_name
             name = plots_utils.RENAMING[algo_name]
         else:
             name = algo_name
-        if name == 'moveEnet': linestyle = '-'
+        if name == 'GraphEnet': linestyle = '-'
         else:
             try: linestyle = linestyles.pop(0)
             except: linestyle = '--'
@@ -160,13 +161,12 @@ def plot_pck_over_thresholds(pck_thresholds_results, output_folder_path, ds_name
         fig_path = output_folder_path / f'{ds_name}_pck.png'
     else:
         fig_path = output_folder_path / f'global_pck.png'
-    plt.savefig(str(fig_path.resolve()))
-    plt.close()
+    plt.savefig(fig_path)
 
 def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> None:
     # create figure
     fig, ax = plt.subplots()
-
+    fig.set_size_inches(4,3)
     all_values = list()
     tick_labels = [' ']
     for (algo_name, metric) in sorted(algo_metrics.items(), reverse=True):
@@ -188,12 +188,19 @@ def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
             ax.set_xlabel('Joints RMSE')
 
         elif isinstance(metric, metrics_utils.MPJPE):
+
+            if algo_name in plots_utils.RENAMING.keys():
+                name = plots_utils.RENAMING[algo_name]
+            else:
+                name = algo_name
             all_values.append(joints_metric_values)
 
-            tick_labels.extend([f'{algo_name}'])
+            tick_labels.extend([f'{name}'])
             ax.set_xlabel('Joints MPJPE')
             
     # plot values
+    # print('all values', all_values)
+    # print('max MPJPE', np.max(all_values))
     y_ticks = np.arange(len(tick_labels))
     meanlineprops = dict(linestyle='-', linewidth=2.0, color='tab:blue')
     ax.boxplot(all_values, vert=False, showfliers=False, showmeans=True, meanline=True, meanprops=meanlineprops)
@@ -204,7 +211,6 @@ def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
     # Save the figure and show
     plt.tight_layout()
     plt.savefig(str(file_path.resolve()))
-    plt.close()
 
 def plot_predictions(output_folder_path, ds_name, timestamps, joints_gt, algo_names, joints_predicted):
     assert 1 <= joints_gt.shape[2] <= 3, 'coordinates must be either 2D or 3D'
@@ -550,8 +556,6 @@ def main(args):
     count = 0
 
     for sample, yarp_path in tqdm(data_samples.items()):
-        print('sample name:', sample)
-        print('yarp path: ', yarp_path)
         predictions_path = predictions_folder / sample
         # yarp_path_dir = datasets_path / sample ## This should have the next level folder list as well.
 
@@ -606,7 +610,7 @@ def main(args):
                 ([data['head_sizes'][0]], data['head_sizes'], [data['head_sizes'][-1]])))
 
         output_ds_folder_path = output_folder_path / results_key
-        output_ds_folder_path.mkdir(parents=True, exist_ok=True)
+        # output_ds_folder_path.mkdir(parents=True, exist_ok=True)
 
         results['datasets'][results_key] = dict()
 
@@ -763,7 +767,7 @@ def main(args):
                     results['global']['mpjpe'] = dict()
 
                 if algo_name not in results['global']['mpjpe'].keys():
-                    results['global']['mpjpe'][algo_name] = metrics_utils.RMSE()
+                    results['global']['mpjpe'][algo_name] = metrics_utils.MPJPE()
 
                 mpjpe = results['global']['mpjpe'][algo_name]
                 mpjpe.update_samples(skeletons_pred1K, skeletons_gt1K)
@@ -778,12 +782,6 @@ def main(args):
         if (args.lat):
             plot_latency(output_ds_folder_path, results_key, timestamps, algorithm_names, latency)
 
-         # Visualize predicted and GT skeleton here
-        if len(skeletons_predictions) < 4:
-            pass
-        else:
-            visualization_hpe.viz_prediction_all_joints(algo_names = algorithm_names, skeletons_predictions=skeletons_predictions1K, 
-                                                    skeletons_gt=skeletons_gt1K, ts = tGT1K, output_folder_path=output_ds_folder_path, ds_name=sample)
     if args.sample_plots:
         # iterate over datasets metrics and print results
         for (ds_name, metrics) in results['datasets'].items():
@@ -797,7 +795,6 @@ def main(args):
             #Create samples folders
             output_ds_folder_path = output_folder_path / ds_name
             output_ds_folder_path.mkdir(parents=True, exist_ok=True)
-
             for (metric_name, metric_results) in metrics.items():
                 if metric_name == 'pck':
                     #Plot pck graph 
@@ -862,11 +859,15 @@ def main(args):
                                  descr=f'MPJPE results for dataset {ds_name}',
                                  file_path=output_ds_folder_path / f'mpjpe_{ds_name}.png')
             # Plot pck of individual joints here
-            evaluation_individual_joints.plot_pck_individual_joints(output_ds_folder_path, ds_name)
-            # Plot mpjpe of individual joints here 
-            evaluation_individual_joints.plot_mpjpe_individual_joints(output_ds_folder_path, ds_name)
-            # #Visualize superimpose predicted joints with GT
-            # visualization_hpe.viz_prediction_all_joints(algo_names = algorithm_names, skeletons_predictions=skeletons_predictions, skeletons_gt=skeletons_gt1K, ts = ts_pred, output_folder_path=output_ds_folder_path, ds_name=ds_name)
+            
+            # evaluation_individual_joints.plot_pck_individual_joints(output_ds_folder_path, ds_name)
+            # # Plot mpjpe of individual joints here 
+            # evaluation_individual_joints.plot_mpjpe_individual_joints(output_ds_folder_path, ds_name)
+            # Visualize superimpose predicted joints with GT - flag here if we want to create a visualization of hpe or not
+            if args.viz_sklt:
+                visualization_hpe.viz_prediction_all_joints(algo_names = algorithm_names, skeletons_predictions=skeletons_predictions, 
+                                                        skeletons_gt=skeletons_gt, ts = ts_pred, output_folder_path=output_ds_folder_path, ds_name=ds_name)
+            # print('1')
     # iterate over global metrics and print results
     for (metric_name, metric_results) in results['global'].items():
         if (not (to_latex)):
@@ -932,7 +933,13 @@ def main(args):
                          file_path=output_folder_path / f'mpjpe.png')
             
     plt.show()
-
+    # Plot pck of individual joints here. Put a flag here if we want to plot individual-wise-joints
+    visualization_hpe.plot_pck_individual_joints(output_folder_path)
+    # # Plot mpjpe of individual joints here. Put a flag here if we want to plot individual-wise-joints
+    visualization_hpe.plot_mpjpe_individual_joints(output_folder_path)
+    # Cluster MPJPE and PCK
+    visualization_hpe.joints_cluster_MPJPE(output_folder_path)
+    visualization_hpe.joints_cluster_PCK(output_folder_path)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='...')
@@ -972,6 +979,9 @@ if __name__ == '__main__':
     parser.add_argument('-mpjpe', help='flag specifying that the metric MPJPE must be computed', dest='mpjpe',
                         action='store_true')
     parser.set_defaults(mpjpe=False)
+    parser.add_argument('-viz_sklt', help='flag specifying that visualizing skeleton', dest='viz_sklt',
+                        action='store_true')
+    parser.set_defaults(viz_sklt=False)
 
     args, unknown = parser.parse_known_args()
     if (unknown):
