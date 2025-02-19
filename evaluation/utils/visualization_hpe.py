@@ -1,25 +1,18 @@
-import argparse
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt 
+import numpy as np
+import seaborn as sns 
+import pandas as pd
 import numpy as np
 import re
-import os
-import math
-from tqdm import tqdm
 import cv2
-from pathlib import Path
-from scipy import interpolate
-from tabulate import tabulate
-from typing import Optional
 
-from datasets.utils import constants as ds_constants, parsing as ds_parsing
-from evaluation.utils import metrics as metrics_utils, plots as plots_utils
-from evaluation.utils.plots import plot_poses
 from evaluation.utils.visualization import add_skeleton
 
 def viz_prediction_all_joints(algo_names, skeletons_predictions, skeletons_gt, ts, output_folder_path, ds_name):
      
-    #  ds_name_video = re.sub(r'_ch0$', '', ds_name)
-     video_file= f'/home/cpham-iit.local/data/h36m/videos/GT_RGB_video/{ds_name}.mp4'
+     ds_name_video = re.sub(r'_ch0$', '', ds_name)
+     print(ds_name_video)
+     video_file= f'/home/cpham-iit.local/data/h36m/videos/GT_RGB_video/{ds_name_video}.mp4'
     #  output_video = '/home/cpham-iit.local/data/h36m/videos/superimposed_video.mp4'
 
      res = [480, 640]
@@ -58,27 +51,28 @@ def viz_prediction_all_joints(algo_names, skeletons_predictions, skeletons_gt, t
          video_time = frame_idx / fps #Video in seconds
          #Find the closest timestamps in the data
          closest_idx = np.argmin(np.abs(ts - video_time))
+         #switch button or sth to choose which one to visualize
          joints_openposeRGB = skeletons_predictions[0][closest_idx,:].flatten()
          joints_moveenet = skeletons_predictions[1][closest_idx, :].flatten()
-         joints_stable = skeletons_predictions[2][closest_idx, :].flatten()
-         joints_singleweight = skeletons_predictions[3][closest_idx, :].flatten()
+         joints_hpegnn = skeletons_predictions[2][closest_idx, :].flatten()
+        #  joints_singleweight = skeletons_predictions[3][closest_idx, :].flatten()
          joints_GT = skeletons_gt[closest_idx,:].flatten()
          #Draw joints on the frame
          frame = add_skeleton(frame, joints_openposeRGB, (255,0,0), lines = True, normalised= False)
          frame = add_skeleton(frame, joints_moveenet, (0,0,255), lines = True, normalised= False)
-         frame = add_skeleton(frame, joints_stable, (255,255,0), lines = True, normalised= False)
-         frame = add_skeleton(frame, joints_singleweight, (0,255,255), lines = True, normalised= False)
+         frame = add_skeleton(frame, joints_hpegnn, (255,255,0), lines = True, normalised= False)
+        #  frame = add_skeleton(frame, joints_singleweight, (0,255,255), lines = True, normalised= False)
          frame = add_skeleton(frame,joints_GT, (0,255,0), lines=True, normalised=False)
-         cv2.line(frame, (530, 440),(550,440), (255,0,0), thickness) #Openpose
-         cv2.putText(frame, 'OpenposeRGB', (570, 440), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), int(thickness/2), cv2.LINE_AA)
-         cv2.line(frame, (530, 460),(550,460), (0,0,255), thickness) #MoveENet
-         cv2.putText(frame, 'MoveENet', (570, 460), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), int(thickness/2), cv2.LINE_AA)
-         cv2.line(frame, (530, 3800),(550,380), (255,255,0), thickness) #Ledgestable
-         cv2.putText(frame, 'Ledge stable', (570, 3800), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,0), int(thickness/2), cv2.LINE_AA)
-         cv2.line(frame, (530, 400),(550,400), (0,255,255), thickness) #Ledgesingleweight
-         cv2.putText(frame, 'Ledge single weight', (570, 400), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,255), int(thickness/2), cv2.LINE_AA)
-         cv2.line(frame, (530, 420),(550,420), (0,255,0), thickness) #GT
-         cv2.putText(frame, 'GT', (570, 420), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), int(thickness/2), cv2.LINE_AA)
+         cv2.line(frame, (500, 440),(520,440), (255,0,0), thickness) #Openpose
+         cv2.putText(frame, 'OpenposeRGB', (540, 440), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), int(thickness/2), cv2.LINE_AA)
+         cv2.line(frame, (500, 460),(520,460), (0,0,255), thickness) #MoveENet
+         cv2.putText(frame, 'MoveEnet', (540, 460), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), int(thickness/2), cv2.LINE_AA)
+         cv2.line(frame, (500, 380),(520,380), (255,255,0), thickness) #Ledgestable
+         cv2.putText(frame, 'HPE-GNN', (540, 380), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,0), int(thickness/2), cv2.LINE_AA)
+        #  cv2.line(frame, (500, 400),(520,400), (0,255,255), thickness) #Ledgesingleweight
+        #  cv2.putText(frame, 'GNN shared weight', (540, 400), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,255), int(thickness/2), cv2.LINE_AA)
+         cv2.line(frame, (500, 420),(520,420), (0,255,0), thickness) #GT
+         cv2.putText(frame, 'GT', (540, 420), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), int(thickness/2), cv2.LINE_AA)
          #Write the frame to the output video
          output.write(frame)
 
@@ -88,334 +82,367 @@ def viz_prediction_all_joints(algo_names, skeletons_predictions, skeletons_gt, t
      cap.release()
      output.release()
      cv2.destroyAllWindows()
-
-    #  for ts_idx in range(len(ts)):
-        
-    #     # print('skt type',skeletons_predictions[0][i,:])
-    #     # cv2.rectangle(image, (520,420), (640,480), (255,255,255), int(thickness/2)) #img size [480, 640]
-    #     # cv2.line(image, (530, 440),(550,440), (255,0,0), thickness) #MoveEnet
-    #     # cv2.putText(image, algo_names[0], (570, 440), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), int(thickness/2), cv2.LINE_AA)
-    #     # cv2.line(image, (530, 460),(550,460), (0,255,0), thickness) #OpenPoseRGB
-    #     # cv2.putText(image, algo_names[1], (570, 460), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), int(thickness/2), cv2.LINE_AA)
-    #     image1 = cv2.cvtColor(image.astype('uint8'), cv2.COLOR_GRAY2BGR)
-    #     image2 = cv2.cvtColor(image.astype('uint8'), cv2.COLOR_GRAY2BGR)
-    #     image3 = cv2.cvtColor(image.astype('uint8'), cv2.COLOR_GRAY2BGR)
-    #     image1 = add_skeleton(image1, skeletons_predictions[0][ts_idx,:].flatten(), (255, 0, 0), lines=True, normalised=False)
-    #     image1 = cv2.resize(image1, (res[1], res[0]))
-    #     image2 = add_skeleton(image2,skeletons_predictions[1][ts_idx,:].flatten(), (0,0,255), lines=True, normalised=False)
-    #     image2 = cv2.resize(image2,(res[1], res[0]))
-    #     image3 = add_skeleton(image3,skeletons_gt[ts_idx,:].flatten(), (0,255,0), lines=True, normalised=False)
-    #     image3 = cv2.resize(image3,(res[1], res[0]))
-    #     viz_openpose_moveenet = cv2.addWeighted(image1,1,image2,1,0)
-    #     openpose_moveenet_GT = cv2.addWeighted(viz_openpose_moveenet,1,image3,1,0)
-    #     #Superimpose predicted hpe with RGB video 
-        
-
-
-
-    #     # cv2.rectangle(openpose_moveenet_GT, (520,420), (640,480), (255,255,255), int(thickness/2)) #img size [480, 640]
-    #     cv2.line(openpose_moveenet_GT, (530, 420),(550,420), (0,255,0), thickness) #GT
-    #     cv2.putText(openpose_moveenet_GT, 'GT', (570, 420), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), int(thickness/2), cv2.LINE_AA)
-    #     cv2.line(openpose_moveenet_GT, (530, 440),(550,440), (255,0,0), thickness) #OpenPose
-    #     cv2.putText(openpose_moveenet_GT, algo_names[0], (570, 440), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), int(thickness/2), cv2.LINE_AA)
-    #     cv2.line(openpose_moveenet_GT, (530, 460),(550,460), (0,0,255), thickness) #MoveENet
-    #     cv2.putText(openpose_moveenet_GT, algo_names[1], (570, 460), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), int(thickness/2), cv2.LINE_AA)
-    #     output.write(openpose_moveenet_GT)
-    #     # image = add_skeleton(image, skeletons_predictions[0][ts_idx,:].flatten(), (255, 0, 0), lines=True, normalised=False)
-    #     # # image1 = cv2.resize(image1, (res[1], res[0]))
-    #     # image = add_skeleton(image,skeletons_predictions[1][ts_idx,:].flatten(), (0,255,0), lines=True, normalised=False)
-    #     # # image2 = cv2.resize(image2,(res[1], res[0]))
-    #     # image = add_skeleton(image,skeletons_gt[ts_idx,:].flatten(), (0,0,255), lines=True, normalised=False)
-    #     # # print(skeletons_predictions[0][ts_idx,:].flatten())
-    #     # # print(skeletons_predictions[1][ts_idx,:].flatten())
-    #     # # print(skeletons_gt[ts_idx,:].flatten())
-    #     # # exit()
-    #     # # image3 = cv2.resize(image3,(res[1], res[0]))
-    #     # # dst = cv2.addWeighted(image1,1/3,image2,1/3,image3,1/3,0)
-    #     # image = image.astype('uint8')
-    #     # output.write(image)
-    #  cv2.destroyAllWindows()
-    #  output.release()
+     
      return None
 
-# def viz_all_joints(output_folder_path, ds_name, timestamps, joints_gt, algo_names, joints_predicted):
-#     #iterate the samples
-#         #iterate the algorithms
-#         #Plot predicted joints at timestamps freq 1000Hz
-#         #Plot GT joints at timestamps freq 1000Hz
-#     #
-#     pass
+def viz_prediction_all_joints_one_algo(algo_names, skeletons_predictions, skeletons_gt, ts, output_folder_path, ds_name):
+     
+     ds_name_video = re.sub(r'_ch0$', '', ds_name)
+     print(ds_name_video)
+     video_file= f'/home/cpham-iit.local/data/h36m/videos/GT_RGB_video/{ds_name_video}.mp4'
+    #  output_video = '/home/cpham-iit.local/data/h36m/videos/superimposed_video.mp4'
 
+     res = [480, 640]
+     image = np.zeros(res, np.uint8)
+     thickness = 2
+     count = 0
+     # Open the video file
+     cap = cv2.VideoCapture(video_file)
+     if not cap.isOpened():
+        raise Exception("Error: Cannot open the video file.")
+     # Get video properties
+     fps = int(cap.get(cv2.CAP_PROP_FPS))
+     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    #  file_path = save_video
+     file_path = output_folder_path / f'{ds_name}.mp4'
+    #  frame_width = 640
+    #  frame_height = 480
+    #  fps = 30
+     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+     output = cv2.VideoWriter(file_path, fourcc, fps, (frame_width, frame_height))
+     print('saving video')
 
+     #Iterate through video frame
+     frame_idx = 0
+     timestamps = []
+     while cap.isOpened():
+         ret, frame = cap.read()
+         if ret:
+             timestamps.append(round(cap.get(cv2.CAP_PROP_POS_MSEC)))
+         else:
+             break
+         #Get cooresponding timestamp
+         video_time = frame_idx / fps #Video in seconds
+         #Find the closest timestamps in the data
+         closest_idx = np.argmin(np.abs(ts - video_time))
+         #switch button or sth to choose which one to visualize
+        #  joints_openposeRGB = skeletons_predictions[0][closest_idx,:].flatten()
+         joints_moveenet = skeletons_predictions[0][closest_idx, :].flatten()
+        #  joints_hpegnn = skeletons_predictions[2][closest_idx, :].flatten()
+        #  joints_singleweight = skeletons_predictions[3][closest_idx, :].flatten()
+        #  joints_GT = skeletons_gt[closest_idx,:].flatten()
+         #Draw joints on the frame
+        #  frame = add_skeleton(frame, joints_openposeRGB, (255,0,0), lines = True, normalised= False)
+         frame = add_skeleton(frame, joints_moveenet, (0,0,255), lines = True, normalised= False)
+        #  frame = add_skeleton(frame, joints_hpegnn, (255,255,0), lines = True, normalised= False)
+        #  frame = add_skeleton(frame, joints_singleweight, (0,255,255), lines = True, normalised= False)
+        #  frame = add_skeleton(frame,joints_GT, (0,255,0), lines=True, normalised=False)
 
-# def create_pred_GT_pairing(predictions_folder,datasets_path,multi_channel):
-#     '''
-#     Make a data samples dictionary and store prediction path and GT path in the dictionary
-#     '''
-#     data_samples = {}
-#     pred_samples = os.listdir(predictions_folder) #get the list of all files and directories in predictions folder
-#     if multi_channel:
-#         for subsample in pred_samples:
-#             sample = '_'.join(subsample.split('_')[1:])
-#             channel = re.findall('[0-9]+', subsample.split('_')[0])[0]
-#             for folder in (datasets_path / sample).iterdir():
-#                 if channel in folder.name and 'skeleton' in folder.name:
-#                     data_samples[subsample] = datasets_path / folder / 'data.log'
-#                     continue
-#     else:
-#         for sample in pred_samples:
-#             yarp_path_dir = datasets_path / sample
-#             yarp_path = [x for x in yarp_path_dir.iterdir() if 'skeleton' in x.name][0] / 'data.log'
-#             data_samples[sample] = yarp_path #adding a new key-value pair
-#     return data_samples
+        #  cv2.line(frame, (500, 440),(520,440), (255,0,0), thickness) #Openpose
+        #  cv2.putText(frame, 'OpenposeRGB', (540, 440), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,0,0), int(thickness/2), cv2.LINE_AA)
+        #  cv2.line(frame, (500, 460),(520,460), (0,0,255), thickness) #MoveENet
+        #  cv2.putText(frame, 'MoveEnet', (540, 460), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), int(thickness/2), cv2.LINE_AA)
+        #  cv2.line(frame, (500, 380),(520,380), (255,255,0), thickness) #Ledgestable
+        #  cv2.putText(frame, 'HPE-GNN', (540, 380), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,0), int(thickness/2), cv2.LINE_AA)
+        #  cv2.line(frame, (500, 400),(520,400), (0,255,255), thickness) #Ledgesingleweight
+        #  cv2.putText(frame, 'GNN shared weight', (540, 400), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,255), int(thickness/2), cv2.LINE_AA)
+        #  cv2.line(frame, (500, 420),(520,420), (0,255,0), thickness) #GT
+        #  cv2.putText(frame, 'GT', (540, 420), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), int(thickness/2), cv2.LINE_AA)
+         #Write the frame to the output video
+        #  output.write(frame)
+         cv2.imwrite('/home/cpham-iit.local/data/h36m_full/videos/cam4_S9_WalkDog_moveEnet/image_{}.jpg'.format(frame_idx), frame)
+         #Increment frame idx 
+         frame_idx += 1
+    #  print(len(timestamps))
+     cap.release()
+     output.release()
+     cv2.destroyAllWindows()
+     
+     return None
 
-# def main(args):
-#     plt.close('all')
+hpecore_kps_labels = {'Head': 0,
+                      'Shoulder_right': 1,
+                      'Shoulder_left': 2,
+                      'Hip_left': 3,
+                      'Hip_right': 4,
+                      'Elbow_right': 5,
+                      'Elbow_left': 6,
+                      'Wrist_right': 7,
+                      'Wrist_left': 8,
+                      'Knee_right': 9,
+                      'Knee_left': 10,
+                      'Ankle_right': 11,
+                      'Ankle_left': 12
+                      }
+hpe_kps_labels_cluster = {'Torso': 0,
+                          'Arms': 1,
+                          'Legs': 2
 
-#     output_folder_path = Path(args.output_folder).resolve()
-#     output_folder_path.mkdir(parents=True, exist_ok=True)
+}
 
-#     predictions_folder = Path(args.predictions_path)
-#     results = dict()
-#     results['datasets'] = dict()
-#     results['global'] = dict()
+def plot_pck_individual_joints(output_folder_path, ds_name=None):
+    if ds_name == None:
+        pck_path = output_folder_path/f'pck_0.4.txt'
+    else:
+        pck_path = output_folder_path/f'pck_0.4_{ds_name}.txt'
+    # Load global PCK@04 results
+    df_PCK = pd.read_csv(pck_path, sep='\s+')
+    # df_PCK = pd.read_csv("/home/cpham-iit.local/data/output_hpe_20per/pck_0.4.txt", sep='\s+')
+    df_PCK_movenet_cam_24 = df_PCK["movenet_cam-24"]
+    df_PCK_movenet_cam_24 = df_PCK_movenet_cam_24.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
+    # print(df_PCK_movenet_cam_24)
+    df_PCK_movenet_cam_24 = df_PCK_movenet_cam_24.iloc[1:14].values
+    df_PCK_movenet_cam_24 = [float(x) for x in df_PCK_movenet_cam_24]
+    df_PCK_openpose_rgb = df_PCK["openpose_rgb"]
+    df_PCK_openpose_rgb = df_PCK_openpose_rgb.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
+    df_PCK_openpose_rgb = df_PCK_openpose_rgb.iloc[1:14].values
+    df_PCK_openpose_rgb = [float(x) for x in df_PCK_openpose_rgb]
 
-#     # import GT from yarp
-#     datasets_path = Path(args.datasets_path) #path/to/datasets/folder/. Eg. ../EV2/
+    # df_PCK_ledge10_solo_weight_contrib_stepwise = df_PCK["hpeGnn_splineConv"]
+    # # print(df_PCK_ledge10_solo_weight_contrib_stepwise)
+    # df_PCK_ledge10_solo_weight_contrib_stepwise = df_PCK_ledge10_solo_weight_contrib_stepwise.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
+    # # print(df_PCK_ledge10_solo_weight_contrib_stepwise)
+    # df_PCK_ledge10_solo_weight_contrib_stepwise = df_PCK_ledge10_solo_weight_contrib_stepwise.iloc[1:14].values
+    # # print(df_PCK_ledge10_solo_weight_contrib_stepwise)
+    # df_PCK_ledge10_solo_weight_contrib_stepwise = [float(x) for x in df_PCK_ledge10_solo_weight_contrib_stepwise]
 
-#     data_samples = create_pred_GT_pairing(predictions_folder,datasets_path, multi_channel = False)
+    df_PCK_hpegnn = df_PCK["hpe-gnn_two_weight_cone_only_target_connectivity_15"]
+    df_PCK_hpegnn = df_PCK_hpegnn.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
+    df_PCK_hpegnn = df_PCK_hpegnn.iloc[1:14].values
+    df_PCK_hpegnn = [float(x) for x in df_PCK_hpegnn]
 
-#     for sample, yarp_path in tqdm(data_samples.items()):
-#         '''
-#         Load prediction file and GT. tqdm means in progress, it make your loops show a smart progress meter
-#         '''
-#         predictions_path = predictions_folder / sample
-#         # yarp_path_dir = datasets_path / sample ## This should have the next level folder list as well.
+    #Plot pck
+    width = 0.12
+    my_dpi = 96
+    fig, ax = plt.subplots(figsize = (2048/my_dpi, 1200/my_dpi), dpi = my_dpi)
+    ax.grid(axis = 'y')
+    # plt.bar(np.arange(len(df_PCK_ledge10_solo_weight_contrib_stepwise)),df_PCK_ledge10_solo_weight_contrib_stepwise , width = width, label = 'ledge_single_weight') #S_1_1 = hpe_gnn_spline_conv_gamer
+    ax.bar(np.arange(len(df_PCK_hpegnn)) - width,df_PCK_hpegnn , width=width, label = 'GraphEnet')
+    ax.bar(np.arange(len(df_PCK_movenet_cam_24)), df_PCK_movenet_cam_24, width = width, label = 'moveEnet')
+    ax.bar(np.arange(len(df_PCK_openpose_rgb)) + width, df_PCK_openpose_rgb, width = width, label = 'openpose_rgb')
 
-#         if yarp_path.exists() == False:
-#             print('\x1b[1;33;20m' + "Skipping " + str(sample) + " as no GT available at " + str(yarp_path) + '\x1b[0m')
-#             continue
+    locs, labels = plt.xticks()
+    ax.set_xticks(np.arange(len(df_PCK_hpegnn)))
+    ax.set_ylabel('PCK@0.4', fontsize=32, labelpad = 5)
+    ax.set_yticklabels([0.0,0.2,0.4,0.6,0.8,1.0], fontsize=24)
+    # plt.ylabel('MPJPE [px]', fontsize=16, labelpad = 5)
+    # ax = plt.gca()
+    ax.tick_params(axis='x', labelrotation = 20)
+    ax.legend(fontsize=32, loc='upper left', mode = "expand", ncol = 4, bbox_to_anchor = (0, 1.01, 1, 0.075))
+    ax.set_xticklabels(hpecore_kps_labels.keys(), fontsize = 32)
+    ax.set_ylim(0, 1)
+    sns.despine(bottom=True)
+   
+    # plt.suptitle('Global MPJPE for 20per validation set', fontsize = 18, y = 0.92)
+    # plt.show()
 
-#         numbers = re.findall('[0-9]+', yarp_path.parent.name)
-#         channel_id = numbers[0]
-#         parent_folder_prefix = yarp_path.parent.name.split(channel_id)[0]
-#         channel_folder = f'{parent_folder_prefix}{channel_id}'
-#         dataset_name = yarp_path.parent.parent.name
-#         results_key = f'{dataset_name}_{channel_folder}'
+    # save plot
+    if ds_name:
+        # plt.suptitle(f'Global PCK@0.4 for {ds_name} sample', fontsize = 32, y = 0.98)
+        fig_path = output_folder_path / f'{ds_name}_pck.png'
+    else:
+        # plt.suptitle(f'Global PCK@0.4 for whole validation set', fontsize = 32, y = 0.98)
+        fig_path = output_folder_path / f'individual_pck.png'
+    plt.savefig(str(fig_path.resolve()))
+    # plt.close()
+    return None
 
-#         # predictions_path = Path(args.predictions_path) / dataset_name
-#         predictions_file_path = list(predictions_path.glob('**/*.csv'))
-#         # predictions_file_path.sort()
-#         if len(predictions_file_path) == 0:
-#             print('\x1b[1;33;20m' + "Skipping " + str(dataset_name) + " as no results exist in" + str(
-#                 predictions_path) + '\x1b[0m')
-#             continue
+def joints_cluster_PCK(output_folder_path, ds_name=None):
+    if ds_name == None:
+        pck_path = output_folder_path/f'pck_0.4.txt'
+    else:
+        pck_path = output_folder_path/f'pck_0.4_{ds_name}.txt'
+    # Load global PCK@04 results
+    df_PCK = pd.read_csv(pck_path, sep='\s+')
+    # df_PCK = pd.read_csv("/home/cpham-iit.local/data/output_hpe_20per/pck_0.4.txt", sep='\s+')
+    df_PCK_movenet_cam_24 = df_PCK["movenet_cam-24"]
+    df_PCK_movenet_cam_24 = df_PCK_movenet_cam_24.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
+    # print(df_PCK_movenet_cam_24)
+    df_PCK_movenet_cam_24 = df_PCK_movenet_cam_24.iloc[1:14].values
+    df_PCK_movenet_cam_24 = [float(x) for x in df_PCK_movenet_cam_24]
+    df_PCK_movenet_cam_24_cluster = [np.mean(df_PCK_movenet_cam_24[0:5]), np.mean(df_PCK_movenet_cam_24[5:9]), np.mean(df_PCK_movenet_cam_24[9:13])]
 
-#         predictions_file_path.sort(reverse=True)
-#         data = ds_parsing.import_yarp_skeleton_data(yarp_path) # parsing GT data into array containing ts, head sizes and torso sizes
+    df_PCK_openpose_rgb = df_PCK["openpose_rgb"]
+    df_PCK_openpose_rgb = df_PCK_openpose_rgb.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
+    df_PCK_openpose_rgb = df_PCK_openpose_rgb.iloc[1:14].values
+    df_PCK_openpose_rgb = [float(x) for x in df_PCK_openpose_rgb]
+    df_PCK_openpose_rgb_cluster = [np.mean(df_PCK_openpose_rgb[0:5]), np.mean(df_PCK_openpose_rgb[5:9]), np.mean(df_PCK_openpose_rgb[9:13])]
+    # df_PCK_ledge10_solo_weight_contrib_stepwise = df_PCK["hpeGnn_splineConv"]
+    # # print(df_PCK_ledge10_solo_weight_contrib_stepwise)
+    # df_PCK_ledge10_solo_weight_contrib_stepwise = df_PCK_ledge10_solo_weight_contrib_stepwise.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
+    # # print(df_PCK_ledge10_solo_weight_contrib_stepwise)
+    # df_PCK_ledge10_solo_weight_contrib_stepwise = df_PCK_ledge10_solo_weight_contrib_stepwise.iloc[1:14].values
+    # # print(df_PCK_ledge10_solo_weight_contrib_stepwise)
+    # df_PCK_ledge10_solo_weight_contrib_stepwise = [float(x) for x in df_PCK_ledge10_solo_weight_contrib_stepwise]
 
-#         ts_gt = np.concatenate(([.0], data['ts'], [data['ts'][-1] + 1]))
+    df_PCK_hpegnn = df_PCK["hpe-gnn_two_weight_cone_only_target_connectivity_15"]
+    df_PCK_hpegnn = df_PCK_hpegnn.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
+    df_PCK_hpegnn = df_PCK_hpegnn.iloc[1:14].values
+    df_PCK_hpegnn = [float(x) for x in df_PCK_hpegnn]
+    df_PCK_hpegnn_cluster = [np.mean(df_PCK_hpegnn[0:5]), np.mean(df_PCK_hpegnn[5:9]), np.mean(df_PCK_hpegnn[9:13])]
+    #Plot pck
+    width = 0.12
+    my_dpi = 96
+    fig, ax = plt.subplots(figsize = (2048/my_dpi, 1200/my_dpi), dpi = my_dpi)
+    ax.grid(axis = 'y')
+    # plt.bar(np.arange(len(df_PCK_ledge10_solo_weight_contrib_stepwise)),df_PCK_ledge10_solo_weight_contrib_stepwise , width = width, label = 'ledge_single_weight') #S_1_1 = hpe_gnn_spline_conv_gamer
+    ax.bar(np.arange(len(df_PCK_hpegnn_cluster)) - width,df_PCK_hpegnn_cluster , width=width, label = 'GraphEnet')
+    ax.bar(np.arange(len(df_PCK_movenet_cam_24_cluster)), df_PCK_movenet_cam_24_cluster, width = width, label = 'moveEnet')
+    ax.bar(np.arange(len(df_PCK_openpose_rgb_cluster)) + width, df_PCK_openpose_rgb_cluster, width = width, label = 'openpose_rgb')
 
-#         # interpolate ground truth joints so that they can be compared with the high frequency predictions
-#         for k_map in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
-#             x_interpolation = interpolate.interp1d(ts_gt, np.concatenate(
-#                 ([data[k_map[0]][0, 0]], data[k_map[0]][:, 0], [data[k_map[0]][-1, 0]])))  # , fill_value="extrapolate"
-#             y_interpolation = interpolate.interp1d(ts_gt, np.concatenate(
-#                 ([data[k_map[0]][0, 1]], data[k_map[0]][:, 1], [data[k_map[0]][-1, 1]])))
-#             data[k_map[0]] = dict()
-#             data[k_map[0]]['x'] = x_interpolation
-#             data[k_map[0]]['y'] = y_interpolation
+    # locs, labels = plt.xticks()
+    ax.set_xticks(np.arange(len(df_PCK_hpegnn_cluster)))
+    ax.set_ylabel('PCK@0.4', fontsize=32, labelpad = 5)
+    ax.set_yticklabels([0.0,0.2,0.4,0.6,0.8,1.0], fontsize=24)
+    # plt.ylabel('MPJPE [px]', fontsize=16, labelpad = 5)
+    # ax = plt.gca()
+    ax.tick_params(axis='x', labelrotation = 0)
+    ax.legend(fontsize=32, loc='upper left', mode = "expand", ncol = 4, bbox_to_anchor = (0, 1.01, 1, 0.075))
+    ax.set_xticklabels(hpe_kps_labels_cluster.keys(), fontsize = 32)
+    ax.set_ylim(0, 1)
+    sns.despine(bottom=True)
+   
+    # plt.suptitle('Global MPJPE for 20per validation set', fontsize = 18, y = 0.92)
+    # plt.show()
 
-#         # GT contains the size of the torso
-#         if data['head_sizes'][0] == -1:
-#             pck_sizes_gt_interp = interpolate.interp1d(ts_gt, np.concatenate(
-#                 ([data['torso_sizes'][0]], data['torso_sizes'], [data['torso_sizes'][-1]])))
-#         # GT contains the size of the head
-#         else:
-#             pck_sizes_gt_interp = interpolate.interp1d(ts_gt, np.concatenate(
-#                 ([data['head_sizes'][0]], data['head_sizes'], [data['head_sizes'][-1]])))
-            
-#         output_ds_folder_path = output_folder_path / results_key
-#         output_ds_folder_path.mkdir(parents=True, exist_ok=True)
+    # save plot
+    if ds_name:
+        # plt.suptitle(f'Global PCK@0.4 for {ds_name} sample', fontsize = 32, y = 0.98)
+        fig_path = output_folder_path / f'{ds_name}_pck.png'
+    else:
+        # plt.suptitle(f'Global PCK@0.4 clustering in body parts', fontsize = 32, y = 0.98)
+        fig_path = output_folder_path / f'individual_pck_cluster.png'
+    plt.savefig(str(fig_path.resolve()))
+    # plt.close()
+    return None
 
-#         results['datasets'][results_key] = dict()
+def plot_mpjpe_individual_joints(output_folder_path, ds_name=None):
+    if ds_name:
+        mpjpe_path = output_folder_path/f'mpjpe_{ds_name}.txt'
+    else:
+        mpjpe_path = output_folder_path/f'mpjpe.txt'
+    #Load MPJPE
+    df_MPJPE = pd.read_csv(mpjpe_path, sep='\s+')
+    # df_MPJPE = pd.read_csv("/home/cpham-iit.local/data/output_hpe_20per/mpjpe.txt", sep='\s+')
+    df_MPJPE_movenet_cam_24 = df_MPJPE["movenet_cam-24"]
+    df_MPJPE_movenet_cam_24 = df_MPJPE_movenet_cam_24.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
+    # print(df_PCK_movenet_cam_24)
+    df_MPJPE_movenet_cam_24 = df_MPJPE_movenet_cam_24.iloc[1:14].values
+    df_MPJPE_movenet_cam_24 = [float(x) for x in df_MPJPE_movenet_cam_24]
+    df_MPJPE_openpose_rgb = df_MPJPE["openpose_rgb"]
+    df_MPJPE_openpose_rgb = df_MPJPE_openpose_rgb.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
+    df_MPJPE_openpose_rgb = df_MPJPE_openpose_rgb.iloc[1:14].values
+    df_MPJPE_openpose_rgb = [float(x) for x in df_MPJPE_openpose_rgb]
 
-#         algorithm_names = []
-#         skeletons_predictions = []
-#         skeletons_predictions1K = []
-#         timestamps = []
-#         latency = []
+    # df_MPJPE_ledge10_solo_weight_contrib_stepwise = df_MPJPE["hpeGnn_splineConv"]
+    # df_MPJPE_ledge10_solo_weight_contrib_stepwise = df_MPJPE_ledge10_solo_weight_contrib_stepwise.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
+    # df_MPJPE_ledge10_solo_weight_contrib_stepwise = df_MPJPE_ledge10_solo_weight_contrib_stepwise.iloc[1:14].values
+    # df_MPJPE_ledge10_solo_weight_contrib_stepwise = [float(x) for x in df_MPJPE_ledge10_solo_weight_contrib_stepwise]
 
-#         # parse predictions
-#         for pred_path in predictions_file_path:
+    df_MPJPE_hpegnn = df_MPJPE["hpe-gnn_two_weight_cone_only_target_connectivity_15"]
+    df_MPJPE_hpegnn = df_MPJPE_hpegnn.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
+    df_MPJPE_hpegnn = df_MPJPE_hpegnn.iloc[1:14].values
+    df_MPJPE_hpegnn = [float(x) for x in df_MPJPE_hpegnn]
 
-#             algo_name = pred_path.stem
-#             if algo_name in args.exclude: # exclude algos as requested in command line.
-#                 continue
-#             try:
-#                 predictions_old = np.loadtxt(str(pred_path.resolve()), dtype=float)
-#             except ValueError:
-#                 with open(str(pred_path.resolve())) as f:
-#                     content = f.readlines()
-#                 for l, line in enumerate(content):
-#                     predictions_old[l,:] = np.asarray(line.split(','))
-#             predictions_old = predictions_old[predictions_old[:, 0].argsort()] #sort timestamps in ascent
-#             # ts_pred = predictions[:, 0]
-#             idx = np.where(np.logical_and(predictions_old[:, 0] > 0.1 * ts_gt[-1], predictions_old[:, 0] < ts_gt[-1])) #cropped record time [0.1 total time, total time]
-#             # idx = np.where(predictions_old[:, 0]<ts_gt[-1])
-#             predictions = predictions_old[idx[0], :]
-#             # ts_pred = predictions[idx[0], 0]
-#             ts_pred = predictions[:, 0]
-#             print(f'{algo_name} predicted timestamp: ', ts_pred)
-#             # print('GT timestamp: ', ts_gt)
-#             timestamps.append(ts_pred)
-#             skeletons_gt = np.zeros((len(ts_pred), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), 2))
-#             for k_map in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
-#                 skeletons_gt[:, k_map[1], 0] = data[k_map[0]]['x'](ts_pred)
-#                 skeletons_gt[:, k_map[1], 1] = data[k_map[0]]['y'](ts_pred)
-#             try:
-#                 skeletons_pred = predictions[:, 2:].reshape(len(predictions),
-#                                                         len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), -1)
-#             except ValueError:
-#                 print(sample)
-#                 print(pred_path)
-#                 print(f"Looks like prediction file {pred_path} is mostly empty.")
-#                 continue
-            
-#             # Store prediction with timestamps
+    #Plot
+    width = 0.1
+    my_dpi = 96
+    fig, ax = plt.subplots(figsize = (2048/my_dpi, 1200/my_dpi), dpi = my_dpi)
+    ax.grid(axis = 'y')
+    # plt.bar(np.arange(len(df_MPJPE_ledge10_solo_weight_contrib_stepwise)),df_MPJPE_ledge10_solo_weight_contrib_stepwise , width = width, label = 'ledge_single_weight') #S_1_1 = hpe_gnn_spline_conv_gamer
+    ax.bar(np.arange(len(df_MPJPE_hpegnn)) - width,df_MPJPE_hpegnn , width = width, label = 'GraphEnet') 
+    ax.bar(np.arange(len(df_MPJPE_movenet_cam_24)), df_MPJPE_movenet_cam_24, width = width, label = 'moveEnet')
+    ax.bar(np.arange(len(df_MPJPE_openpose_rgb)) + width, df_MPJPE_openpose_rgb, width = width, label = 'openpose_rgb')
 
-#             fHz = args.frequency
-#             tGT1K = np.arange(ts_gt[0], ts_gt[-1], 1 / fHz)
-#             skeletons_gt1K_old = np.zeros((len(tGT1K), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), 2))
-#             for k_map in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
-#                 skeletons_gt1K_old[:, k_map[1], 0] = data[k_map[0]]['x'](tGT1K)
-#                 skeletons_gt1K_old[:, k_map[1], 1] = data[k_map[0]]['y'](tGT1K)
-#             pred1K_old = np.zeros([len(tGT1K), 28])
-#             pred1K_old[:, 0] = tGT1K
-#             for i in range(1, 28):
-#                 interp = np.interp(tGT1K, ts_pred, predictions[:, i])
-#                 pred1K_old[:, i] = interp
-            
-#             # print('GT timestamp: ', tGT1K)
-#             #Sync tGT1K with OpenPoseRGB timestamps and MoveENet timestamps
-            
-#             pred1K_old = pred1K_old[pred1K_old[:, 0].argsort()]
-#             idx1 = np.where(np.logical_and(pred1K_old[:, 0] > 0.1 * tGT1K[-1], pred1K_old[:, 0] < tGT1K[-1]))
-#             pred1K = pred1K_old[idx1[0], :]
-#             # ts_pred = predictions[idx[0], 0]
-#             ts_pred1K = pred1K[:, 0]
-#             # print('starting time: ', ts_pred1K)
-#             #GT chunk
-#             # skeletons_gt1K_old = skeletons_gt1K_old[skeletons_gt1K_old[:, 0].argsort()]
-#             # idx1 = np.where(np.logical_and(pred1K_old[:, 0] > 0.1 * tGT1K[-1], pred1K_old[:, 0] < tGT1K[-1]))
-#             skeletons_gt1K = skeletons_gt1K_old[idx1[0], :]
-#             # ts_pred = predictions[idx[0], 0]
+    locs, labels = plt.xticks()
+    ax.set_xticks(np.arange(len(df_MPJPE_hpegnn)))
+    # plt.ylabel('PCK@0.4 [%]', fontsize=16, labelpad = 5)
+    ax.set_ylabel('MPJPE [px]', fontsize=32, labelpad = 5)
+    ax.set_yticklabels([0,10,20,30,40,50,60], fontsize=24)
+    # ax = plt.gca()
+    ax.tick_params(axis='x', labelrotation = 20)
+    ax.legend(fontsize = 32, loc='upper left', mode = "expand", ncol = 4, bbox_to_anchor = (0, 1.01, 1, 0.075))
+    ax.set_xticklabels(hpecore_kps_labels.keys(), fontsize = 32)
+    # ax.set_ylim(0, 100)
+    sns.despine(bottom=True)
+    # plt.suptitle('Global PCK@0.4 for 20per validation set', fontsize = 18, y = 0.92)
+    
+    # plt.show()
+    # save plot
+    if ds_name:
+        # plt.suptitle(f'MPJPE for {ds_name} set', fontsize = 32, y = 0.98)
+        fig_path = output_folder_path / f'{ds_name}_mpjpe.png'
+    else:
+        # plt.suptitle(f'MPJPE for the whole validation set', fontsize = 32, y = 0.98)
+        fig_path = output_folder_path / f'individual_mpjpe.png'
+    plt.savefig(str(fig_path.resolve()))
+    # plt.close()
+    return None
 
-#             # print(f'{algo_name} ts pred1K freq: ', 1/(ts_pred1K[1] - ts_pred1K[0]))
-#             # predictions
-#             # print(ts_gt[-1])
-#             skeletons_pred = predictions[:, 2:].reshape(len(predictions),
-#                                                         len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), -1)
-#             skeletons_pred1K = pred1K[:, 2:].reshape(len(pred1K), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), -1)
-            
-            
-#             algorithm_names.append(algo_name)
-#             skeletons_predictions.append(skeletons_pred)
-#             skeletons_predictions1K.append(skeletons_pred1K)
-#         # print(skeletons_gt1K.shape)
-#         # exit()
-#         # print(len(skeletons_predictions))
-        
-#     # viz_all_joints(output_folder_path = output_ds_folder_path, ds_name = dataset_name , timestamps = timestamps, joints_gt = skeletons_gt1K, algo_names = algorithm_names,
-#                     # joints_predicted = skeletons_predictions1K)
-#     viz_prediction_all_joints(algo_names = algorithm_names, skeletons_predictions=skeletons_predictions1K, skeletons_gt=skeletons_gt1K, ts = ts_pred1K)
-#     # output_folder_path = Path('/home/cpham-iit.local/data/h36m/videos/')
+def joints_cluster_MPJPE(output_folder_path, ds_name=None):
+    if ds_name:
+        mpjpe_path = output_folder_path/f'mpjpe_{ds_name}.txt'
+    else:
+        mpjpe_path = output_folder_path/f'mpjpe.txt'
+    #Load MPJPE
+    df_MPJPE = pd.read_csv(mpjpe_path, sep='\s+')
+    # df_MPJPE = pd.read_csv("/home/cpham-iit.local/data/output_hpe_20per/mpjpe.txt", sep='\s+')
+    df_MPJPE_movenet_cam_24 = df_MPJPE["movenet_cam-24"]
+    df_MPJPE_movenet_cam_24 = df_MPJPE_movenet_cam_24.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
+    df_MPJPE_movenet_cam_24 = df_MPJPE_movenet_cam_24.iloc[1:14].values
+    df_MPJPE_movenet_cam_24 = [float(x) for x in df_MPJPE_movenet_cam_24]
+    df_MPJPE_movenet_cam_24_cluster = [np.mean(df_MPJPE_movenet_cam_24[0:5]), np.mean(df_MPJPE_movenet_cam_24[5:9]), np.mean(df_MPJPE_movenet_cam_24[9:13])]
 
-#     # # predictions_folder = Path(args.predictions_path)
-#     # predictions_path = Path('/home/cpham-iit.local/data/cam2_S9_Photo')
+    df_MPJPE_openpose_rgb = df_MPJPE["openpose_rgb"]
+    df_MPJPE_openpose_rgb = df_MPJPE_openpose_rgb.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
+    df_MPJPE_openpose_rgb = df_MPJPE_openpose_rgb.iloc[1:14].values
+    df_MPJPE_openpose_rgb = [float(x) for x in df_MPJPE_openpose_rgb]
+    df_MPJPE_openpose_rgb_cluster = [np.mean(df_MPJPE_openpose_rgb[0:5]), np.mean(df_MPJPE_openpose_rgb[5:9]), np.mean(df_MPJPE_openpose_rgb[9:13])]
+    # print(df_MPJPE_openpose_rgb_cluster)
+    # df_MPJPE_ledge10_solo_weight_contrib_stepwise = df_MPJPE["hpeGnn_splineConv"]
+    # df_MPJPE_ledge10_solo_weight_contrib_stepwise = df_MPJPE_ledge10_solo_weight_contrib_stepwise.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
+    # df_MPJPE_ledge10_solo_weight_contrib_stepwise = df_MPJPE_ledge10_solo_weight_contrib_stepwise.iloc[1:14].values
+    # df_MPJPE_ledge10_solo_weight_contrib_stepwise = [float(x) for x in df_MPJPE_ledge10_solo_weight_contrib_stepwise]
 
-#     # predictions_file_path = list(predictions_path.glob('**/*.csv'))
-#     # print(predictions_file_path)
-#     # # if len(predictions_file_path) == 0:
-#     # #     print('\x1b[1;33;20m' + "Skipping " + " as no results exist in" + str(
-#     # #         predictions_path) + '\x1b[0m')
-#     # #     continue
-#     # res = [480, 640]
-#     # yarp_path = Path(args.datasets_path)
-#     # data = ds_parsing.import_yarp_skeleton_data(yarp_path)
-#     # # ground truth in yarp format is supposed to be stored in folders name <dataset_name>/ch<channel_id>[frequency_info]skeleton
-#     #     # find the channel id
-#     # numbers = re.findall('[0-9]+', yarp_path.parent.name)
-#     # channel_id = numbers[0]
-#     # parent_folder_prefix = yarp_path.parent.name.split(channel_id)[0]
-#     # channel_folder = f'{parent_folder_prefix}{channel_id}'
-#     # dataset_name = yarp_path.parent.parent.name
-#     # results_key = f'{dataset_name}_{channel_folder}'
+    df_MPJPE_hpegnn = df_MPJPE["hpe-gnn_two_weight_cone_only_target_connectivity_15"]
+    df_MPJPE_hpegnn = df_MPJPE_hpegnn.reindex([0,1,2,3,6,7,4,5,8,9,10,11,12,13])
+    df_MPJPE_hpegnn = df_MPJPE_hpegnn.iloc[1:14].values
+    df_MPJPE_hpegnn = [float(x) for x in df_MPJPE_hpegnn]
+    df_MPJPE_hpegnn_cluster = [np.mean(df_MPJPE_hpegnn[0:5]), np.mean(df_MPJPE_hpegnn[5:9]), np.mean(df_MPJPE_hpegnn[9:13])]
 
-#     # ts_gt = np.concatenate(([.0], data['ts'], [data['ts'][-1] + 1]))
+    #Plot
+    width = 0.15
+    my_dpi = 96
+    fig, ax = plt.subplots(figsize = (2048/my_dpi, 1200/my_dpi), dpi = my_dpi)
+    ax.grid(axis = 'y')
+    # plt.bar(np.arange(len(df_MPJPE_ledge10_solo_weight_contrib_stepwise)),df_MPJPE_ledge10_solo_weight_contrib_stepwise , width = width, label = 'ledge_single_weight') #S_1_1 = hpe_gnn_spline_conv_gamer
+    ax.bar(np.arange(len(df_MPJPE_hpegnn_cluster)) - width,df_MPJPE_hpegnn_cluster , width = width, label = 'GraphEnet') 
+    ax.bar(np.arange(len(df_MPJPE_movenet_cam_24_cluster)), df_MPJPE_movenet_cam_24_cluster, width = width, label = 'moveEnet')
+    ax.bar(np.arange(len(df_MPJPE_openpose_rgb_cluster)) + width, df_MPJPE_openpose_rgb_cluster, width = width, label = 'openpose_rgb')
 
-#     # predictions_file_path.sort(reverse=True)
-#     # algorithm_names = []
-#     # skeletons_predictions = []
-#     # timestamps = []
-#     # latency = []
-#     # #parse prediction
-#     # for pred_path in predictions_file_path:
-#     #     print('pred path',pred_path)
-#     #     algo_name = pred_path.stem 
-#     #     if algo_name in args.exclude:
-#     #         continue
-#     #     try:
-#     #         predictions_old = np.loadtxt(str(pred_path.resolve()),dtype= float)
-#     #     except ValueError:
-#     #         with open(str(pred_path.resolve())) as f:
-#     #                 content = f.readlines()
-#     #         for l, line in enumerate(content):
-#     #              predictions_old[l,:] = np.asarray(line.split(','))
-
-#     #     predictions_old = predictions_old[predictions_old[:, 0].argsort()]
-
-#     #     idx = np.where(np.logical_and(predictions_old[:, 0] > 5, predictions_old[:, 0] < 30))
-#     #     predictions = predictions_old[idx[0], :]
-#     #     print('predictions: ', predictions.shape)
-#     #     ts_pred = predictions[:,0]
-#     #     print('time stamps: ', ts_pred.shape)
-#     #     timestamps.append(ts_pred)
-
-#     #     skeletons_gt = np.zeros((len(ts_pred), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), 2))
-#     #     for k_map in ds_constants.HPECoreSkeleton.KEYPOINTS_MAP.items():
-#     #         skeletons_gt[:, k_map[1], 0] = data[k_map[0]]['x'](ts_pred)
-#     #         skeletons_gt[:, k_map[1], 1] = data[k_map[0]]['y'](ts_pred)
-
-#     #     skeletons_pred = predictions[:, 2:].reshape(len(predictions),
-#     #                                                     len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), -1)
-#     #     algorithm_names.append(algo_name)
-#     #     skeletons_predictions.append(skeletons_pred)
-
-#     #     # print('skt pred',skeletons_pred[0,:].shape)
-#     # viz_prediction_all_joints(algorithm_names, skeletons_predictions, skeletons_gt)
-        
-
-# if __name__ == '__main__':
-#     parser = argparse.ArgumentParser(description='...')
-#     parser.add_argument('-d', '--datasets_path', help='Path to the folders containing data saved in Yarp format',
-#                         required=False)
-#     parser.set_defaults(datasets_path = '/home/cpham-iit.local/data/h36m_full/EV2')
-#     parser.add_argument('-p', '--predictions_path',
-#                         help='Path to the predictions folder containing subfolders with results in .csv format.',
-#                         required=False)
-#     parser.set_defaults(predictions_path = '/home/cpham-iit.local/data/h36m/samples/test_val')
-#     parser.add_argument('-o', '--output_folder', help='Path to the folder where evaluation results will be saved',
-#                         required=False)
-#     parser.set_defaults(output_folder = '/home/cpham-iit.local/data/visualization')
-#     parser.add_argument('-lat', help='flag specifying that the latency must be computed', dest='lat',
-#                         action='store_true')
-#     parser.set_defaults(lat=False)
-#     parser.add_argument('-f', '--frequency', help='Evaluation frequency',type=int,default=250)
-#     parser.add_argument('-e', '--exclude', action='append', default=[],
-#                         help='Exclude specific algorithms from results. Add a new -e for each algo.', required=False)
-#     args, unknown = parser.parse_known_args()
-#     if (unknown):
-#         print('\x1b[1;31;20m' + 'Unknown argument/s: ' + ' '.join(unknown) + '\x1b[0m')
-
-#     main(args)
+    locs, labels = plt.xticks()
+    ax.set_xticks(np.arange(len(df_MPJPE_hpegnn_cluster)))
+    # plt.ylabel('PCK@0.4 [%]', fontsize=16, labelpad = 5)
+    ax.set_ylabel('MPJPE [px]', fontsize=32, labelpad = 5)
+    ax.set_yticklabels([0,10,20,30,40,50], fontsize=24)
+    ax = plt.gca()
+    ax.tick_params(axis='x', labelrotation = 0)
+    ax.legend(fontsize = 32, loc='upper left', mode = "expand", ncol = 4, bbox_to_anchor = (0, 1.01, 1, 0.075))
+    ax.set_xticklabels(hpe_kps_labels_cluster.keys(), fontsize = 32)
+    # ax.set_ylim(0, 100)
+    sns.despine(bottom=True)
+    # plt.suptitle('Global PCK@0.4 for 20per validation set', fontsize = 18, y = 0.92)
+    
+    # plt.show()
+    # save plot
+    if ds_name:
+        # plt.suptitle(f'MPJPE for {ds_name} set', fontsize = 32, y = 0.98)
+        fig_path = output_folder_path / f'{ds_name}_mpjpe.png'
+    else:
+        # plt.suptitle(f'Clustering MPJPE in body parts', fontsize = 32, y = 0.98)
+        fig_path = output_folder_path / f'individual_mpjpe_cluster.png'
+    plt.savefig(str(fig_path.resolve()))
+    # plt.close()
+    return None
