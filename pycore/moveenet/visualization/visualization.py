@@ -108,11 +108,11 @@ def superimpose_pose(img_in, pose, num_classes=13, tensors=True, filename=None):
     cv2.waitKey(100)
 
 
-def add_skeleton(img, keypoints, color, lines=None, normalised=True, th=0.1, confidence=False, upper=False, text=False, flip = True):
+def add_skeleton(img, keypoints, color, lines=None, normalised=False, th=0.1, confidence=False, upper=False, text=False, flip=False):
     # keypoints should be a 1D vector.
     if len(img.shape) == 2:
         img = cv2.cvtColor(img.astype('uint8'), cv2.COLOR_GRAY2BGR)
-    if not normalised:
+    if normalised:
         h, w, _ = img.shape
         if flip:
             w, h, _ = img.shape
