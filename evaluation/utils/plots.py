@@ -28,7 +28,19 @@ RENAMING = {'movenet_cam-24': 'moveEnet',
             'gl-hpe':'liftmono-hpe',
             'ledge_test_stepwise_unflipped': 'ledge_stable',
             'ledge10_solo_weight_contrib_stepwise': 'ledge10_single_weight',
-            'hpeGnn_splineConv':'ledge_singleweight_stepwise'
+            'hpe-gnn_two_weight_cone_only_target_connectivity_15':'GraphEnet',
+            'hpe-gnn_single_weights_onlytargetloss_connectivity_15_layer_cone_extend': 'GraphEnet_single_weight',
+
+            'hpe-gnn_bothloss_connectivity_0_layer_8': 'connectivity_0',
+            'hpe-gnn_bothnodeloss_connectivity_15_layer_8': 'connectivity_15_both_node_loss',
+            'hpe-gnn_bothloss_connectivity_20_layer_8' : 'connectivity_20', 
+            
+            'hpe-gnn_bothloss_connectivity_15_layer_6': '6_layers',
+            'hpe-gnn_bothloss_connectivity_15_layer_10': '10_layers',
+            'hpe-gnn_nonodeloss_connectivity_15_layer_8': '8_layers_no_loss_loss',
+            'hpe-gnn_onlytargetloss_connectivity_15_layer_cone': 'cone_layer'
+             
+
             }
 
 
