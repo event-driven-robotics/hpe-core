@@ -575,7 +575,7 @@ def main(args):
             continue
 
         predictions_file_path.sort(reverse=True)
-        data = ds_parsing.import_yarp_skeleton_data(yarp_path)
+        data = ds_parsing.import_yarp_skeleton_data(yarp_path, dhp19=True)
 
         ts_gt = np.concatenate(([.0], data['ts'], [data['ts'][-1] + 1]))
 
