@@ -4,7 +4,7 @@ import numpy as np
 from .parsing import JOINT_NOT_PRESENT
 
 ALGO_COLORS = {
-    # 'openpose_rgb': 'blue',
+    'GraphEnet': 'blue',
     # 'openpose_pim': 'green',
     # 'movenet_cam2': 'orange',
     # 'movenet_cam-24': 'red',

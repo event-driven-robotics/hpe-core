@@ -166,7 +166,7 @@ def plot_pck_over_thresholds(pck_thresholds_results, output_folder_path, ds_name
 def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> None:
     # create figure
     fig, ax = plt.subplots()
-
+    fig.set_size_inches(4,3)
     all_values = list()
     tick_labels = [' ']
     for (algo_name, metric) in sorted(algo_metrics.items(), reverse=True):
@@ -575,7 +575,7 @@ def main(args):
             continue
 
         predictions_file_path.sort(reverse=True)
-        data = ds_parsing.import_yarp_skeleton_data(yarp_path)
+        data = ds_parsing.import_yarp_skeleton_data(yarp_path, args.multi_channel)
 
         ts_gt = np.concatenate(([.0], data['ts'], [data['ts'][-1] + 1]))
 
@@ -662,7 +662,12 @@ def main(args):
             # predictions
             skeletons_pred = predictions[:, 2:].reshape(len(predictions),
                                                         len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), -1)
+            
+            if algo_name == 'movenet' or algo_name == 'gl-hpe':
+                skeletons_pred = skeletons_pred[:,:,1::-1]
             skeletons_pred1K = pred1K[:, 2:].reshape(len(pred1K), len(ds_constants.HPECoreSkeleton.KEYPOINTS_MAP), -1)
+            if algo_name == 'movenet' or algo_name == 'gl-hpe':
+                skeletons_pred1K = skeletons_pred1K[:,:,1::-1]
 
             if args.multi_channel: ############################################ This is only done in case of DHP19
                 # todo: Figure out the source of this error.

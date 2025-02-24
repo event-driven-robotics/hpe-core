@@ -8,7 +8,7 @@ from typing import Dict
 from datasets.utils.constants import HPECoreSkeleton
 
 
-def import_yarp_skeleton_data(yarp_file_path: pathlib.Path) -> Dict:
+def import_yarp_skeleton_data(yarp_file_path: pathlib.Path, multi_channel) -> Dict:
 
     with open(str(yarp_file_path.resolve())) as f:
         content = f.readlines()
@@ -17,7 +17,11 @@ def import_yarp_skeleton_data(yarp_file_path: pathlib.Path) -> Dict:
         raise Exception("No file, or no file content") 
 
     # line format is 'id timestamp SKLT (<flattened 2D keypoints coordinates>) head_size torso_size'
-    pattern = re.compile('\d* (\d*.\d*) SKLT \((.*)\) (-?\d*.\d*) (\d*.\d*)')
+    if multi_channel:
+        pattern = re.compile(r'\d*\s*(\d*\.\d+)\s+SKLT\s+\((.*?)\)?\s+(-?\d*\.\d+)\s+(\d*\.\d+)')
+
+    else:
+        pattern = re.compile('\d* (\d*.\d*) SKLT \((.*)\) (-?\d*.\d*) (\d*.\d*)')
 
     timestamps = np.zeros((len(content)), dtype=float)
     head_sizes = np.zeros((len(content)), dtype=float)
@@ -34,8 +38,11 @@ def import_yarp_skeleton_data(yarp_file_path: pathlib.Path) -> Dict:
 
     for li, line in enumerate(content):
         tss, points, head_size, torso_size = pattern.findall(line)[0]
-            
-        points = np.array(list(filter(None, points.split(' ')))).astype(int).reshape(-1, 2)
+        if multi_channel:
+            points = re.sub(r'[^\d\s-]', '', points)    
+            points = np.array(list(filter(None, points.split(' ')))).astype(int).reshape(-1, 2)
+        else:
+            points = np.array(list(filter(None, points.split(' ')))).astype(int).reshape(-1, 2)
         for d, label in zip(points, HPECoreSkeleton.KEYPOINTS_MAP):
             data_dict[label].append(d)
 
