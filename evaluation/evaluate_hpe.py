@@ -14,7 +14,8 @@ from typing import Optional
 from datasets.utils import constants as ds_constants, parsing as ds_parsing
 from evaluation.utils import metrics as metrics_utils, plots as plots_utils
 from evaluation.utils.plots import plot_poses
-
+import matplotlib.lines as mlines
+from evaluation.utils import visualise_hpe
 
 # TODO:
 #   - compute oks
@@ -134,7 +135,7 @@ def plot_pck_over_thresholds(pck_thresholds_results, output_folder_path, ds_name
             name = plots_utils.RENAMING[algo_name]
         else:
             name = algo_name
-        if name == 'moveEnet': linestyle = '-'
+        if name == 'GraphEnet': linestyle = '-'
         else:
             try: linestyle = linestyles.pop(0)
             except: linestyle = '--'
@@ -166,9 +167,9 @@ def plot_pck_over_thresholds(pck_thresholds_results, output_folder_path, ds_name
 def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> None:
     # create figure
     fig, ax = plt.subplots()
-    fig.set_size_inches(4,3)
+    fig.set_size_inches(6,3)
     all_values = list()
-    tick_labels = [' ']
+    tick_labels = []
     for (algo_name, metric) in sorted(algo_metrics.items(), reverse=True):
         values = metric.get_value()
         joints_metric_values = values[0]
@@ -188,19 +189,26 @@ def plot_boxplot(algo_metrics: dict, descr: Optional[str], file_path: Path) -> N
             ax.set_xlabel('Joints RMSE')
 
         elif isinstance(metric, metrics_utils.MPJPE):
+            if algo_name in plots_utils.RENAMING.keys():
+                name = plots_utils.RENAMING[algo_name]
+            else:
+                name = algo_name
             all_values.append(joints_metric_values)
 
-            tick_labels.extend([f'{algo_name}'])
+            tick_labels.extend([f'{name}'])
             ax.set_xlabel('Joints MPJPE')
             
     # plot values
-    y_ticks = np.arange(len(tick_labels))
+    y_ticks = np.arange(len(tick_labels))*0.3
     meanlineprops = dict(linestyle='-', linewidth=2.0, color='tab:blue')
-    ax.boxplot(all_values, vert=False, showfliers=False, showmeans=True, meanline=True, meanprops=meanlineprops)
+    ax.boxplot(all_values, vert=False, showfliers=False, showmeans=True, meanline=True, meanprops=meanlineprops, positions=y_ticks)
     ax.set_yticks(y_ticks)
     ax.set_yticklabels(tick_labels)
     ax.set_title(descr)
-
+    mean_line = mlines.Line2D([], [], color='tab:blue', linestyle='-', linewidth=2.0, label='Mean')
+    median_line = mlines.Line2D([], [], color='tab:orange', linestyle='-', linewidth=2.0, label='Median')
+    # Add legend inside the plot
+    ax.legend(handles=[mean_line, median_line], loc='lower right', frameon=True)
     # Save the figure and show
     plt.tight_layout()
     plt.savefig(str(file_path.resolve()))
@@ -918,7 +926,9 @@ def main(args):
                          file_path=output_folder_path / f'mpjpe.png')
             
     plt.show()
-
+    # Cluster MPJPE and PCK
+    visualise_hpe.joints_cluster_MPJPE(output_folder_path)
+    visualise_hpe.joints_cluster_PCK(output_folder_path)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='...')
