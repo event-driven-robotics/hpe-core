@@ -14,9 +14,9 @@ Please cite:
     pages     = {4023-4032}
 }
 ```
-article: [MoveEnet: Online High-Frequency Human Pose Estimation With an Event Camera](https://github.com/user-attachments/files/17659249/MoveEnet-CVPR-WEBV2023.pdf)
+Article: [MoveEnet: Online High-Frequency Human Pose Estimation With an Event Camera](https://github.com/user-attachments/files/17659249/MoveEnet-CVPR-WEBV2023.pdf)
 
-also for the eH3.6m dataset:
+The eH3.6m dataset:
 ```
 https://zenodo.org/record/7842598
 ```
@@ -35,12 +35,13 @@ Compile and link the core C++ library in your application to use the event-based
 ### [PyCore](https://github.com/event-driven-robotics/hpe-core/tree/main/pycore)
 
 Importable python libraries for joint detection
-* event-based movenet: MoveEnet built on PyTorch
+* Event-based movenet: MoveEnet built on PyTorch
+* MoveEnet training code is available in a separate, unconnected repository: [https://github.com/event-driven-robotics/MoveEnet](https://github.com/event-driven-robotics/MoveEnet).
 
 ### [Examples](https://github.com/event-driven-robotics/hpe-core/tree/main/example)
 
 Some example applications are available giving ideas on how to use the HPE-core libraries
-- MoveEnet inference code in corresponding example [here](https://github.com/event-driven-robotics/hpe-core/tree/main/example/movenet)
+- MoveEnet inference code in corresponding example [here](https://github.com/event-driven-robotics/hpe-core/tree/main/example/movenet).
 
 ### [Evaluation](https://github.com/event-driven-robotics/hpe-core/tree/main/evaluation)
 
