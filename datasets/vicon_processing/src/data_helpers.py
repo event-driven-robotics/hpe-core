@@ -13,6 +13,7 @@ import c3d
 import scipy.stats
 import cv2
 import yaml
+import matplotlib.pyplot as plt
 
 from bimvee.importIitYarp import importIitYarp
 

@@ -7,12 +7,13 @@ import argparse
 
 sys.path.append('/home/schiavazza/code/hpe/hpe-core/datasets/')
 sys.path.append('/local_code/hpe-core/datasets/')
+sys.path.append('/home/aglover-iit.local/code/hpe-core/datasets/')
 
 from vicon_processing.src.data_helpers import DvsLabeler, DvsHelper
 
 parser = argparse.ArgumentParser(
-                    prog='Generate video',
-                    description='generate video from vicon data and dvs data, require a calibration transform')
+                    prog='Label Points',
+                    description='label points on DVS images')
 parser.add_argument('--dvs_path', 
                     required=True, 
                     help='path to the yarp folder containing the dvs recording')
