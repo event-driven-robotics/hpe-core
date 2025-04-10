@@ -9,3 +9,4 @@ torchsummary
 onnxruntime
 tensorboard
 bimvee
+h5py

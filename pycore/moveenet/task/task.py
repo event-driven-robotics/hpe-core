@@ -47,7 +47,7 @@ class Task():
 
         self.val_losses = np.zeros([20])
         self.early_stop = 0
-        self.val_loss_best = np.Inf
+        self.val_loss_best = np.inf
 
         # scheduler
         self.scheduler = getSchedu(self.cfg['scheduler'], self.optimizer)
