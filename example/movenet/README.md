@@ -27,7 +27,7 @@ The environment can be installed in 2 different ways:
 -`<workspace>` is the parent directory of choice in which the repository is cloned
 - If your computer does not have a GPU, replace `Dockerfile` with `Dockerfile_cpu` 
 
-his will create a Docker image names movenet. 
+This will create a Docker image named "movenet". 
 
 Before running docker, instruct the host to accept GUI windows with the following command:
     
@@ -54,9 +54,28 @@ The meaning of the options are:
 In case you wish to load any data present on host system or save results to a location external to the docker container, load a path as a volume when creating the container by adding another parameters in the command in the format: `
 -v /path/on/host:/usr/local/data`
 
-2. Create a python environment on you local machine. 
-If you want to run this offline only, this option can be used. 
- - Create a virtual environment and enter it.
+2. Create a python environment on your local machine.
+**If you want to run this offline only, this option can be used.**
+ - Navigate to the `example/movenet` folder.
+ 
+ ```shell
+  $ cd example/movenet
+```
+ - Create a virtual environment.
+
+```shell
+  $ python3 -m venv .venv
+```
+ - Enter the virtual environment.
+
+ For windows:
+ ```shell
+  $ .venv\scripts\activate
+```
+For MacOS/Linux
+ ```shell
+  $ source venv\scripts\activate
+```
  - Install dependencies from the requirements.txt:
 
 ```shell
@@ -90,6 +109,12 @@ A event sample from the [event-human 3.6m dataset](https://zenodo.org/records/78
     $ unzip cam2_S1_Directions.zip && cd ..
     $ python3 moveEnet-offline.py -visualise False -write_video data/cam2_S1_Directions/moveEnet.mp4 -input data/cam2_S1_Directions/ch0dvs/
 ```
+Alternatively, you can download the data sample from [here](https://github.com/user-attachments/files/17645984/cam2_S1_Directions.zip), unzip it and add the folder in `example/movenet/data`. Then, run:
+```shell
+    $ python3 moveEnet-offline.py -visualise False -write_video data/cam2_S1_Directions/moveEnet.mp4 -input data/cam2_S1_Directions/ch0dvs/
+```
+- change the command to `-visualize True` to see the visualization in realtime
+
 Note: You can point the -write_video path to the host volume if you mounted one while creating the container.
 
 ### Quantitative evaluation
