@@ -34,11 +34,12 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python$PYTHO
     ln -s python$PYTHON_VERSION /usr/bin/python3
 
 # upgrade pip
-RUN sudo apt install -y python3.8-distutils
+RUN apt install -y python3.8-distutils libpython3.8-dev python3-h5py 
 RUN python3 -m pip install --upgrade pip
 
 # other prerequisites
-RUN apt-get install -y libopencv-dev python3-opencv python3-dev
+RUN apt-get update &&  \
+    apt-get install -y libopencv-dev python3-opencv python3-dev
 
 
 
@@ -66,22 +67,6 @@ RUN echo "$ssh_prv_key" > /root/.ssh/id_ed25519 && \
     echo "$ssh_pub_key" > /root/.ssh/id_ed25519.pub && \
     chmod 600 /root/.ssh/id_ed25519 && \
     chmod 600 /root/.ssh/id_ed25519.pub
-
-
-###############
-# ATIS BRIDGE #
-###############
-
-# RUN if [ $hvga -eq 1 ]; then \
-# 		echo "Installing older 1.4 version for HVGA"; \
-# 		echo "deb [arch=amd64 trusted=yes] https://prophesee:DbnLdKL5YXnMndWg@apt.prophesee.ai/dists/ubuntu focal main" >> /etc/apt/sources.list; \
-#     apt update; \
-#     apt install -y prophesee-* ; \
-# 	else \
-#     	echo "deb [arch=amd64 trusted=yes] https://apt.prophesee.ai/dists/public/7l58osgr/ubuntu focal essentials" >> /etc/apt/sources.list; \
-#       apt update; \
-#       apt install -y metavision-*; \
-#     fi
 
 RUN python3 -m pip install scikit-build matplotlib jupyter pandas
 
@@ -194,7 +179,6 @@ RUN cd $SOURCE_FOLDER && \
 
 
 # install BIMVEE
-RUN apt install -y libpython3.8-dev python3-h5py 
 RUN python3 -m pip install setuptools Cython numpy scipy bimvee  # numpy==1.21.4 if using python3.7
 #RUN cd $SOURCE_FOLDER && \
 #    git clone https://github.com/event-driven-robotics/bimvee --recurse-submodules && \
@@ -229,25 +213,10 @@ RUN cd $SOURCE_FOLDER/hpe-core/core && \
     make install -j$(nproc)
 
 # install movenet dependencies
-
-# use this once the eros-framer.cpp is updated in the movenet repo
-
-# RUN cd $SOURCE_FOLDER/hpe-core/example/movenet && \
-#     # git checkout movenet_integration && \
-#     python3 -m pip install --upgrade pip && \
-#     python3 -m pip install -r requirements.txt && \
-#     mkdir build && cd build && \
-#     cmake .. && make install -j$(nproc)
-
-# use this to run using the local eros-framer.cpp
-
 RUN cd $SOURCE_FOLDER/hpe-core/example/movenet && \
+    # git checkout movenet_integration && \
     python3 -m pip install --upgrade pip && \
-    python3 -m pip install -r requirements.txt
-
-COPY eros-framer.cpp $SOURCE_FOLDER/hpe-core/example/movenet/eros-framer.cpp
-
-RUN cd $SOURCE_FOLDER/hpe-core/example/movenet && \
+    python3 -m pip install -r requirements.txt && \
     mkdir build && cd build && \
     cmake .. && make install -j$(nproc)
 
