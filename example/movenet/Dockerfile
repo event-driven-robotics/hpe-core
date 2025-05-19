@@ -1,6 +1,6 @@
 
 # base image
-FROM nvidia/cuda:11.5.1-cudnn8-devel-ubuntu20.04
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -34,10 +34,12 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python$PYTHO
     ln -s python$PYTHON_VERSION /usr/bin/python3
 
 # upgrade pip
+RUN apt install -y python3.8-distutils libpython3.8-dev python3-h5py 
 RUN python3 -m pip install --upgrade pip
 
 # other prerequisites
-RUN apt-get install -y libopencv-dev python3-opencv python3-dev
+RUN apt-get update &&  \
+    apt-get install -y libopencv-dev python3-opencv python3-dev
 
 
 
@@ -66,22 +68,6 @@ RUN echo "$ssh_prv_key" > /root/.ssh/id_ed25519 && \
     chmod 600 /root/.ssh/id_ed25519 && \
     chmod 600 /root/.ssh/id_ed25519.pub
 
-
-###############
-# ATIS BRIDGE #
-###############
-
-RUN if [ $hvga -eq 1 ]; then \
-		echo "Installing older 1.4 version for HVGA"; \
-		echo "deb [arch=amd64 trusted=yes] https://prophesee:DbnLdKL5YXnMndWg@apt.prophesee.ai/dists/ubuntu focal main" >> /etc/apt/sources.list; \
-    apt update; \
-    apt install -y prophesee-* ; \
-	else \
-    	echo "deb [arch=amd64 trusted=yes] https://apt.prophesee.ai/dists/public/7l58osgr/ubuntu focal essentials" >> /etc/apt/sources.list; \
-      apt update; \
-      apt install -y metavision-*; \
-    fi
-
 RUN python3 -m pip install scikit-build matplotlib jupyter pandas
 
 RUN apt install -y \
@@ -101,16 +87,15 @@ RUN pip3 install \
   matplotlib \
   jupyter
 
-
 ############
 #   YARP   #
 ############
 
-ARG EVENT_DRIVEN_VERSION=1.5
-ARG YARP_VERSION=3.6.0
-ARG YCM_VERSION=0.14.0
+ARG EVENT_DRIVEN_VERSION=main
+ARG YARP_VERSION=master
+ARG YCM_VERSION=master
 # mustard first release
-ARG MUSTARD_COMMIT=18e702892f6028c69a2a9e224f459bc26147b20e
+ARG MUSTARD_COMMIT=master
 ARG BUILD_TYPE=Release
 ARG SOURCE_FOLDER=/usr/local
 ARG OPENGL=0
@@ -134,7 +119,9 @@ RUN apt install -y \
 # Install QT5 for GUIS
 # (NOTE: may be not compatible with nvidia drivers when forwarding screen)
         qtbase5-dev \
-        qt5-default \
+        # qt5-default \
+        qt5-qmake \
+        qttools5-dev-tools \
         qtdeclarative5-dev \
         qtmultimedia5-dev \
         qml-module-qtquick2 \
@@ -143,12 +130,11 @@ RUN apt install -y \
         qml-module-qtquick-dialogs \
         qml-module-qtquick-controls
 
-
 # Install YCM
 RUN cd $SOURCE_FOLDER && \
-    git clone https://github.com/robotology/ycm.git && \
-    cd ycm && \
-    git checkout v$YCM_VERSION && \
+    git clone https://github.com/robotology/ycm-cmake-modules.git && \
+    cd ycm-cmake-modules && \
+    git checkout $YCM_VERSION && \
 #    # FIXME: remove this line after gitlab fix!!!!!
 #    sed -ie 's/libeigen/cantonios/g' 3rdparty/eigen3.cmake && \
     mkdir build && cd build && \
@@ -160,7 +146,7 @@ RUN cd $SOURCE_FOLDER && \
 RUN cd $SOURCE_FOLDER && \
     git clone https://github.com/robotology/yarp.git &&\
     cd yarp && \
-    git checkout v$YARP_VERSION && \
+    git checkout $YARP_VERSION && \
     mkdir build && cd build && \
     cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
           -DYARP_COMPILE_BINDINGS=ON \
@@ -182,7 +168,7 @@ ENV QT_X11_NO_MITSHM 1
 RUN cd $SOURCE_FOLDER && \
     git clone https://github.com/robotology/event-driven.git && \
     cd event-driven && \
-    git checkout v$EVENT_DRIVEN_VERSION && \
+    git checkout $EVENT_DRIVEN_VERSION && \
     mkdir build && cd build && \
     cmake -DVLIB_CLOCK_PERIOD_NS=1000 \
           -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
@@ -216,7 +202,7 @@ RUN cd $SOURCE_FOLDER && \
 
 # download hpe-core
 RUN cd $SOURCE_FOLDER && \
-    git clone git@github.com:event-driven-robotics/hpe-core.git && \
+    git clone https://github.com/event-driven-robotics/hpe-core.git && \
     cd hpe-core && \
     git checkout $HPE_BRANCH
 
@@ -228,7 +214,7 @@ RUN cd $SOURCE_FOLDER/hpe-core/core && \
 
 # install movenet dependencies
 RUN cd $SOURCE_FOLDER/hpe-core/example/movenet && \
-    git checkout movenet_integration && \
+    # git checkout movenet_integration && \
     python3 -m pip install --upgrade pip && \
     python3 -m pip install -r requirements.txt && \
     mkdir build && cd build && \

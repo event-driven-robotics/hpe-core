@@ -1,2 +1,7 @@
 build/
 *.orig
+
+# Python virtual environments
+.venv/
+
+data/
