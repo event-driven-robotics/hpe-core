@@ -3,29 +3,26 @@
 import numpy as np
 import math
 
-def makeT(roll, yaw, pitch):
+def makeT(Rot, Trans):
 
-    # print ("roll = ", roll)
-    # print ("pitch = ", pitch)
-    # print ("yaw = ", yaw)
-    # print()
+    Rot = np.array(Rot) * (math.pi / 180.0)
 
     yawMatrix = np.matrix([
-    [math.cos(yaw), -math.sin(yaw), 0],
-    [math.sin(yaw), math.cos(yaw), 0],
+    [math.cos(Rot[2]), -math.sin(Rot[2]), 0],
+    [math.sin(Rot[2]), math.cos(Rot[2]), 0],
     [0, 0, 1]
     ])
 
     pitchMatrix = np.matrix([
-    [math.cos(pitch), 0, math.sin(pitch)],
+    [math.cos(Rot[1]), 0, math.sin(Rot[1])],
     [0, 1, 0],
-    [-math.sin(pitch), 0, math.cos(pitch)]
+    [-math.sin(Rot[1]), 0, math.cos(Rot[1])]
     ])
 
     rollMatrix = np.matrix([
     [1, 0, 0],
-    [0, math.cos(roll), -math.sin(roll)],
-    [0, math.sin(roll), math.cos(roll)]
+    [0, math.cos(Rot[0]), -math.sin(Rot[0])],
+    [0, math.sin(Rot[0]), math.cos(Rot[0])]
     ])
 
     R = yawMatrix * pitchMatrix * rollMatrix
@@ -33,15 +30,21 @@ def makeT(roll, yaw, pitch):
     T = np.zeros((4,4), dtype = np.float64)
     T[0:3, 0:3] = R
     T[3,3] = 1.0
-    #print(T[0:3, 0:3])
-    print(T)
+    Trans = (R @ Trans.transpose()).transpose()
+    T[0,3] = -Trans[0]
+    T[1,3] = -Trans[1]
+    T[2,3] = -Trans[2]
     return T
 
-    # theta = math.acos(((R[0, 0] + R[1, 1] + R[2, 2]) - 1) / 2)
-    # multi = 1 / (2 * math.sin(theta))
+def marker_p(c3d_labels, c3d_points, mark_name):
+        
+    i = 0
+    for label in c3d_labels:
+        k = label.find(':') + 1
+        if(label[k:k+4] == mark_name):
+            break
+        i = i + 1
+    #marker_p = lambda index: np.array([np.append(val[index][0:3], 1) for val in points_3d.values()])
 
-    # rx = multi * (R[2, 1] - R[1, 2]) * theta
-    # ry = multi * (R[0, 2] - R[2, 0]) * theta
-    # rz = multi * (R[1, 0] - R[0, 1]) * theta
+    return np.array([np.append(val[i][0:3], 1) for val in c3d_points])
 
-    # print rx, ry, rz
