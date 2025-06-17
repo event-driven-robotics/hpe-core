@@ -4,10 +4,12 @@
 # vicon file with marker positions 3D and camera marker positions 3D
 # we also need the camera calibration
 #
+
+# 
+# import sys; sys.path.append('/home/aglover-iit.local/code/hpe-core/datasets/vicon_processing/v2')
+
 #%% SET-UP ARGUMENTS ---------------------------------
 import sys
-sys.path.append('/home/aglover-iit.local/code/hpe-core/datasets/vicon_processing/v2')
-
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,7 +20,7 @@ import helpers
 import importlib
 import math
 
-importlib.reload(helpers)
+
  
 sys.argv = ['Interactive-1.ipynb', 
             '--events_path', '/home/aglover-iit.local/data/move-iit-hpe-subset1/P1/tennis_f1/atis-s/',
@@ -128,18 +130,19 @@ for marker_name in marker_names:
 
 # %%  ---------------------------------
 # PROJECT 3D DATA
+importlib.reload(helpers)
 
 # create translation matrix
 campos = helpers.marker_p(c3d_data.point_labels, points_3d.values(), '*118')
 
-T = helpers.makeT([0, 8, -10], campos[0,0:3])
-delay = 0.2
+T = helpers.makeT([0, 8, -8], campos[0,0:3])
+delay = -0.2
 print(T)
 print(delay)
 
 #dict of marker names
-marker_names = {'CLAV', 'RANK', 'LANK', 'LWRA', 'RWRA', 'LFHD', 'RFHD'}
-#marker_names = {'CLAV'}
+#marker_names = {'CLAV', 'RANK', 'LANK', 'LWRA', 'RWRA', 'LFHD', 'RFHD'}
+marker_names = {'CLAV'}
 
 # extract points and convert them given translation matrix
 image_points = {}
@@ -181,6 +184,16 @@ for mark_name in marker_names:
     plt.title(mark_name)
     plt.show()
 
+#make indices
+
+#the problem is to tune timing we need to recalculate all the indices.
+#to tune the translation/rotation we need to re-transform all markers (not too bad...)
+output = helpers.calc_indices(e_ts, period, delay)
+e_tags = []
+m_tags = []
+
+
+
 
 #display on image
 i_markers = 0
@@ -203,7 +216,9 @@ while tic_markers < marker_t[-1] and tic_events < e_ts[-1]:
         i_events = i_events + 1
 
     cv2.imshow('Projected Points', img)
-    cv2.waitKey(np.int64(period*1000))
+    c = cv2.waitKey(np.int64(period*1000))
+    if c == '\e':
+        break
     img = np.ones(cam_res, dtype = np.uint8)*255
     tic_markers = tic_markers + period
     tic_events = tic_events + period

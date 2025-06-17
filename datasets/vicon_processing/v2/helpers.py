@@ -48,3 +48,19 @@ def marker_p(c3d_labels, c3d_points, mark_name):
 
     return np.array([np.append(val[i][0:3], 1) for val in c3d_points])
 
+def calc_indices(e_ts, period, delay):
+
+    time_tags = np.arange(e_ts[0], e_ts[-1], period)
+    index_tags = np.empty(len(time_tags))
+    tags = zip(time_tags, index_tags)
+    i = 0
+    for tag in tags:
+        while e_ts[i] < tag[0]:
+            i = i + 1
+        print(e_ts[i])
+        tag[1] = i
+
+    return tags
+        
+
+
