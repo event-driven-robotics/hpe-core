@@ -1,39 +1,40 @@
-- 'LFHD'
-- 'RFHD'
-- 'LBHD'
-- 'RBHD'
-- 'C7'
-- 'T10'
-- 'CLAV'
-- 'STRN'
+- 'LFHD'  # left front head
+- 'RFHD'  # right front head
+- 'LBHD'  # left back head
+- 'RBHD'  # right back head
+- 'C7'    # cervical?
+- 'T10'   # thorax?
+- 'CLAV'  # clavicle
+- 'STRN'  # sternum
 - 'RBAK'
-- 'LSHO'
-- 'LUPA'
-- 'LELB'
-- 'LFRM'
-- 'LWRA'
-- 'LWRB'
-- 'LFIN'
-- 'RSHO'
-- 'RUPA'
-- 'RELB'
-- 'RFRM'
-- 'RWRA'
-- 'RWRB'
-- 'RFIN'
+- 'LBAK'
+- 'LSHO'  # left shoulder
+- 'LUPA'  # left upper arm
+- 'LELB'  # left elbow
+- 'LFRM'  # left forearm
+- 'LWRA'  # left wrist a?
+- 'LWRB'  # left wrist b?
+- 'LFIN'  # left finger
+- 'RSHO'  # right shoulder
+- 'RUPA'  # right upper arm
+- 'RELB'  # right elbow
+- 'RFRM'  # right forearm
+- 'RWRA'  # right wrist a?
+- 'RWRB'  # right wrist b?
+- 'RFIN'  # right finger
 - 'LASI'
 - 'RASI'
 - 'LPSI'
 - 'RPSI'
-- 'LTHI'
-- 'LKNE'
-- 'LTIB'
-- 'LANK'
-- 'LHEE'
-- 'LTOE'
-- 'RTHI'
-- 'RKNE'
-- 'RTIB'
-- 'RANK'
-- 'RHEE'
-- 'RTOE'
+- 'LTHI'  # left thigh
+- 'LKNE'  # left knee
+- 'LTIB'  # left tibia
+- 'LANK'  # left ankle
+- 'LHEE'  # left heel
+- 'LTOE'  # left toe
+- 'RTHI'  # right thigh
+- 'RKNE'  # right knee
+- 'RTIB'  # right tibia
+- 'RANK'  # right ankle
+- 'RHEE'  # right heel
+- 'RTOE'  # right toe

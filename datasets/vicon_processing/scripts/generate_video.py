@@ -11,6 +11,8 @@ import yaml
 sys.path.append('/home/schiavazza/code/hpe/hpe-core/datasets/')
 sys.path.append('/local_code/hpe-core/datasets/')
 sys.path.append('/home/iit.local/schiavazza/local_code/hpe-core/datasets/')
+sys.path.append('/home/cappe/hpe/hpe-core/datasets')
+
 
 from vicon_processing.src.projection import ProjectionHelper
 from vicon_processing.src.data_helpers import DvsLabeler, DvsHelper, C3dHelper
@@ -72,8 +74,22 @@ if args.all_points:
 
 print(f"Loaded labels: {labels}")
 
+#np.load(args.extrinsic)
+
 # import transformation
 T = np.load(args.extrinsic)
+
+# using extrinsics: [[ 2.42854464e-01  5.52722598e-01 -7.97194731e-01  3.79367482e+03]
+#  [-9.70062674e-01  1.38664423e-01 -1.99375491e-01  2.88076737e+03]
+#  [ 3.43208374e-04  8.21748081e-01  5.69850835e-01  2.59363079e+03]
+#  [ 0.00000000e+00  0.00000000e+00  0.00000000e+00  1.00000000e+00]]
+
+T = np.array([
+    [   -0.143,   -0.990,    0.011, -2474.697],
+    [   -0.071,   -0.001,   -0.997,  1974.656],
+    [    0.987,   -0.144,   -0.070,  1293.554],
+    [    0.000,    0.000,    0.000,     1.000]
+])
 
 print(f"using extrinsics: {T}")
 
@@ -83,7 +99,7 @@ print('Done loading events, generating video...')
 
 if args.move_synch:
     dvs_move_time = dvs_helper.find_start_moving_time()
-    vicon_move_time = c3d_helper.find_start_moving_time()
+    vicon_move_time = c3d_helper.find_start_moving_time()   #?
     time_difference = dvs_move_time - vicon_move_time
     print(f"found time difference: {time_difference}")
     c3d_helper.set_delay(time_difference)

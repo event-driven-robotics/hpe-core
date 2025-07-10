@@ -318,7 +318,7 @@ class C3dHelper:
         vicon_points_frames = []
         frames_id = self.get_frame_time(dvs_points['times'])
         desired_times = dvs_points['times']
-
+        
         for i, (idx, d_t) in enumerate(zip(frames_id, desired_times)):
             labels = dvs_points['points'][i].keys()
             if idx == 0:

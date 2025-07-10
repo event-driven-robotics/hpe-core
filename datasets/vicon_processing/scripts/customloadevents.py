@@ -2,6 +2,8 @@ import re
 import numpy as np
 
 filename = "/home/aglover-iit.local/data/move-iit-hpe-subset1/P1/drum_f1/atis-s/data.log"
+#filename = "/home/cappe/hpe/move-iit-hpe-subset1/P1/drum_f1/atis-s/data.log"
+
 
 pattern = re.compile('(\d+) (\d+\.\d+) ([A-Z]+) (\d+) (.+)')
 #b'\x80abc'.decode("utf-8", "replace")

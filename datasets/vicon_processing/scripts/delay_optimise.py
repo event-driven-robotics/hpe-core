@@ -13,6 +13,8 @@ import scipy.optimize
 
 sys.path.append('/home/schiavazza/code/hpe/hpe-core/datasets/')
 sys.path.append('/local_code/hpe-core/datasets/')
+sys.path.append('/home/cappe/hpe/hpe-core/datasets')
+
 
 from vicon_processing.src.projection import ProjectionHelper
 from vicon_processing.src.data_helpers import DvsLabeler, DvsHelper, C3dHelper
@@ -86,4 +88,5 @@ res = scipy.optimize.minimize_scalar(error_delay, tol=1e-9, bounds=(0.15, 0.4), 
 print(res)
 best_delay = res.x
 print(f"Best delay: {best_delay}")
-np.savetxt(os.path.join(args.dvs_path, f"../{args.output}"), [best_delay], fmt="%.9f")
+#np.savetxt(os.path.join(args.dvs_path, f"../{args.output}"), [best_delay], fmt="%.9f")
+np.savetxt(args.output, [best_delay], fmt="%.9f")

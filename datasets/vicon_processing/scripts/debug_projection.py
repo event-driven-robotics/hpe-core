@@ -12,6 +12,8 @@ import yaml
 sys.path.append('/home/schiavazza/code/hpe/hpe-core/datasets/')
 sys.path.append('/local_code/hpe-core/datasets/')
 sys.path.append('/home/aglover-iit.local/code/hpe-core/datasets/')
+sys.path.append('/home/cappe/hpe/hpe-core/datasets')
+
 
 from vicon_processing.src.projection import ProjectionHelper
 from vicon_processing.src.data_helpers import DvsLabeler, DvsHelper, C3dHelper
