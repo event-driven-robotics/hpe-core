@@ -166,7 +166,6 @@ cv2.destroyAllWindows()
 
 importlib.reload(helpers)
 from helpers import ViconHelper
-from helpers import ProjectionHelper  # or from projection import ProjectionHelper
 from scipy.spatial.transform import Rotation as R
 
 time_tags, event_indices = helpers.calc_indices(e_ts, period)
@@ -278,6 +277,7 @@ def project_vicon_to_event_plane(
     points_3d, 
     marker_t, 
     T, 
+    K,
     cam_res, 
     delay, 
     e_ts, 
@@ -356,6 +356,7 @@ projected_points = project_vicon_to_event_plane(
     points_3d=points_3d,
     marker_t=marker_t,
     T=T,
+    K=K,
     cam_res=cam_res,
     delay=delay,
     e_ts=e_ts,
@@ -363,7 +364,6 @@ projected_points = project_vicon_to_event_plane(
     e_vs=e_vs,
     period=period
 )
-
 
 # %% ---------------------------------
 # TEST WITH OTHER SEQUENCES
@@ -395,6 +395,7 @@ projected_points_new = project_vicon_to_event_plane(
     points_3d=new_points_3d,
     marker_t=new_marker_t,
     T=T,  # same as before
+    K=K,
     cam_res=cam_res,
     delay=delay,    # check
     e_ts=new_e_ts,
@@ -403,5 +404,7 @@ projected_points_new = project_vicon_to_event_plane(
     period=period
 )
 
-# %%
 
+
+
+# %%

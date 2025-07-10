@@ -347,9 +347,7 @@ class ViconHelper:
             for pl in points:
                 points[pl] = T @ np.append(points[pl], 1.0)
         return transformed_points
-    
-    
-    
+
 # Not being used, but i wanted to implement everything in a nicer way and also allow for initial estimation
 # class ProjectionHelper:
 #     # class to help with the projection of points and calculation of camera position and orientation
