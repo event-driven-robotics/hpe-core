@@ -1,0 +1,16 @@
+services:
+  vicon:
+    image: vicon:latest
+    container_name: vicon
+    privileged: true
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+      - /dev/video0:/dev/video0
+      - /tmp/.X11-unix/:/tmp/.X11-unix
+      - ../../..:/app/hpe-core                  # Mount this code in docker container for development
+      - /home/mikura-iit.local/data:/data      # Mount recorded data from host. Please change directory.
+    environment:
+      - DISPLAY=unix$DISPLAY
+      
+    network_mode: host
+    command: sleep infinity
