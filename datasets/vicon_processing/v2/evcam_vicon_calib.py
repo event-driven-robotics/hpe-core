@@ -83,7 +83,6 @@ D = np.array([calib_dict['k1'], calib_dict['k2'], calib_dict['p1'], calib_dict['
 
 # %%
 # Visualize event data as time window
-
 img = np.ones(cam_res, dtype = np.uint8)*255
 
 ft = e_ts[0]
@@ -100,7 +99,7 @@ for i in range(0,len(e_ts)):
     
 cv2.destroyAllWindows()
 # %%
-# label sequence
+# Label sequence
 importlib.reload(helpers)
 from helpers import DvsLabeler
 
@@ -123,6 +122,7 @@ importlib.reload(helpers)
 from helpers import ViconHelper
 from scipy.spatial.transform import Rotation as R
 
+time_tags, event_indices = helpers.calc_indices(e_ts, period)
 e_tags = e_ts[event_indices]
 delay = e_tags[-1] - marker_t[-1]   # get time difference so to generate ids for the frames
 print("Delay: ", delay)
@@ -174,95 +174,28 @@ print("image_points shape:", image_points.shape)
 success, rvec, tvec = cv2.solvePnP(world_points, image_points, K, D)
 # %%
 # Project 3D world points to 2D image plane for confirmation
-import matplotlib.pyplot as plt
-
-def project_vicon_to_event_plane(
-    marker_names, 
-    c3d_data, 
-    points_3d, 
-    marker_t, 
-    T, 
-    cam_res, 
-    delay, 
-    e_ts, 
-    e_us, 
-    e_vs, 
-    period
-):
-    # Project points from Vicon to event plane using the transformation matrix T
-
-    projected_points = {}
-
-    # For each marker, transform and project
-    for mark_name in marker_names:
-        ps = helpers.marker_p(c3d_data.point_labels, points_3d.values(), mark_name)
-        # Homogenize if needed
-        if ps.shape[1] == 3:
-            ps = np.hstack([ps, np.ones((ps.shape[0], 1))])
-        # Apply transformation
-        ps_trans = (T @ ps.T).T
-        ps_trans = ps_trans / ps_trans[:, [3]]  # Normalize homogeneous
-        # Only keep 3D part
-        ps_trans = ps_trans[:, :3]
-
-        # Project to image plane
-        img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, None)
-        img_pts = img_pts.reshape(-1, 2)
-        projected_points[mark_name] = img_pts
-
-
-    # Visualization
-    img = np.ones(cam_res, dtype=np.uint8) * 255
-    tic_markers = marker_t[0] + period
-    tic_events = e_ts[0] + delay + period
-    i_markers = 0
-    i_events = 0
-
-    while tic_markers < marker_t[-1] and tic_events < e_ts[-1]:
-        while marker_t[i_markers] < tic_markers:
-            for mark_name in marker_names:
-                u = int(projected_points[mark_name][i_markers][0])
-                v = int(projected_points[mark_name][i_markers][1])
-                if 0 <= u < cam_res[1] and 0 <= v < cam_res[0]:
-                    cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                    cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
-            i_markers += 1
-
-        while e_ts[i_events] < tic_events:
-            img[e_vs[i_events], e_us[i_events]] = 0
-            i_events += 1
-
-        cv2.imshow('Projected Points', img)
-        c = cv2.waitKey(int(period * 1000))
-        if c == ord('q'):
-            cv2.destroyAllWindows()
-            return projected_points
-        img = np.ones(cam_res, dtype=np.uint8) * 255
-        tic_markers += period
-        tic_events += period
-
-    cv2.destroyAllWindows()
-    return projected_points
-
 R_mat, _ = cv2.Rodrigues(rvec)
 T_mat = np.zeros((4, 4))
 T_mat[0:3, 0:3] = R_mat
 T_mat[0:3, 3] = tvec[:, 0]
 T_mat[3, 3] = 1.0
 print("Transformation Matrix T:\n", T_mat)
-marker_names = {'cam_right', 'cam_back', 'cam_left', 'top_right_Origin', 'bottom_right', 'bottom_left', 'top_left'}
+marker_names = ['stereoatis:cam_right', 'stereoatis:cam_back', 'stereoatis:cam_left',
+                'box:top_right_Origin', 'box:bottom_right', 'box:bottom_left', 'box:top_left']
 
-projected_points = project_vicon_to_event_plane(
+projected_points = helpers.project_vicon_to_event_plane(
     marker_names=marker_names,
     c3d_data=c3d_data,
     points_3d=points_3d,
     marker_t=marker_t,
     T=T_mat,
+    K=K,
+    D=D,
     cam_res=cam_res,
     delay=delay,
     e_ts=e_ts,
     e_us=e_us,
     e_vs=e_vs,
-    period=period
+    period=period,
+    visualize=True
 )
-
