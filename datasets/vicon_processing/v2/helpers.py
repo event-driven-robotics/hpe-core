@@ -5,6 +5,7 @@ import math
 import cv2
 import os
 import yaml
+from typing import Tuple
 
 from scipy.spatial.transform import Rotation
 
@@ -49,11 +50,9 @@ def marker_p(c3d_labels, c3d_points, mark_name):
         
     i = 0
     for label in c3d_labels:
-        k = label.find(':') + 1
-        if(label[k:k+4] == mark_name):
+        if(label.split(':')[1].strip() == mark_name):
             break
         i = i + 1
-    #marker_p = lambda index: np.array([np.append(val[index][0:3], 1) for val in points_3d.values()])
 
     return np.array([np.append(val[i][0:3], 1) for val in c3d_points])
 
@@ -87,7 +86,7 @@ class DvsLabeler:
         self.labeled_dict = None
         self.subject = subject
         
-    def label_data(self, e_ts, e_us, e_vs, event_indices, time_tags, period):
+    def label_data(self, e_ts, e_us, e_vs, event_indices, time_tags, period, label_tag_file: str = None):
         # Go though every event frame and call function to do the labelling.
         
         dict_out = {'points': [], 'times': []}
@@ -102,7 +101,7 @@ class DvsLabeler:
                 # Show the current event frame
                 img[e_vs[i], e_us[i]] = 0
                 
-                success, points_dict, frame = self.label_frame(img, ft)
+                success, process_continue, points_dict, frame = self.label_frame(img, ft, label_tag_file)
                 if not success:
                     img = np.ones(self.img_shape, dtype = np.uint8)*255
                 else:
@@ -111,6 +110,9 @@ class DvsLabeler:
                     dict_out['times'].append(float(ft))
                     
                     img = np.ones(self.img_shape, dtype = np.uint8)*255
+                    
+                if not process_continue:
+                    break
                 
                 ft = ft + period    # maybe 2*period, just to skip some frames as they are a lot
                     
@@ -147,15 +149,20 @@ class DvsLabeler:
         root.destroy()
         return selected
 
-    def label_frame(self, frame: np.ndarray, timestamp: float = None):
+    def label_frame(self, frame: np.ndarray, timestamp: float = None, label_tag_file: str = None) -> Tuple[bool, bool, dict, np.ndarray]:
         # allow user to label points in the current frame.
         
         points = []
         finished = False
         points_dict = {}
+        process_continue: bool = True
 
         dirname = os.path.dirname(__file__)
-        filename = os.path.join(dirname, "../scripts/config/labels_tags.yml")   # check later for modification of yaml file
+        filename: str
+        if label_tag_file is not None:
+            filename = os.path.join(dirname, label_tag_file)   # check later for modification of yaml file
+        else:
+            filename = os.path.join(dirname, '../scripts/config/labels_tags.yml')
         with open(filename) as f:
             marker_labels = yaml.load(f, Loader=yaml.Loader)
 
@@ -202,11 +209,16 @@ class DvsLabeler:
                 finished = True
                 # skip current frame by pressing space bar
                 print("space pressed, skipping")
-                return False, None, None
+                return False, process_continue, None, None
             elif c == ord('s'):     # s key
                 # save labeled points for the current frame
                 finished = True
-                return True, points_dict, img
+                return True, process_continue, points_dict, img
+            elif c == 27:   # ESC key
+                print("ESC pressed, stopping labeling")
+                process_continue = False
+                finished = True
+                return True, process_continue, points_dict, img
             # elif c == ord('q') or c == 27 or getattr(self, 'abort_labeling', False):    # q key or esc
             #     # abort labeling by pressing q or esc
             #     print("Labeling aborted by user.")
@@ -225,10 +237,9 @@ class DvsLabeler:
         for p in points:
             cv2.circle(img, np.asarray(p, dtype=int), 6, (255, 0, 0), -1)
 
-        return True, points_dict, img  
-    
-   
-    
+        return True, process_continue, points_dict, img
+
+
 class ViconHelper:
     # functions relative to the extraction of the vicon data from c3d files.
     

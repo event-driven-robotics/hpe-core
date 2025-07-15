@@ -1,0 +1,3 @@
+[submodule "datasets/vicon_processing/v2/submodules/bimvee"]
+	path = datasets/vicon_processing/v2/submodules/bimvee
+	url = https://github.com/event-driven-robotics/bimvee.git

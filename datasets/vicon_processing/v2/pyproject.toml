@@ -5,10 +5,10 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "bimvee>=1.0.23",
     "c3d>=0.5.2",
     "ipykernel>=6.29.5",
     "ipython>=8.37.0",
+    "matplotlib==3.10.3",
     "numpy>=1.26.3",
     "opencv-python>=4.11.0.86",
     "pyc3dtools==0.3.2",
