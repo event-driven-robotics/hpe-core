@@ -6,6 +6,7 @@ import cv2
 import os
 import yaml
 import c3d
+from typing import Tuple, Optional
 
 from scipy.spatial.transform import Rotation
 
@@ -99,7 +100,8 @@ def project_vicon_to_event_plane(
     e_us, 
     e_vs, 
     period,
-    visualize
+    visualize,
+    D: Optional[np.ndarray] = None
 ):
     # Project points from Vicon to event plane using the transformation matrix T
 
@@ -119,17 +121,10 @@ def project_vicon_to_event_plane(
         ps_trans = ps_trans[:, :3]
 
         # Project to image plane
-        img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, None)
+        img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, distCoeffs=D)
         img_pts = img_pts.reshape(-1, 2)
         projected_points[mark_name] = img_pts
-        
-        # plt.plot(marker_t, img_pts[:, 0:2])
-        # plt.legend(['U', 'V'])
-        # plt.plot([marker_t[0], marker_t[-1]], [cam_res[0], cam_res[0]], 'tab:orange', linestyle=':')
-        # plt.plot([marker_t[0], marker_t[-1]], [cam_res[1], cam_res[1]], 'b:')
-        # plt.plot([marker_t[0], marker_t[-1]], [0, 0], 'k:')
-        # plt.title(mark_name)
-        # plt.show()
+
 
     if visualize:
         # Visualization
@@ -176,7 +171,7 @@ class DvsLabeler:
         self.labeled_dict = None
         self.subject = subject
         
-    def label_data(self, e_ts, e_us, e_vs, event_indices, time_tags, period):
+    def label_data(self, e_ts, e_us, e_vs, event_indices, time_tags, period, label_tag_file: str = None):
         # Go though every event frame and call function to do the labelling.
         
         dict_out = {'points': [], 'times': []}
@@ -191,7 +186,7 @@ class DvsLabeler:
                 # Show the current event frame
                 img[e_vs[i], e_us[i]] = 0
                 
-                success, points_dict, frame = self.label_frame(img, ft)
+                success, process_continue, points_dict, frame = self.label_frame(img, ft, label_tag_file)
                 if not success:
                     img = np.ones(self.img_shape, dtype = np.uint8)*255
                 else:
@@ -200,6 +195,9 @@ class DvsLabeler:
                     dict_out['times'].append(float(ft))
                     
                     img = np.ones(self.img_shape, dtype = np.uint8)*255
+                    
+                if not process_continue:
+                    break
                 
                 ft = ft + period    # maybe 2*period, just to skip some frames as they are a lot
                     
@@ -236,15 +234,20 @@ class DvsLabeler:
         root.destroy()
         return selected
 
-    def label_frame(self, frame, timestamp):
+    def label_frame(self, frame: np.ndarray, timestamp: float = None, label_tag_file: str = None) -> Tuple[bool, bool, dict, np.ndarray]:
         # allow user to label points in the current frame.
         
         points = []
         finished = False
         points_dict = {}
+        process_continue: bool = True
 
         dirname = os.path.dirname(__file__)
-        filename = os.path.join(dirname, "../scripts/config/labels_tags.yml")   # check later for modification of yaml file
+        filename: str
+        if label_tag_file is not None:
+            filename = os.path.join(dirname, label_tag_file)   # check later for modification of yaml file
+        else:
+            filename = os.path.join(dirname, '../scripts/config/labels_tags.yml')
         with open(filename) as f:
             marker_labels = yaml.load(f, Loader=yaml.Loader)
 
@@ -273,7 +276,7 @@ class DvsLabeler:
             # draw labeled points on the image
             for p in points:
                 cv2.circle(img, np.asarray(p, dtype=int), 4, (255, 0, 0), -1)
-                
+
             # Draw timestamp on the top right corner
             if timestamp is not None:
                 text = f"t = {timestamp:.6f}s"
@@ -285,21 +288,26 @@ class DvsLabeler:
                 x = img.shape[1] - text_width - 10
                 y = text_height + 10
                 cv2.putText(img, text, (x, y), font, font_scale, color, thickness, cv2.LINE_AA)
-                
+
             cv2.imshow("image", img)
             c = cv2.waitKey(100)
             cv2.setMouseCallback('image', on_click)
-            
+
             if ' ' == chr(c & 255): # space bar
                 finished = True
                 # skip current frame by pressing space bar
                 print("space pressed, skipping")
-                return False, None, None
+                return False, process_continue, None, None
             elif c == ord('s'):     # s key
                 # save labeled points for the current frame
                 finished = True
-                return True, points_dict, img
-            # elif c == ord('q') or c == 27:    # q key or esc
+                return True, process_continue, points_dict, img
+            elif c == 27:   # ESC key
+                print("ESC pressed, stopping labeling")
+                process_continue = False
+                finished = True
+                return True, process_continue, points_dict, img
+            # elif c == ord('q') or c == 27 or getattr(self, 'abort_labeling', False):    # q key or esc
             #     # abort labeling by pressing q or esc
             #     # TODO: quit and save            
             #     print("Labeling aborted by user.")
@@ -319,8 +327,8 @@ class DvsLabeler:
         for p in points:
             cv2.circle(img, np.asarray(p, dtype=int), 6, (255, 0, 0), -1)
 
-        return True, points_dict, img  
-    
+        return True, process_continue, points_dict, img
+
     def correct_data(
         self, e_ts, e_us, e_vs, event_indices, time_tags, period,
         T, marker_names, c3d_data, points_3d, marker_t, K, cam_res
