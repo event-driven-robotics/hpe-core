@@ -15,6 +15,8 @@ sys.path.append('/local_code/hpe-core/datasets/')
 sys.path.append('/home/aglover-iit.local/code/hpe-core/datasets/')
 sys.path.append('/home/cappe/hpe/hpe-core/datasets')
 
+sys.path.append('/usr/local/lib/bimvee')
+from bimvee.importIitYarp import importIitYarp
 
 from vicon_processing.src.projection import ProjectionHelper
 from vicon_processing.src.data_helpers import DvsLabeler, DvsHelper, C3dHelper
@@ -104,17 +106,3 @@ best_T = proj_helper.find_R_t_opencv()
 print(f"\nEstimated Transform: \n{best_T}\n")
 
 np.save(args.output_path, best_T)
-
-'''
-Optimization result:
- message: Solution found.
- success: True
-  status: 0
-     fun: 52.865854670282395
-       x: 0.23788358008700908
-     nit: 29
-    nfev: 29
-Best delay: 0.23788358008700908
-
-Delay:  -0.23968985557556266
-'''

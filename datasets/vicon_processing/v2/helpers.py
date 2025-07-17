@@ -5,6 +5,7 @@ import math
 import cv2
 import os
 import yaml
+import c3d
 
 from scipy.spatial.transform import Rotation
 
@@ -43,10 +44,11 @@ def makeT(Rot, Trans):
     T[0,3] = -Trans[0]
     T[1,3] = -Trans[1]
     T[2,3] = -Trans[2]
+    
     return T
 
 def marker_p(c3d_labels, c3d_points, mark_name):
-    # Clean both marker_name and labels for comparison
+
     mark_name_clean = mark_name.strip()
     i = None
     for idx, label in enumerate(c3d_labels):
@@ -59,7 +61,7 @@ def marker_p(c3d_labels, c3d_points, mark_name):
     out = []
     for val in c3d_points:
         if i < val.shape[0]:
-            out.append(np.append(val[i][0:3], 1))
+            out.append(val[i][0:3])     # check shape
         else:
             continue
     return np.array(out)
@@ -167,7 +169,7 @@ def project_vicon_to_event_plane(
 class DvsLabeler:
     # functions relative to the labeling of the sequences
     
-    def __init__(self, img_shape, subject, events=None):
+    def __init__(self, img_shape, subject, events):
         self.events = events
         self.img_shape = img_shape
         self.labels_done = False
@@ -183,10 +185,7 @@ class DvsLabeler:
         ft = e_ts[0]
         img = np.ones(self.img_shape, dtype=np.uint8) * 255
         i = 0
-        
-        
-        # code for delay and projection? here?
-        
+                
         while i < len(e_ts):
             if e_ts[i] >= ft:
                 # Show the current event frame
@@ -410,12 +409,12 @@ class DvsLabeler:
                 # after selecting the closest marker, add it to the corrected points by selecting the second click
                 # TODO: modify from old projection and attribute correction
         
-        # still image? check and fix
+        # TODO: check delay
         
         while not finished:
             img = np.copy(frame)
             
-            # TODO: reproject every iteration?
+            # TODO: reproject every iteration???
             for mark_name, pt in projected_points.items():
                 u, v = int(pt[0]), int(pt[1])
                 if 0 <= u < img.shape[1] and 0 <= v < img.shape[0]:
@@ -476,109 +475,31 @@ class DvsLabeler:
                 
             # TODO: fix projection not following event data?
 
-        return True, corrected_points_dict, img    
-
-# def show_event_frame_with_projection(
-#     frame,  # event frame (image)
-#     marker_names,
-#     c3d_data,
-#     points_3d,
-#     marker_t,
-#     frame_idx,  # index of the current frame
-#     T,
-#     K,
-#     cam_res
-# ):
-#     # Project markers for each frame
-#     projected_points = {}
-#     for mark_name in marker_names:
-#         ps = marker_p(c3d_data.point_labels, points_3d.values(), mark_name)
-
-#         if ps.shape[1] == 3:
-#             ps = np.hstack([ps, np.ones((ps.shape[0], 1))])
-            
-#         ps_trans = (T @ ps.T).T
-#         ps_trans = ps_trans / ps_trans[:, [3]]
-#         ps_trans = ps_trans[:, :3]
-        
-#         # Project to image plane
-#         img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, None)
-#         img_pts = img_pts.reshape(-1, 2)
-
-#         projected_points[mark_name] = img_pts[frame_idx]
-
-#     # Overlay projected points on the event frame
-#     img = np.copy(frame)
-#     for mark_name, pt in projected_points.items():
-#         u, v = int(pt[0]), int(pt[1])
-#         if 0 <= u < img.shape[1] and 0 <= v < img.shape[0]:
-#             cv2.circle(img, (u, v), 6, (0, 0, 255), 2)
-#             cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 0, 255))
-
-#     cv2.imshow("Event Frame with Projection", img)
-#     cv2.waitKey(0)
-#     cv2.destroyWindow("Event Frame with Projection")
-
-    
-# def project_vicon_to_event_plane_single_frame(
-#     marker_names, 
-#     c3d_data, 
-#     points_3d, 
-#     marker_t, 
-#     T, 
-#     K,
-#     cam_res, 
-#     frame, #?
-#     timestamp #?
-# ):
-#     # Project points from Vicon to event plane using the transformation matrix T for a single frame
-
-#     projected_points = {}
-
-#     # For each marker, transform and project
-#     for mark_name in marker_names:
-#         ps = marker_p(c3d_data.point_labels, points_3d.values(), mark_name)
-#         # Homogenize if needed
-#         if ps.shape[1] == 3:
-#             ps = np.hstack([ps, np.ones((ps.shape[0], 1))])
-#         # Apply transformation
-#         ps_trans = (T @ ps.T).T
-#         ps_trans = ps_trans / ps_trans[:, [3]]  # Normalize homogeneous
-#         # Only keep 3D part
-#         ps_trans = ps_trans[:, :3]
-        
-#         # Project to image plane
-#         img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, None)
-#         img_pts = img_pts.reshape(-1, 2)
-#         projected_points[mark_name] = img_pts
-        
-#         img = np.ones(cam_res, dtype=np.uint8) * 255
-        
-#         # delay and id check??
-#         for mark_name in marker_names:
-#             u = int(projected_points[mark_name][i_markers][0])
-#             v = int(projected_points[mark_name][i_markers][1])
-#             if 0 <= u < cam_res[1] and 0 <= v < cam_res[0]:
-#                 cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-#                 cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
-#         i_markers += 1
-   
+        return True, corrected_points_dict, img   
+       
     
 class ViconHelper:
     # functions relative to the extraction of the vicon data from c3d files.
     
-    def __init__(self, frame_times, points_3d, delay, frame_count, point_rate, point_labels, marker_T_at_frame_vector=None):
+    def __init__(self, frame_times, points_3d, delay, frame_count, point_rate, point_labels, camera_markers):
         self.frame_times = frame_times
         self.points_3d = points_3d
         self.delay = delay
         self.frame_count = frame_count
         self.point_rate = point_rate
         self.point_labels = [l.strip() for l in point_labels]
-        self.marker_T_at_frame_vector = marker_T_at_frame_vector
+        self.camera_markers = camera_markers
         
         self.calculate_frame_times()
+        
+        self.marker_T_vector = {}
+        
+        if not self.camera_markers:
+            print("Selected the option to not use the markers on the camera, the identity transformation will be used instead")
+        else:
+            self.process_camera_markers()
     
-    def calculate_frame_times(self) -> np.ndarray:
+    def calculate_frame_times(self):
         # calculate the frame times based on the frame rate and delay
 
         self.start_time = 0.0
@@ -593,7 +514,6 @@ class ViconHelper:
         times += self.delay
         
         self.frame_times = times
-
 
     def get_frame_time(self, times):
         # attribute each label an id based on the timestamp.
@@ -619,6 +539,11 @@ class ViconHelper:
             p2 = dict_t2[l]
             out_dict[l] = p1 + (p2 - p1) * f
         return out_dict
+    
+    def interpolate_point_array(self, arr1, arr2, f):
+        # ?
+        p_n = arr1 + (arr2 - arr1) * f
+        return p_n
 
     def get_vicon_points_interpolated(self, dvs_points):
         # For each labeled DVS point (with a timestamp), interpolate the Vicon 3D marker positions to match the DVS times
@@ -668,130 +593,130 @@ class ViconHelper:
         out['frame_ids'] = frames_id
         
         return out
+    
+    def get_vicon_points(self, frames_id, labels):
+        vicon_points_frames = [self.get_points_dict(idx) for idx in frames_id]
+        vicon_points_frames = [self.filter_dict_labels(old_dict, labels) 
+                            for old_dict in vicon_points_frames]
 
-    def transform_points_to_marker_frame(self, vicon_points):
-        # if 3 markers are placed on the camera, this function should transform the points
-        # from the world frame to the marker frame.
-        # may be useful to actually implement it.
+        out = {}
+        out['points'] = vicon_points_frames
+        out['times'] = np.array([self.frame_times[idx] for idx in frames_id])
+        out['frame_ids'] = frames_id
         
-        if self.marker_T_at_frame_vector is None:
-            return vicon_points  # No transformation
+        print("out", out)
+        
+        return out
+    
+    def filter_dict_labels(self, old_dict, labels):
+        return {key: old_dict[key] for key in labels if key in old_dict}
+    
+    def process_camera_markers(self):
+        # Read position of markers on the camera system and calculate the corresponding reference frame
+        camera_labels = ['stereoatis:cam_right', 'stereoatis:cam_back', 'stereoatis:cam_left']
+        
+        vicon_points = self.get_vicon_points(range(1, self.frame_count), camera_labels)
+
+        camera_front = []
+        camera_side = []
+        camera_top = []
+        for f in vicon_points['points']:
+            camera_front.append(f['stereoatis:cam_right'][:3])
+            camera_side.append(f['stereoatis:cam_left'][:3])
+            camera_top.append(f['stereoatis:cam_back'][:3])
+
+        camera_front = np.array(camera_front)
+        camera_side = np.array(camera_side)
+        camera_top = np.array(camera_top)
+
+        # TODO: see if it is needed to introduce the low pass filter
+        # if self.filter_camera_markers:
+        #     self.camera_front_filt = self.filter_pose(camera_front)
+        #     self.camera_side_filt = self.filter_pose(camera_side)
+        #     self.camera_top_filt = self.filter_pose(camera_top)
+        # else:
+        self.camera_front = camera_front
+        self.camera_side = camera_side
+        self.camera_top = camera_top
+
+    def world_to_camera_markers(self, vicon_points):
+        # Get the transformation matrix that describes the reference frame of the 3 markers on the camera system
+        # world <-> markers on camera system
+
         transformed_points = vicon_points.copy()
+                
         for f, t, points in zip(transformed_points['frame_ids'], transformed_points['times'], transformed_points['points']):
-            try:
-                T = self.marker_T_at_frame_vector(f, time=t)
-            except Exception:
-                T = np.eye(4)
-            for pl in points:
-                points[pl] = T @ np.append(points[pl], 1.0)
-        return transformed_points
-
-# Not being used, but i wanted to implement everything in a nicer way and also allow for initial estimation
-# class ProjectionHelper:
-#     # class to help with the projection of points and calculation of camera position and orientation
+                        
+            T = self.marker_T_at_frame_vector(f, t)
+            print(f"Transformation matrix (camera markers) for frame {f} at time {t:.6f}s:\n{T}")
+                
+            for p in points:
+                points[p] = (T @ np.append(points[p], 1))[:3]
+                                
+        return T, transformed_points
     
-#     def __init__(self, vicon_points, labeled_points, K, D):
-#         # get the points from the vicon and the labeled points from the dvs and store them.
+    def marker_T_at_frame_vector(self, frame_id, time):
+        # return transformation T to describe reference frame defined by the 3 markers placed on the camera system.
         
-#         if vicon_points is None or labeled_points is None:
-#             return
+        # if self.camera_markers is False, use a zero T
+        if not self.camera_markers:
+            return np.eye(4) 
         
-#         world_points = []
-#         image_points = []
-
-#         for dvs_frame, vicon_frame in zip(labeled_points['points'], vicon_points['points']):
-#             labels = dvs_frame.keys()
-
-#             for l in labels:
-#                 try:
-#                     w_p = vicon_frame[l]
-#                     i_p = [
-#                         dvs_frame[l]['x'],
-#                         dvs_frame[l]['y'],
-#                         1.0
-#                     ]
-
-#                     world_points.append(w_p)
-#                     image_points.append(i_p)
-#                 except Exception as e:
-#                     print("The stored image labels probably don't match with the vicon labels used.")
-#                     print(e)
-
-#         self.world_points = np.array(world_points)
-#         self.image_points = np.array(image_points)
-
-#         assert self.world_points.shape[0] == self.image_points.shape[0], "Not equal numbers of image and 3D points"    
+        # TODO: finish this function, then check if things actually work as they are supposed to
+        if frame_id >= self.camera_front.shape[0]:
+            return self.marker_T_at_frame_vector(frame_id-1)
         
-#         self.K = K
-#         self.D = D
-
-#     # if want to use known translation
-#     # def find_R_t_opencv(self, known_translation):
-#     #     proj_points = np.copy(self.world_points)
-#     #     img_points = np.copy(self.image_points[:, :2])
-
-#     #     if known_translation is not None:
-#     #         # Center 3D points by subtracting known translation
-#     #         proj_points = proj_points - known_translation.reshape(1, 3)
-#     #         # Initial guess for rotation (zero) and translation (known)
-#     #         rvec_init = np.zeros((3, 1), dtype=np.float64)
-#     #         tvec_init = known_translation.reshape(3, 1)
-#     #         # Solve PnP with fixed translation
-#     #         success, rvec, tvec = cv2.solvePnP(
-#     #             proj_points, img_points, self.K, self.D,
-#     #             rvec=rvec_init, tvec=tvec_init,
-#     #             useExtrinsicGuess=True, flags=cv2.SOLVEPNP_ITERATIVE
-#     #         )
-#     #         R = Rotation.from_rotvec(rvec.flatten()).as_matrix()
-#     #         T = np.eye(4)
-#     #         T[:3, :3] = R
-#     #         T[:3, 3] = known_translation
-#     #         return T, None
-#     #     else:
-#     #         # Default: estimate both rotation and translation
-#     #         s, r, t, e = cv2.solvePnPGeneric(proj_points, img_points, self.K, self.D, flags=cv2.SOLVEPNP_SQPNP)
-#     #         r = r[0]
-#     #         t = t[0]
-#     #         e = e[0][0]
-#     #         T = np.zeros((4, 4))
-#     #         T[:3, :3] = Rotation.from_rotvec(r.reshape(3,)).as_matrix()
-#     #         T[:3, -1] = t.reshape(3,)
-#     #         T[-1, -1] = 1.0
-#     #         return T, e
+        t1 = self.frame_times[frame_id -1]
+        t2 = self.frame_times[frame_id]
+        if time < 0:
+            time = t2
+        f = (time - t1) / (t2 - t1)
         
-#     # no need for known translation
-#     def find_R_t_opencv(self):        
-#         proj_points = np.copy(self.world_points)
-#         img_points = np.copy(self.image_points[:, :-1])
+        camera_front = self.interpolate_point_array(
+            self.camera_front[frame_id-1],
+            self.camera_front[frame_id],
+            f)
+        camera_side = self.interpolate_point_array(
+            self.camera_side[frame_id-1],
+            self.camera_side[frame_id],
+            f)
+        camera_top = self.interpolate_point_array(
+            self.camera_top[frame_id-1],
+            self.camera_top[frame_id],
+            f)
         
-#         r, t, e = cv2.solvePnP(proj_points, img_points, self.K, self.D, flags=cv2.SOLVEPNP_SQPNP)
-#         r = r[0]
-#         t = t[0]
-#         e = e[0][0]
-#         T = np.zeros((4, 4))
-#         T[:3, :3] = Rotation.from_rotvec(r.reshape(3,)).as_matrix() # check for angles
-#         T[:3, -1] = t.reshape(3,)
-#         T[-1, -1] = 1.0
-#         return T, e
-    
-#     # first initial estimation to project points on plane and then match them by clicking the correct points          
-#     # TODO: implement an initial estimate to match the projections without needing labeling and knowing the markers
-#     def initial_estimate(self):
-#         #Find an inital estimate for transformation to match the projections
-#         s = self.world_points.shape[0]
-#         A = np.zeros((2*s, 12))
-#         for i in range(s):
-#             A[2*i, :4] = self.world_points[i]
-#             A[2*i + 1, 4:8] = self.world_points[i]
+        # TODO: understand how to go from camera frame to actual markers
+        
+        # mid point between top and side marker
+        # even if not precise it is considered the origin of the new frame of reference
+        side_top_mid = (camera_side + camera_top) / 2
 
-#             A[2*i, 8:] = self.world_points[i] * (-self.image_points[i][0])
-#             A[2*i+1, 8:] = self.world_points[i] * (-self.image_points[i][1])
+        z = camera_front - side_top_mid
+        z = z / np.linalg.norm(z)
 
-#         # compute At x A
-#         A_ = np.matmul(A.T, A)
-#         # compute its eigenvectors and eigenvalues
-#         eigenvalues, eigenvectors = np.linalg.eig(A_)
-#         # find the eigenvector with the minimum eigenvalue
-#         # (numpy already returns sorted eigenvectors wrt their eigenvalues)
-#         m = eigenvectors[:, 11]
-#         return m
+        t = camera_top - side_top_mid
+        t = t / np.linalg.norm(t)
+
+        x = np.cross(t, z)
+        x = x / np.linalg.norm(x)
+
+        y = np.cross(z, x)
+        y = y / np.linalg.norm(y)
+
+        # x, y, z are all normalized and orthogonal
+        # the 3 vectors stacked define a rotation matrix
+        rot_mat = np.vstack((x, y, z))
+
+        T = np.zeros((4, 4))
+        T[:3, :3] = rot_mat.transpose()
+        T[:-1, -1] = np.array(side_top_mid)
+        T[-1, -1] = 1
+
+        T = np.linalg.inv(T)
+
+        self.marker_T_vector[frame_id] = np.copy(T)
+        
+        print("Transformation matrix for frame {} at time {:.6f}s:\n{}".format(frame_id, time, T))
+        print("Markers T vector:", self.marker_T_vector)
+
+        return np.copy(T)
