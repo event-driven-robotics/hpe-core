@@ -175,7 +175,7 @@ def project_vicon_to_event_plane_dynamic(
     points_3d, 
     marker_t,
     T_system_to_camera, 
-    T_world_to_camera,
+    T_world_to_system,
     K,
     cam_res, 
     delay, 
@@ -191,13 +191,13 @@ def project_vicon_to_event_plane_dynamic(
 
     image_points = {name: [] for name in marker_names}
     
-    print("T len", len(T))
-    for i in range(len(T)):
-        print("T[{}]:\n{}".format(i, T[i]))
+    print("T len", len(T_world_to_system))
+    for i in range(len(T_world_to_system)):
+        print("T[{}]:\n{}".format(i, T_world_to_system[i]))
 
     # Project each marker for each frame
     #for i, T_w_s in enumerate(T):
-    for i in range(len(T)):                 # TODO events not markers
+    for i in range(len(T_world_to_system)):                 # TODO events not markers
         for mark_name in marker_names:
             
             ps = marker_p(c3d_data.point_labels, points_3d.values(), mark_name, subject=subject)
@@ -205,7 +205,7 @@ def project_vicon_to_event_plane_dynamic(
             #if ps.shape[1] < 4:
             #    ps = np.hstack([ps, np.ones((ps.shape[0], 1))])
             
-            ps_trans = (T_system_to_camera @ T_world_to_camera[i] @ ps.transpose()).transpose()
+            ps_trans = (T_system_to_camera @ T_world_to_system[i] @ ps.transpose()).transpose()
                         
             ps_trans = ps_trans / ps_trans[:, [3]]
 
