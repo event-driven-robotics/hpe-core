@@ -50,6 +50,61 @@ def makeT(Rot, Trans):
     
     return T
 
+# def marker_p(c3d_labels, c3d_points, marker_name, subject=None):
+#     # find markers in the c3d files
+    
+#     candidates = []
+#     marker_name_clean = marker_name.strip()
+#     if subject:
+#         candidates.append(f"{subject}:{marker_name_clean}")
+#     candidates.append(marker_name_clean)
+
+#     # Clean up c3d_labels for matching
+#     cleaned_labels = [label.strip() for label in c3d_labels]
+    
+#     i = 0
+#     for label in c3d_labels:
+#         k = label.find(':') + 1
+#         j = label.find(' ')
+#         print("label", label[k:k+j].strip(), " k ")
+#         if(label[k:j].strip() == marker_name_clean):
+#             break
+#         i = i + 1
+        
+        
+    
+#     # i = None
+#     # for idx, label in enumerate(cleaned_labels):
+#     #     # Remove subject prefix if present
+#     #     label_no_prefix = label.split(":")[-1].strip()
+#     #     for candidate in candidates:
+#     #         candidate_no_prefix = candidate.split(":")[-1].strip()
+#     #         if label_no_prefix == candidate_no_prefix:
+#     #             i = idx
+#     #             break
+#     #     if i is not None:
+#     #         break
+
+#     # if i is None:
+#     #     raise ValueError(
+#     #         f"Marker name '{marker_name}' (with subject '{subject}') not found in c3d_labels. "
+#     #         f"Searched for {candidates}. Available labels: {cleaned_labels}"
+#     #     )
+
+#     # Return all frames for this marker as homogeneous coordinates
+#     return np.array([np.append(val[i][0:3], 1) for val in c3d_points])
+    
+#     # print("c3d_labels", c3d_labels)
+    
+#     # i = 0
+#     # for label in c3d_labels:
+#     #     k = label.find(':') + 1
+#     #     if(label == marker_name_clean):
+#     #         break
+#     #     i = i + 1
+
+#     # return np.array([np.append(val[i][0:3], 1) for val in c3d_points])
+    
 def marker_p(c3d_labels, c3d_points, marker_name, subject=None):
     # find markers in the c3d files
     
@@ -70,10 +125,13 @@ def marker_p(c3d_labels, c3d_points, marker_name, subject=None):
             f"Marker name '{marker_name}' (with subject '{subject}') not found in c3d_labels. "
             f"Searched for {candidates}. Available labels: {[l.strip() for l in c3d_labels]}"
         )
-    out = []
-    for val in c3d_points:
-        out.append(np.append(val[i][0:3], 1))
-    return np.array(out)
+        
+    return np.array([np.append(val[i][0:3], 1) for val in c3d_points])
+    
+    # out = []
+    # for val in c3d_points:
+    #     out.append(np.append(val[i][0:3], 1))
+    # return np.array(out)
 
 def calc_indices(e_ts, period):
         
@@ -190,6 +248,7 @@ def project_vicon_to_event_plane_dynamic(
     # Project points from Vicon to event plane using a transformation matrix for each frame
 
     image_points = {name: [] for name in marker_names}
+    ps_trans = {}
     
     print("T len", len(T_world_to_system))
     for i in range(len(T_world_to_system)):
@@ -197,31 +256,37 @@ def project_vicon_to_event_plane_dynamic(
 
     # Project each marker for each frame
     #for i, T_w_s in enumerate(T):
+    
+    ps_trans = {}
+
+    marker_positions = {name: marker_p(c3d_data.point_labels, points_3d.values(), name, subject=subject) for name in marker_names}
+    
     for i in range(len(T_world_to_system)):                 # TODO events not markers
+        
+        T_now = T_system_to_camera @ T_world_to_system[i]
+        
         for mark_name in marker_names:
             
-            ps = marker_p(c3d_data.point_labels, points_3d.values(), mark_name, subject=subject)
+            ps_i = marker_positions[mark_name][i]
             
-            #if ps.shape[1] < 4:
-            #    ps = np.hstack([ps, np.ones((ps.shape[0], 1))])
+            ps_trans = T_now @ ps_i
             
-            ps_trans = (T_system_to_camera @ T_world_to_system[i] @ ps.transpose()).transpose()
-                        
-            ps_trans = ps_trans / ps_trans[:, [3]]
-
-            ps_trans = ps_trans[:, :3]
-
-            # Project to image plane
-            img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, distCoeffs=D)
+            ps_trans = ps_trans / ps_trans[3]
+            ps_trans = ps_trans[:3]
             
-            print("img_pts ", img_pts[0], " ", img_pts[1])
+            img_pts, _ = cv2.projectPoints(ps_trans.reshape(1, 3), np.zeros(3), np.zeros(3), K, distCoeffs=D)
             
             img_pts = img_pts.reshape(-1, 2)
+            
+            # print(" shape img_pts", img_pts.shape, " values ", img_pts[0])
+            
             #image_points[mark_name] = img_pts
-            image_points[mark_name].append(img_pts)
+            image_points[mark_name].append(img_pts[0])
+            
+            # print("image_points[{}]: {}".format(mark_name, image_points[mark_name]))
 
         print('iteration: ', i)
-        #print("debug: ", mark_name, " ", image_points[mark_name])
+    #     #print("debug: ", mark_name, " ", image_points[mark_name])
 
     if visualize:
         # Visualization

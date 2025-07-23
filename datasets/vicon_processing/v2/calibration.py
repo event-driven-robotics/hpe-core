@@ -276,7 +276,7 @@ import helpers
 # Compute T_camera_markers for every marker_t
 
 # Calculate the list of all transformation matrices from world to system for each vicon reading
-T_world_to_system = vicon_helper.compute_camera_marker_transforms(c3d_data, points_3d)
+T_world_to_system = vicon_helper.compute_camera_marker_transforms(c3d_data, points_3d)    # TODO: events not vicon?
 
 
 # TODO: manual optimization of the transformation matrix
