@@ -16,6 +16,55 @@ from scipy.signal import butter, lfilter, freqz, filtfilt
 import tkinter as tk
 from tkinter import simpledialog
 
+
+def average_transforms_with_outlier_removal(transform_list, threshold=0.05):
+    """
+    平均変換行列を外れ値除去付きで計算する
+    - transform_list: list of np.ndarray shape (4,4)
+    - threshold: 外れ値除去の割合（上位何割を除くか、0.05で上位5%）
+    - return: 平均変換行列 np.ndarray shape (4,4)
+    """
+    n = len(transform_list)
+    if n == 0:
+        raise ValueError("Empty transform list")
+
+    # 回転と並進を分離
+    rotations = np.array([t[:3, :3] for t in transform_list])
+    translations = np.array([t[:3, 3] for t in transform_list])
+
+    # 回転平均（初期推定）
+    r_init = Rotation.from_matrix(rotations)
+    r_mean_init = r_init.mean()
+    t_mean_init = np.mean(translations, axis=0)
+
+    # 誤差を計算：回転誤差 + 並進誤差の合計距離
+    errors = []
+    for R_i, t_i in zip(rotations, translations):
+        r_i = Rotation.from_matrix(R_i)
+        rot_diff = r_mean_init.inv() * r_i
+        angle = np.linalg.norm(rot_diff.as_rotvec())  # ラジアン
+
+        trans_diff = np.linalg.norm(t_i - t_mean_init)
+        total_error = angle + trans_diff
+        errors.append(total_error)
+
+    errors = np.array(errors)
+    # 外れ値のしきい値決定
+    cutoff = np.quantile(errors, 1.0 - threshold)
+    inliers_idx = np.where(errors <= cutoff)[0]
+
+    # インライアのみで再度平均を計算
+    r_inliers = Rotation.from_matrix(rotations[inliers_idx])
+    r_mean = r_inliers.mean()
+    t_mean = np.mean(translations[inliers_idx], axis=0)
+
+    # 結果の平均変換行列
+    T_mean = np.eye(4)
+    T_mean[:3, :3] = r_mean.as_matrix()
+    T_mean[:3, 3] = t_mean
+    return T_mean
+
+
 def makeT(Rot, Trans):
 
     Rot = np.array(Rot) * (math.pi / 180.0)
@@ -189,38 +238,34 @@ def project_vicon_to_event_plane_dynamic(
 ):
     # Project points from Vicon to event plane using a transformation matrix for each frame
 
-    image_points = {name: [] for name in marker_names}
+    image_points = {}
     
-    print("T len", len(T_world_to_system))
-    for i in range(len(T_world_to_system)):
-        print("T[{}]:\n{}".format(i, T_world_to_system[i]))
+    # print("T len", len(T_world_to_system))
+    # for i in range(len(T_world_to_system)):
+    #     print("T[{}]:\n{}".format(i, T_world_to_system[i]))
 
     # Project each marker for each frame
     #for i, T_w_s in enumerate(T):
-    for i in range(len(T_world_to_system)):                 # TODO events not markers
-        for mark_name in marker_names:
-            
-            ps = marker_p(c3d_data.point_labels, points_3d.values(), mark_name, subject=subject)
-            
-            #if ps.shape[1] < 4:
-            #    ps = np.hstack([ps, np.ones((ps.shape[0], 1))])
-            
-            ps_trans = (T_system_to_camera @ T_world_to_system[i] @ ps.transpose()).transpose()
-                        
-            ps_trans = ps_trans / ps_trans[:, [3]]
+    for mark_name in marker_names:
+        
+        ps = marker_p(c3d_data.point_labels, points_3d.values(), mark_name, subject=subject)
+        ps_trans: np.ndarray = np.empty_like(ps)
+        for i in range(len(T_world_to_system)):    
+            ps_trans[i] = (T_system_to_camera @ T_world_to_system[i] @ ps[i].transpose()).transpose()
+            ps_trans[i] = ps_trans[i] / ps_trans[i, [3]]
 
-            ps_trans = ps_trans[:, :3]
+        ps_trans = ps_trans[:, :3]
 
-            # Project to image plane
-            img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, distCoeffs=D)
-            
-            print("img_pts ", img_pts[0], " ", img_pts[1])
-            
-            img_pts = img_pts.reshape(-1, 2)
-            #image_points[mark_name] = img_pts
-            image_points[mark_name].append(img_pts)
+        # Project to image plane
+        ps_trans = ps_trans.astype(np.float64).reshape(-1, 1, 3)
+        img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, distCoeffs=D)
+        
+        # print("img_pts ", img_pts[0], " ", img_pts[1])
+        
+        img_pts = img_pts.reshape(-1, 2)
+        image_points[mark_name] = img_pts
 
-        print('iteration: ', i)
+        # print('iteration: ', i)
         #print("debug: ", mark_name, " ", image_points[mark_name])
 
     if visualize:
@@ -260,6 +305,7 @@ def project_vicon_to_event_plane_dynamic(
             tic_markers += period
             tic_events += period        
 
+    cv2.destroyAllWindows()
     return image_points
  
 
@@ -778,8 +824,8 @@ class ViconHelper:
             # Build rotation matrix
             R = np.stack([x_axis, y_axis, z_axis], axis=1)
             T = np.eye(4)
-            T[:3, :3] = R
-            T[:3, 3] = origin # + np.array([5, 11.7, 0.5])
+            T[:3, :3] = R.transpose()
+            T[:3, 3] = - R.transpose() @ origin # + np.array([5, 11.7, 0.5])
             self.Ts.append(T)
         return self.Ts
 
