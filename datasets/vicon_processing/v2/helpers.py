@@ -232,51 +232,43 @@ def project_vicon_to_event_plane_dynamic(
     e_us, 
     e_vs, 
     period,
-    visualize,
+    visualize: bool = False,
+    video_record: bool = False,
     D: Optional[np.ndarray] = None,
     subject: Optional[str] = None
 ):
     # Project points from Vicon to event plane using a transformation matrix for each frame
-
     image_points = {}
-    
-    # print("T len", len(T_world_to_system))
-    # for i in range(len(T_world_to_system)):
-    #     print("T[{}]:\n{}".format(i, T_world_to_system[i]))
-
-    # Project each marker for each frame
-    #for i, T_w_s in enumerate(T):
     for mark_name in marker_names:
-        
         ps = marker_p(c3d_data.point_labels, points_3d.values(), mark_name, subject=subject)
         ps_trans: np.ndarray = np.empty_like(ps)
         for i in range(len(T_world_to_system)):    
             ps_trans[i] = (T_system_to_camera @ T_world_to_system[i] @ ps[i].transpose()).transpose()
             ps_trans[i] = ps_trans[i] / ps_trans[i, [3]]
-
         ps_trans = ps_trans[:, :3]
 
         # Project to image plane
         ps_trans = ps_trans.astype(np.float64).reshape(-1, 1, 3)
         img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, distCoeffs=D)
-        
-        # print("img_pts ", img_pts[0], " ", img_pts[1])
-        
         img_pts = img_pts.reshape(-1, 2)
         image_points[mark_name] = img_pts
 
-        # print('iteration: ', i)
-        #print("debug: ", mark_name, " ", image_points[mark_name])
-
-    if visualize:
-        # Visualization
+    if visualize or video_record:
         i_markers = 0
         i_events = 0
         tic_markers = marker_t[0] + period
         tic_events = e_ts[0] + delay + period
         img = np.ones(cam_res, dtype = np.uint8)*255
         
+        # Params for video recording
+        if video_record:
+            fps = int(1 / period)
+            fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+            video_writer = cv2.VideoWriter('tmp.mp4', fourcc, fps, (cam_res[1], cam_res[0]), isColor=False)
+
+        # Loop for image update
         while tic_markers < marker_t[-1] and tic_events < e_ts[-1]:
+            # Create images with projected 2D points
             while marker_t[i_markers] < tic_markers:
                 for mark_name in marker_names:
                     u = int(image_points[mark_name][i_markers][0])
@@ -291,21 +283,31 @@ def project_vicon_to_event_plane_dynamic(
                 img[e_vs[i_events], e_us[i_events]] = 0
                 i_events += 1
 
-            cv2.imshow('Projected Points', img)
-            c = cv2.waitKey(int(period * 1000)) # 0
-            # if c == ord(' '):
-            #     img = np.ones(cam_res, dtype=np.uint8) * 255
-            #     tic_markers += period
-            #     tic_events += period
-            if c == ord('q'):
-                cv2.destroyAllWindows()
-                return image_points   
-            
+            # Visualize
+            if visualize:
+                cv2.imshow('Projected Points', img)
+                c = cv2.waitKey(int(period * 1000))
+                if c == ord(' '):
+                    img = np.ones(cam_res, dtype=np.uint8) * 255
+                    tic_markers += period
+                if c == ord('q'):
+                    cv2.destroyAllWindows()
+                    return image_points
+
+            # Record video
+            if video_record:
+                video_writer.write(img)
+
+            # Reset image and update timer
             img = np.ones(cam_res, dtype=np.uint8) * 255
             tic_markers += period
             tic_events += period        
 
-    cv2.destroyAllWindows()
+    if visualize:
+        cv2.destroyAllWindows()
+    if video_record:
+        video_writer.release()
+        print("Video saved as 'tmp.mp4'")
     return image_points
  
 
@@ -808,7 +810,7 @@ class ViconHelper:
 
         return out
     
-    def compute_camera_marker_transforms(self, c3d_data, points_3d):
+    def compute_camera_marker_transforms(self):
         n_frames = self.camera_left.shape[0]
         self.Ts = []
         for i in range(n_frames):
@@ -825,7 +827,7 @@ class ViconHelper:
             R = np.stack([x_axis, y_axis, z_axis], axis=1)
             T = np.eye(4)
             T[:3, :3] = R.transpose()
-            T[:3, 3] = - R.transpose() @ origin # + np.array([5, 11.7, 0.5])
+            T[:3, 3] = - R.transpose() @ origin
             self.Ts.append(T)
         return self.Ts
 

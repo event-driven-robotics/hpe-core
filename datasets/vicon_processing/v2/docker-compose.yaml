@@ -8,9 +8,10 @@ services:
       - /dev/video0:/dev/video0
       - /tmp/.X11-unix/:/tmp/.X11-unix
       - ../../..:/app/hpe-core                  # Mount this code in docker container for development
-      - /home/mikura-iit.local/data:/data      # Mount recorded data from host. Please change directory.
+      - /mnt/data/mikura:/data      # Mount recorded data from host. Please change directory.
+      - ~/.Xauthority:/home/vicon/.Xauthority:ro
     environment:
-      - DISPLAY=unix$DISPLAY
+      - DISPLAY=${DISPLAY}
       
     network_mode: host
     command: sleep infinity
