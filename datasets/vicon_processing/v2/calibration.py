@@ -22,6 +22,9 @@ import math
 import yaml
 import matplotlib.pyplot as plt
 
+from typing import Tuple, Optional
+
+
 from helpers import ViconHelper
 from helpers import DvsLabeler
 from scipy.spatial.transform import Rotation as R
@@ -34,9 +37,9 @@ sys.path.append('/home/cappe/hpe/hpe-core/datasets/vicon_processing/v2')
 
  
 sys.argv = ['Interactive-1.ipynb', 
-            '--events_path', '/home/cappe/hpe/move-iit-hpe-subset1/calibration/calib_test2/right/',
-            '--c3d_path', '/home/cappe/hpe/move-iit-hpe-subset1/calibration/calib_test2_vicon/test11_calib01.c3d',
-            '--calib_path', '/home/cappe/hpe/move-iit-hpe-subset1/calibration/calib_right.txt']
+            '--events_path', '/home/cappe/hpe/move-iit-hpe-subset1/calibration/calib_test1/left/',
+            '--c3d_path', '/home/cappe/hpe/move-iit-hpe-subset1/calibration/calib_test1_vicon/test10_calib02.c3d',
+            '--calib_path', '/home/cappe/hpe/move-iit-hpe-subset1/calibration/calib_left.txt']
 
 parser = argparse.ArgumentParser(prog='Extrinsic Calibration of Markers to Camera Focal Point')
 parser.add_argument('--events_path', 
@@ -121,12 +124,6 @@ for name in c3d_data.point_labels:
  # %% ---------------------------------
 #PLOT 3D DATA
 
-importlib.reload(helpers)
-
-# marker_names = {'*118', 'CLAV', 'STRN'}
-# marker_names = {'CLAV', 'STRN', 'RANK', 'LANK', 'LWRA', 'RWRA', 'LFHD', 'RFHD', 'LKNE', 'RKNE', 'LHIP', 'RHIP', 'RSHO', 'LSHO'}
-# marker_names = {'*118', 'CLAV', 'STRN', 'RANK', 'LANK', 'LWRA', 'RWRA', 'LFHD', 'RFHD'}
-
 marker_names = ['stereoatis:cam_right', 'stereoatis:cam_back', 'stereoatis:cam_left',
                 'box:top_right_Origin', 'box:bottom_right', 'box:bottom_left', 'box:top_left']
 
@@ -154,7 +151,7 @@ for marker_name in marker_names:
 # when clicking on the screen, a list of markers is shown and you can select them
 
 # automatically save it in a known path
-labels_path = os.path.join(os.path.dirname(args.c3d_path), "labels.yml")
+labels_path = os.path.join(os.path.dirname(args.c3d_path), "labels_left.yml")
 #print(f"labels path: {labels_path}")
 
 time_tags, event_indices = helpers.calc_indices(e_ts, period)
@@ -162,7 +159,7 @@ e_tags = e_ts[event_indices]
 
 img = np.ones(cam_res, dtype = np.uint8)*255
 
-labeler = DvsLabeler(img_shape=(720, 1280, 3), subject=args.subject)
+labeler = DvsLabeler(img_shape=(720, 1280, 3))
 labeler.label_data(e_ts, e_us, e_vs, event_indices, time_tags, period)
 labeler.save_labeled_points(labels_path)
 
@@ -175,8 +172,6 @@ cv2.destroyAllWindows()
 # %% ---------------------------------
 # LOAD LABELS AND CALCULATE TRANSFORMATION MATRIX
 
-importlib.reload(helpers)
-
 time_tags, event_indices = helpers.calc_indices(e_ts, period)
 e_tags = e_ts[event_indices]
 #print("Event Tags: ", e_tags)
@@ -186,7 +181,7 @@ delay = e_tags[-1] - marker_t[-1]   # get time difference so to generate ids for
 
 print("Delay: ", delay)
 
-labels_path = os.path.join(os.path.dirname(args.c3d_path), "labels.yml")
+labels_path = os.path.join(os.path.dirname(args.c3d_path), "labels_left.yml")
 
 labeled_points = helpers.read_points_labels(labels_path) # read labeled points from the yaml file
 #print(labeled_points)
@@ -195,7 +190,7 @@ labeled_points = helpers.read_points_labels(labels_path) # read labeled points f
 labels_time = labeled_points['times']
 #print("Labels Time: ", labels_time)
 
-vicon_helper = ViconHelper(marker_t, points_3d, delay, c3d_data.frame_count, c3d_data.point_rate, c3d_data.point_labels, True)
+vicon_helper = ViconHelper(marker_t, points_3d, delay, c3d_data.frame_count, c3d_data.point_rate, c3d_data.point_labels, True, True)
 
 # extract the frames_id from the labeled points
 frames_id = vicon_helper.get_frame_time(labeled_points['times'])
@@ -208,23 +203,7 @@ vicon_points = vicon_helper.get_vicon_points_interpolated(labeled_points)
 
 # TODO: check again delay calculation, as it seems to be off
 
-# debug lines
-#print("Vicon marker names:", [l for l in helper.point_labels])
-# print("First few label dicts from YAML:")
-# for i, d in enumerate(labeled_points['points']):
-#     print(f"Frame {i}: {d}")
-    
-
-# Print DVS label time, matched Vicon frame index, and Vicon frame time
-# for dvs_time, vicon_idx in zip(labeled_points['times'], vicon_points['frame_ids']):
-#     vicon_time = vicon_helper.frame_times[vicon_idx]
-#     print(f"DVS time: {dvs_time:.6f}  |  Vicon frame idx: {vicon_idx}  |  Vicon time: {vicon_time:.6f}")
-    
-# print("Event Tags: ", e_tags)
-# print("Markers Tags: ", marker_t)
-# print("Labeled Tags: ", labels_time)
-
-campos = helpers.marker_p(c3d_data.point_labels, points_3d.values(), 'stereoatis:cam_right')
+#campos = helpers.marker_p(c3d_data.point_labels, points_3d.values(), 'stereoatis:cam_left')
 
 world_points = []
 image_points = []
@@ -251,20 +230,8 @@ image_points = np.array(image_points, dtype=np.float64)
 world_points = world_points[:, :3]
 image_points = image_points[:, :2]
 
-# print("world_points shape:", world_points.shape)
-# print("image_points shape:", image_points.shape)
-
-# print("image_points:", image_points)
-# print("world_points:", world_points)
-
 # Get transformation matrix from vicon to camera markers system vector
-T_camera_markers, vicon_points_camera_vector = vicon_helper.world_to_camera_markers(vicon_points)  #?
-
-# TODO: understand transformation from camera to camera markers system
-# TODO: differ left and right cameras and they are not orthogonal
-
-# print("Transformation Matrix T_camera_markers:\n", T_camera_markers)
-# print("Vicon points camera vector:", vicon_points_camera_vector)
+# T_world_to_system, camera_vector_vicon_points, timestamps = vicon_helper.world_to_camera_markers(vicon_points)
 
 # Solve PnP, with 3D points from vicon and 2D points from labels
 success, rvec, tvec = cv2.solvePnP(world_points, image_points, K, D)
@@ -272,24 +239,10 @@ success, rvec, tvec = cv2.solvePnP(world_points, image_points, K, D)
 # Convert rotation vector to rotation matrix
 R_mat, _ = cv2.Rodrigues(rvec)
 
-# Convert rotation matrix to Euler angles (degrees)
-# rot = R.from_matrix(R_mat)
-# angles = rot.as_euler('xyz', degrees=True)  # [roll, pitch, yaw]
-
-# print("Rotation angles (degrees):", angles)
-# print("Translation vector:", campos[0, 0:3])
-
-# Convert rotation matrix to Euler angles (degrees)
-# rot = R.from_matrix(R_mat)
-# angles = rot.as_euler('xyz', degrees=True)  # [roll, pitch, yaw]
-
-# print("Rotation angles (degrees):", angles)
-# print("Translation vector:", campos[0, 0:3])
-
-T = np.eye(4)
-T[:3, :3] = R_mat
-T[:3, 3] = tvec[:, 0]
-print("Transformation Matrix T:\n", T)
+T_world_to_camera = np.eye(4)
+T_world_to_camera[:3, :3] = R_mat
+T_world_to_camera[:3, 3] = tvec[:, 0]
+print("Transformation Matrix T_world_to_camera:\n", T_world_to_camera)
 
 # TODO: save transformation matrix in a file with relative path
 
@@ -297,10 +250,46 @@ print("Transformation Matrix T:\n", T)
 # so that then we can introduce the method to match everything simply by clicking the two markers
 
 # %% ---------------------------------
-# PROJECT 3D DATA ONTO IMAGE PLANE
+# PROJECT 3D DATA ONTO IMAGE PLANE, "STATIC"
+
+importlib.reload(helpers)
 
 projected_points = helpers.project_vicon_to_event_plane(
-    marker_names, c3d_data, points_3d, marker_t, T, K, cam_res, delay, e_ts, e_us, e_vs, period, visualize=True)
+    marker_names, c3d_data, points_3d, marker_t, T_world_to_camera, K, cam_res, delay, e_ts, e_us, e_vs, period, visualize=True, D=D)
+
+# %% ---------------------------------
+# DYNAMICALLY PROJECT 3D DATA ONTO IMAGE PLANE
+
+importlib.reload(helpers)
+
+# TODO: define transformation from camera markers system to actual camera
+# TODO: compute transformation matrices for each frame based on camera markers positions
+# TODO: correct projection each frame based on the first transformation matrix
+# TODO: use the transformation matrices to project the points dynamically so that it follows the movement correctlyù
+# TODO: do this for all marker_T?
+
+# iterate through all frames and compute the transformation matrix for each frame
+#T_camera_markers, vicon_points_camera_vector = vicon_helper.world_to_camera_markers(vicon_points)  #?
+
+import helpers
+
+# Compute T_camera_markers for every marker_t
+
+# Calculate the list of all transformation matrices from world to system for each vicon reading
+T_world_to_system = vicon_helper.compute_camera_marker_transforms(c3d_data, points_3d)
+
+
+# TODO: manual optimization of the transformation matrix
+# TODO: translation from camera to camera markers system
+
+# get first transformation matrix from world to system and use it to compute the transformation from camera system to camera
+T_system_to_camera = T_world_to_camera @ np.linalg.inv(T_world_to_system[0])
+
+print("camera to camera markers transformation matrix:\n", T_system_to_camera)
+
+projected_points = helpers.project_vicon_to_event_plane_dynamic(
+    marker_names, c3d_data, points_3d, marker_t, T_system_to_camera, T_world_to_system, K, cam_res, delay, e_ts, e_us, e_vs, period, visualize=True, D=D
+)
 
 # %% ---------------------------------
 # TEST WITH OTHER SEQUENCES
@@ -328,7 +317,7 @@ new_marker_t = np.linspace(
 )
 
 projected_points = helpers.project_vicon_to_event_plane(
-    marker_names, new_c3d_data, new_points_3d, new_marker_t, T, K, cam_res, delay, new_e_ts, new_e_us, new_e_vs, period, visualize=True)
+    marker_names, new_c3d_data, new_points_3d, new_marker_t, T, K, cam_res, delay, new_e_ts, new_e_us, new_e_vs, period, visualize=True, D=D)
 
 # %% ---------------------------------
 # GET TRANSFORMATION MATRIX FROM VICON TO CAMERA MARKERS SYSTEM

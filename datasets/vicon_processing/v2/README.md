@@ -18,3 +18,23 @@ docker exec -it vicon /bin/bash
 cd /app/hpe-core/datasets/vicon_processing/v2
 uv sync
 ```
+
+## Setup GUI connection from docker -> remote workstation-> local
+### Connect remote workstation via ssh
+```
+## Local terminal
+ssh USER@SERVER
+```
+### Deploy docker container in remote workstation
+```
+## Remote terminal
+XXX@YYY:~/Github/hpe-core $ docker compose -f datasets/vicon_processing/v2/docker-compose.yaml up -d
+```
+### Enter the container and check X11 connection
+```
+## Remote terminal
+docker exec -it vicon /bin/bash
+## Remote docker container
+xeyes
+```
+If you find the pop-up of eyes in your PC, GUI connection works

@@ -130,7 +130,7 @@ for name in c3d_data.point_labels:
 marker_names = {'*118', 'CLAV', 'STRN', 'RANK', 'LANK', 'LWRA', 'RWRA', 'LFHD', 'RFHD'}
 
 for marker_name in marker_names:
-    marker_points = helpers.marker_p(c3d_data.point_labels, points_3d.values(), marker_name)
+    marker_points = helpers.marker_p(c3d_data.point_labels, points_3d.values(), marker_name, subject=args.subject)
 
     if marker_name == '*118':
         print("Initial Position", marker_points[0,0:3])
@@ -156,7 +156,7 @@ e_tags = e_ts[event_indices]
 
 img = np.ones(cam_res, dtype = np.uint8)*255
 
-labeler = DvsLabeler(img_shape=(720, 1280, 3), subject=None)
+labeler = DvsLabeler(img_shape=(720, 1280, 3), subject=args.subject)
 labeler.label_data(e_ts, e_us, e_vs, event_indices, time_tags, period)
 labeler.save_labeled_points(labels_path)
 
@@ -214,7 +214,7 @@ vicon_points = vicon_helper.get_vicon_points_interpolated(labeled_points)
 # print("Markers Tags: ", marker_t)
 # print("Labeled Tags: ", labels_time)
 
-campos = helpers.marker_p(c3d_data.point_labels, points_3d.values(), '*118')
+campos = helpers.marker_p(c3d_data.point_labels, points_3d.values(), '*118', subject=args.subject)
 
 world_points = []
 image_points = []
@@ -284,7 +284,7 @@ T = helpers.makeT(angles, campos[0,0:3])    # create tranformation matrix from c
 print("Transformation Matrix T:\n", T)
 
 projected_points = helpers.project_vicon_to_event_plane(
-    marker_names, c3d_data, points_3d, marker_t, T, K, cam_res, delay, e_ts, e_us, e_vs, period, visualize=True)
+    marker_names, c3d_data, points_3d, marker_t, T, K, cam_res, delay, e_ts, e_us, e_vs, period, visualize=True, D=D, subject=args.subject)
 
 # %% ---------------------------------
 # TEST WITH OTHER SEQUENCES
@@ -311,5 +311,6 @@ new_marker_t = np.linspace(
 )
 
 projected_points = helpers.project_vicon_to_event_plane(
-    marker_names, new_c3d_data, new_points_3d, new_marker_t, T, K, cam_res, delay, new_e_ts, new_e_us, new_e_vs, period, visualize=True)
+    marker_names, new_c3d_data, new_points_3d, new_marker_t, T, K, cam_res, delay, new_e_ts, new_e_us, new_e_vs, period, visualize=True, D=D, subject=args.subject)
+
 
