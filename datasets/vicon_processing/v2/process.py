@@ -34,9 +34,9 @@ sys.path.append('/home/cappe/hpe/hpe-core/datasets/vicon_processing/v2')
 
  
 sys.argv = ['Interactive-1.ipynb', 
-            '--events_path', '/home/cappe/hpe/move-iit-hpe-subset1/P1/tennis_s1/atis-s/',
+            '--events_path', '/home/cappe/hpe/move-iit-hpe-subset1/P1/tennis_s1/atis-d/',
             '--c3d_path', '/home/cappe/hpe/move-iit-hpe-subset1/P1/tennis_s1.c3d',
-            '--calib_path', '/home/cappe/hpe/move-iit-hpe-subset1/P1/calib-s.txt',
+            '--calib_path', '/home/cappe/hpe/move-iit-hpe-subset1/P1/calib-d.txt',
             '--subject', 'P1']
 
 parser = argparse.ArgumentParser(prog='Extrinsic Calibration of Markers to Camera Focal Point')
@@ -47,7 +47,7 @@ parser.add_argument('--c3d_path',
                     required=True, 
                     help='path to the 3D marker/joint positions')
 parser.add_argument('--fps', 
-                    default=25.0,
+                    default=100.0,
                     help='path to the 3D marker/joint positions')
 parser.add_argument('--calib_path', 
                     required=True, 
