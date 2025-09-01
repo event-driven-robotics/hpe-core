@@ -31,7 +31,8 @@ RUN apt install -y \
     libglm-dev \
     libeigen3-dev \
     clang-format \
-    curl
+    curl \
+    x11-apps
 
 # Install python environment
 RUN apt update && apt install -y python3-dev python3-tk

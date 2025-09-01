@@ -1,5 +1,3 @@
-#functions for use with vicon processing
-
 from matplotlib import pyplot as plt
 import numpy as np
 import math
@@ -97,136 +95,84 @@ def read_points_labels(file_path):
     return data_loaded 
 
 
-
-
-
-def project_vicon_to_event_plane_dynamic(
-    marker_names, 
-    c3d_data, 
-    points_3d, 
+# TODO: put the projection method in a single class to make it more understandable
+def project_vicon_to_rgb_plane(
+    marker_names,
+    c3d_data,
+    points_3d,
     marker_t,
-    T_system_to_camera, 
+    T_system_to_camera,
     T_world_to_system,
     K,
-    cam_res, 
-    delay, 
-    e_ts, 
-    e_us, 
-    e_vs, 
-    period,
-    visualize: bool = False,
-    video_record: bool = False,
+    video_path: str,
+    delay: float = 0.0,
     D: Optional[np.ndarray] = None,
-    subject: Optional[str] = None
+    subject: Optional[str] = None,
+    visualize: bool = False,
 ):
-    # Project points from Vicon to event plane using a transformation matrix for each frame
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise IOError(f"Cannot open video {video_path}")
+
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    period = 1.0 / fps
+
+    frame_idx = 0
     image_points = {}
 
-    for mark_name in marker_names:
-        ps = marker_p(c3d_data.point_labels, points_3d.values(), mark_name, subject=subject)
-        ps_trans: np.ndarray = np.empty_like(ps)
-        for i in range(len(T_world_to_system)):    
-            ps_trans[i] = (T_system_to_camera @ T_world_to_system[i] @ ps[i].transpose()).transpose()
-            ps_trans[i] = ps_trans[i] / ps_trans[i, [3]]
-        ps_trans = ps_trans[:, :3]
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
 
-        # Project to image plane
-        ps_trans = ps_trans.astype(np.float64).reshape(-1, 1, 3)
-        img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, distCoeffs=D)
-        img_pts = img_pts.reshape(-1, 2)
-        image_points[mark_name] = img_pts
+        # Compute RGB video timestamp
+        t_frame = frame_idx * period + delay
 
-    if visualize or video_record:
+        # Print Vicon timestamp (if available)
+        if frame_idx < len(marker_t):
+            vicon_ts = marker_t[frame_idx]
+            print(f"[Frame {frame_idx}] RGB time={t_frame:.6f}s, Vicon time={vicon_ts:.6f}s")
+        else:
+            vicon_ts = None
+            print(f"[Frame {frame_idx}] RGB time={t_frame:.6f}s (no Vicon data)")
 
-        delay_step = 0.01
-        current_delay = delay
+        for mark_name in marker_names:
+            ps = marker_p(c3d_data.point_labels, points_3d.values(), mark_name, subject=subject)
+            if frame_idx >= len(T_world_to_system):
+                continue
+            ps_trans = (T_system_to_camera @ T_world_to_system[frame_idx] @ ps[frame_idx].T).T
+            ps_trans = ps_trans / ps_trans[[3]]
+            ps_trans = ps_trans[:3].reshape(1, 1, 3).astype(np.float64)
+            img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, distCoeffs=D)
+            uv = tuple(img_pts.reshape(-1, 2)[0])
+            if mark_name not in image_points:
+                image_points[mark_name] = []
+            image_points[mark_name].append(uv)
 
-        i_markers = 0
-        i_events = 0
-        tic_markers = marker_t[0] + period
-        tic_events = e_ts[0] + current_delay + period
-        img = np.ones(cam_res, dtype = np.uint8)*255
-        
-        # Params for video recording
-        if video_record:
-            fps = int(1 / period)
-            fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-            video_writer = cv2.VideoWriter('tmp.mp4', fourcc, fps, (cam_res[1], cam_res[0]), isColor=False)
-
-        # Loop for image update
-        while tic_markers < marker_t[-1] and tic_events < e_ts[-1]:
-            # Create images with projected 2D points
-            while marker_t[i_markers] < tic_markers:
-                for mark_name in marker_names:
-                    # Get projected coordinates and validate them
-                    u_coord = image_points[mark_name][i_markers][0]
-                    v_coord = image_points[mark_name][i_markers][1]
-                    
-                    # Check if coordinates are valid (not NaN, not infinity)
-                    if np.isfinite(u_coord) and np.isfinite(v_coord):
-                        u = int(u_coord)
-                        v = int(v_coord)
-                        
-                        # Check if coordinates are within image bounds
-                        if 0 <= u < cam_res[1] and 0 <= v < cam_res[0]:
-                            cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                            cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
-                i_markers += 1
-
-            while e_ts[i_events] < tic_events:
-                img[e_vs[i_events], e_us[i_events]] = 0
-                i_events += 1
-
-            cv2.putText(img, f"Delay: {current_delay:.3f}s (step: {delay_step:.3f}s)", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
-            cv2.putText(img, "Keys: <-/-> adjust delay, +/- adjust step, q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-
-            # Visualize
             if visualize:
-                cv2.imshow('Projected Points', img)
-                c = cv2.waitKey(int(period * 1000))
-                
-                # adjust delay
-                if c == 83:  # Right arrow -> increase by step
-                    current_delay += delay_step
-                    print(f"Delay increased to: {current_delay:.3f}s (step: {delay_step:.3f}s)")
-                    # Reset timing with new delay
-                    tic_markers = marker_t[0] + period
-                    tic_events = e_ts[0] + current_delay + period
-                    i_events = 0
-                    i_markers = 0
-                elif c == 81:  # Left arrow -> decrease by step
-                    current_delay -= delay_step
-                    print(f"Delay decreased to: {current_delay:.3f}s (step: {delay_step:.3f}s)")
-                    # Reset timing with new delay
-                    tic_markers = marker_t[0] + period
-                    tic_events = e_ts[0] + current_delay + period
-                    i_events = 0
-                    i_markers = 0
-                elif c == ord('+') or c == ord('='):
-                    delay_step += 0.001  # Increase step by 1ms
-                    print(f"Delay step increased to: {delay_step:.3f}s")
-                elif c == ord('-'):
-                    delay_step = max(0.001, delay_step - 0.001)  # Decrease step by 1ms, minimum 1ms
-                    print(f"Delay step decreased to: {delay_step:.3f}s")
-                if c == ord('q'):
-                    cv2.destroyAllWindows()
-                    return image_points
+                u, v = int(uv[0]), int(uv[1])
+                if 0 <= u < frame.shape[1] and 0 <= v < frame.shape[0]:
+                    cv2.circle(frame, (u, v), 4, (0, 0, 255), -1)
+                    cv2.putText(frame, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 0, 255))
 
-            # Record video
-            if video_record:
-                video_writer.write(img)
+        if visualize:
+            # timestamp_text = f"t={t_frame:.3f}s"
+            # cv2.putText(frame, timestamp_text,
+            #             (frame.shape[1] - 200, 30),
+            #             cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
 
-            # Reset image and update timer
-            img = np.ones(cam_res, dtype=np.uint8) * 255
-            tic_markers += period
-            tic_events += period        
+            cv2.imshow("Projected Vicon Markers", frame)
+            if cv2.waitKey(int(period * 1000)) & 0xFF == ord('q'):
+                break
 
+        frame_idx += 1
+
+    cap.release()
     if visualize:
         cv2.destroyAllWindows()
-    if video_record:
-        video_writer.release()
-        print("Video saved as 'tmp.mp4'")
+
     return image_points
+
 
 #TODO: output the delay
 def fix_delay(
@@ -239,9 +185,7 @@ def fix_delay(
     K,
     cam_res, 
     delay, 
-    e_ts, 
-    e_us, 
-    e_vs, 
+    frame_count, 
     period,
     visualize: bool = False,
     D: Optional[np.ndarray] = None,
@@ -456,7 +400,7 @@ def fix_delay(
                     print(f"Delay step decreased to: {delay_step:.3f}s")
                 if c == ord('q'):
                     cv2.destroyAllWindows()
-                    return delay
+                    return image_points
 
             # Reset image and update timer (only when not paused)
             if not paused:
@@ -467,7 +411,7 @@ def fix_delay(
     if visualize:
         cv2.destroyAllWindows()
         
-    return delay
+    return image_points
 
 def project_and_manual_rotation(
     marker_names,
@@ -479,12 +423,8 @@ def project_and_manual_rotation(
     K,
     cam_res,
     delay,
-    e_ts,
-    e_us,
-    e_vs,
+    frame_count,
     period,
-    R_init: Optional[np.ndarray] = None,
-    tvec: Optional[np.ndarray] = None,
     visualize: bool = True,
     D: Optional[np.ndarray] = None,
     chosen_one: Optional[str] = None,
@@ -500,33 +440,29 @@ def project_and_manual_rotation(
             ps_trans[i] = (T_system_to_camera @ T_world_to_system[i] @ ps[i].transpose()).transpose()
             ps_trans[i] = ps_trans[i] / ps_trans[i, [3]]
         ps_trans = ps_trans[:, :3]
-        
+
         ps_trans = ps_trans.astype(np.float64).reshape(-1, 1, 3)
         img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, distCoeffs=D)
         img_pts = img_pts.reshape(-1, 2)
-        
         image_points[mark_name] = img_pts
 
     if visualize:
 
+        delay_step = 0.01
         current_delay = delay
         paused = False
 
-        if R_init is not None:
+        T_system_to_camera = np.asarray(T_system_to_camera, dtype=np.float64)
+        if T_system_to_camera.shape != (4, 4):
+            raise ValueError("T_system_to_camera must be a 4x4 matrix")
+        R_init = T_system_to_camera[:3, :3]
+        try:
             angles_zyx = Rotation.from_matrix(R_init).as_euler('zyx', degrees=True)
-        else:
-            R_init = T_system_to_camera[:3, :3]
-            try:
-                angles_zyx = Rotation.from_matrix(R_init).as_euler('zyx', degrees=True) 
-            except Exception:
-                angles_zyx = np.array([0.0, 0.0, 0.0], dtype=np.float64)
-                
-        if tvec is None:
-            tvec = T_system_to_camera[:3, 3]
-                        
+        except Exception:
+            angles_zyx = np.array([0.0, 0.0, 0.0], dtype=np.float64)
         Rot_deg = np.array([angles_zyx[2], angles_zyx[1], angles_zyx[0]], dtype=np.float64)
-        Trans_orig = - R_init.T @ tvec
-        
+        Trans_orig = - R_init.T @ T_system_to_camera[:3, 3]
+
         recalc_needed = False
 
         i_markers = 0
@@ -552,6 +488,7 @@ def project_and_manual_rotation(
 
             cv2.putText(img, f"Rot (deg) roll={Rot_deg[0]:+.2f} pitch={Rot_deg[1]:+.2f} yaw={Rot_deg[2]:+.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
             cv2.putText(img, "Keys: space=start/stop | a/z roll | h/y pitch | s/x yaw | q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+            cv2.putText(img, f"Delay: {current_delay:.3f}s (step: {delay_step:.3f}s)", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
 
             if visualize:
                 cv2.imshow('Projected Points', img)
@@ -657,8 +594,7 @@ def project_and_manual_rotation(
 
                 if c == ord('q'):
                     cv2.destroyAllWindows()
-                    r_vec = Rotation.from_euler('zyx', [Rot_deg[2], Rot_deg[1], Rot_deg[0]], degrees=True).as_rotvec()
-                    return r_vec
+                    return image_points
 
                 # if rotation changed, recompute projections live and update frame
                 if recalc_needed:
@@ -672,12 +608,10 @@ def project_and_manual_rotation(
                             for i in range(len(T_world_to_system)):
                                 ps_trans[i] = (T_current @ T_world_to_system[i] @ ps[i].transpose()).transpose()
                                 ps_trans[i] = ps_trans[i] / ps_trans[i, [3]]
-                            ps_trans = ps_trans[:, :3]                            
-                            
+                            ps_trans = ps_trans[:, :3]
                             ps_trans = ps_trans.astype(np.float64).reshape(-1, 1, 3)
                             img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, distCoeffs=D)
                             img_pts = img_pts.reshape(-1, 2)
-                            
                             image_points[mark_name] = img_pts
 
                         # redraw current frame after recompute
@@ -704,7 +638,7 @@ def project_and_manual_rotation(
                         
                         if chosen_one is not None:
                             try:
-                                # displayed frame corresponds to i_markers-1
+                                # displayed frame corresponds to i_markers-1 (clamped)
                                 idx = max(0, min(i_markers - 1, len(marker_t) - 1))
 
                                 # image coordinates (may be outside bounds)
@@ -730,81 +664,184 @@ def project_and_manual_rotation(
         if visualize:
             cv2.destroyAllWindows()
             
-    r_vec = Rotation.from_euler('zyx', [Rot_deg[2], Rot_deg[1], Rot_deg[0]], degrees=True).as_rotvec()
-    return r_vec
+    return image_points
+
+'''
+def project_and_manual_rotation_rgb(
+    marker_names,
+    c3d_data,
+    points_3d,
+    marker_t,
+    T_system_to_camera,
+    T_world_to_system,
+    K,
+    video_path: str,
+    delay: float = 0.0,
+    visualize: bool = True,
+    D: Optional[np.ndarray] = None,
+    chosen_one: Optional[str] = None,
+    subject: Optional[str] = None,
+    angle_step: float = 0.5,  # degrees
+):
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise IOError(f"Cannot open video {video_path}")
+
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    period = 1.0 / fps
+    frame_idx = 0
+    image_points = {}
+
+    # Init rotation from T_system_to_camera
+    T_system_to_camera = np.asarray(T_system_to_camera, dtype=np.float64)
+    R_init = T_system_to_camera[:3, :3]
+    Rot_deg = Rotation.from_matrix(R_init).as_euler('zyx', degrees=True)[::-1]  # roll, pitch, yaw
+    Trans_orig = - R_init.T @ T_system_to_camera[:3, 3]
+
+    paused = False
+    current_delay = delay
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        t_frame = frame_idx * period + current_delay
+        if frame_idx >= len(T_world_to_system):
+            frame_idx += 1
+            continue
+
+        # project markers into current frame
+        for mark_name in marker_names:
+            ps = marker_p(c3d_data.point_labels, points_3d.values(), mark_name, subject=subject)
+            if frame_idx >= ps.shape[0]:
+                continue
+            ps_trans = (T_system_to_camera @ T_world_to_system[frame_idx] @ ps[frame_idx].T).T
+            ps_trans = ps_trans / ps_trans[3]
+            ps_trans = ps_trans[:3].reshape(1, 1, 3).astype(np.float64)
+            img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, distCoeffs=D)
+            uv = tuple(img_pts.reshape(-1, 2)[0])
+            if mark_name not in image_points:
+                image_points[mark_name] = []
+            image_points[mark_name].append(uv)
+
+            if visualize:
+                u, v = int(uv[0]), int(uv[1])
+                if 0 <= u < frame.shape[1] and 0 <= v < frame.shape[0]:
+                    cv2.circle(frame, (u, v), 3, (0, 0, 255), -1)
+                    cv2.putText(frame, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 0, 255))
+
+        if visualize:
+            cv2.putText(frame, f"Delay={current_delay:.3f}s", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,0), 2)
+            cv2.imshow("RGB Projection", frame)
+            c = cv2.waitKey(int(period * 1000))
+
+            # Quit
+            if c == ord('q'):
+                break
+            # Pause / resume
+            elif c == ord(' '):
+                paused = not paused
+            # Adjust delay
+            elif c == ord('l'):
+                current_delay += 0.01
+            elif c == ord('k'):
+                current_delay -= 0.01
+            # Adjust manual rotation
+            elif c == ord('a'):
+                Rot_deg[0] -= angle_step
+            elif c == ord('z'):
+                Rot_deg[0] += angle_step
+            elif c == ord('h'):
+                Rot_deg[1] -= angle_step
+            elif c == ord('y'):
+                Rot_deg[1] += angle_step
+            elif c == ord('s'):
+                Rot_deg[2] -= angle_step
+            elif c == ord('x'):
+                Rot_deg[2] += angle_step
+
+        if not paused:
+            frame_idx += 1
+
+    cap.release()
+    cv2.destroyAllWindows()
+    return image_points
+'''
 
 
-class DvsLabeler:
-    # functions relative to the labeling of the sequences
-    
-    def __init__(self, img_shape, subject=None):
-        self.img_shape = img_shape
+class RGBLabeler:
+    def __init__(self, video_path: str, subject: Optional[str] = None):
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            raise IOError(f"Cannot open video {video_path}")
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        channels = 3
+        cap.release()
+
+        self.img_shape = (height, width, channels)
         self.labels_done = False
         self.labeled_dict = None
         self.subject = subject
-        
-    def label_data(self, e_ts, e_us, e_vs, event_indices, time_tags, period, label_tag_file: str = None):
-        # Go though every event frame and call function to do the labelling.
-        
+
+    def label_video(self, video_path: str, period: float, label_tag_file: str = None):
+        """
+        Go through RGB video frames and call function to do the labelling.
+        """
+        cap = cv2.VideoCapture(video_path)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        if fps <= 0:
+            raise ValueError("FPS could not be read from video")
+
+        step = int(round(fps * period))  # how many frames to skip to respect period
         dict_out = {'points': [], 'times': []}
-        # dvs_frames = []
-        
-        ft = e_ts[0]
-        img = np.ones(self.img_shape, dtype=np.uint8) * 255
-        i = 0
-                
-        while i < len(e_ts):
-            if e_ts[i] >= ft:
-                # Show the current event frame
-                img[e_vs[i], e_us[i]] = 0
-                
-                success, process_continue, points_dict, frame = self.label_frame(img, ft, label_tag_file)
-                if not success:
-                    img = np.ones(self.img_shape, dtype = np.uint8)*255
-                else:
-                    # dvs_frames.append(frame)
+
+        frame_idx = 0
+        ft = 0.0  # start time
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            if frame_idx % step == 0:
+                timestamp = frame_idx / fps
+                success, process_continue, points_dict, frame_out = self.label_frame(frame, timestamp, label_tag_file)
+
+                if success and points_dict:
                     dict_out['points'].append(points_dict)
-                    dict_out['times'].append(float(ft))
-                    
-                    img = np.ones(self.img_shape, dtype = np.uint8)*255
-                    
+                    dict_out['times'].append(float(timestamp))
+
                 if not process_continue:
                     break
-                
-                ft = ft + period    # maybe 2*period, just to skip some frames as they are a lot
-                    
-            img[e_vs[i],e_us[i]] = 0
-            i += 1
-            
+
+                ft += period
+
+            frame_idx += 1
+
+        cap.release()
         cv2.destroyAllWindows()
+
         self.labeled_dict = dict_out
         self.labels_done = True
         return dict_out
 
     def save_labeled_points(self, out_file: str):
-        # Save labeled points to a YAML file.
-        
         assert self.labels_done is True
-        
-        # Check if there are actually points to save
-        has_points = (self.labeled_dict and 
-                     'points' in self.labeled_dict and 
-                     any(len(points_dict) > 0 for points_dict in self.labeled_dict['points']))
-        
+
+        has_points = (self.labeled_dict and
+                      'points' in self.labeled_dict and
+                      any(len(points_dict) > 0 for points_dict in self.labeled_dict['points']))
+
         if has_points:
             with open(out_file, 'w') as yaml_file:
                 yaml.dump(self.labeled_dict, yaml_file, default_flow_style=False)
-            print(f"Saved corrected points at: {out_file}")
+            print(f"Saved labeled points at: {out_file}")
         else:
             print(f"No points to save. YAML file not created/overwritten: {out_file}")
-        
-    # TODO: add method to match markers from first estimated projection 
-    # and manually match it to object in the scene
 
     def select_label_tkinter(self, marker_labels):
-        # dropdown menu to select labels.
-        # TODO: make it better
-        
         root = tk.Tk()
         root.withdraw()
 
@@ -816,21 +853,17 @@ class DvsLabeler:
         root.destroy()
         return selected
 
-    #TODO: CLEAN CODE!!!!!!
     def label_frame(self, frame: np.ndarray, timestamp: float = None, label_tag_file: str = None) -> Tuple[bool, bool, dict, np.ndarray]:
-        # allow user to label points in the current frame.
-        
         points = []
         finished = False
         points_dict = {}
         process_continue: bool = True
 
         dirname = os.path.dirname(__file__)
-        filename: str
         if label_tag_file is not None:
-            filename = os.path.join(dirname, label_tag_file)   # check later for modification of yaml file
+            filename = os.path.join(dirname, label_tag_file)
         else:
-            filename = os.path.join(dirname, '../scripts/config/labels_tags_calibration.yml')
+            filename = os.path.join(dirname, '../scripts/config/labels_tags_test6.yml')
         with open(filename) as f:
             marker_labels = yaml.load(f, Loader=yaml.Loader)
 
@@ -857,15 +890,9 @@ class DvsLabeler:
 
         while not finished:
             img = np.copy(frame)
-            
-            cv2.putText(img, "Keys: Space bar skip frame, S save labels for this frame", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-            cv2.putText(img, "Backspace delete last label, ESC=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-            
-            # draw labeled points on the image
             for p in points:
                 cv2.circle(img, np.asarray(p, dtype=int), 4, (255, 0, 0), -1)
 
-            # Draw timestamp on the top right corner
             if timestamp is not None:
                 text = f"t = {timestamp:.6f}s"
                 font = cv2.FONT_HERSHEY_SIMPLEX
@@ -881,289 +908,35 @@ class DvsLabeler:
             c = cv2.waitKey(100)
             cv2.setMouseCallback('image', on_click)
 
-            if ' ' == chr(c & 255): # space bar
+            if ' ' == chr(c & 255):  # space bar
                 finished = True
-                # skip current frame by pressing space bar
                 print("space pressed, skipping")
                 return False, process_continue, None, None
-            elif c == ord('s'):     # s key
-                # save labeled points for the current frame
+            elif c == ord('s'):  # save
                 finished = True
                 return True, process_continue, points_dict, img
-            elif c == 27:   # ESC key
+            elif c == 27:  # ESC
                 print("ESC pressed, stopping labeling")
                 process_continue = False
                 finished = True
                 return True, process_continue, points_dict, img
-            # elif c == ord('q') or c == 27 or getattr(self, 'abort_labeling', False):    # q key or esc
-            #     # abort labeling by pressing q or esc
-            #     # TODO: quit and save            
-            #     print("Labeling aborted by user.")
-            #     cv2.destroyWindow("image")
-            #     return False, None, None
-            elif c == 8:            # backspace
-                # remove latest added point for the current frame
+            elif c == 8:  # backspace
                 if points:
-                    removed_point = points.pop() # it may be useful to keep the removed point?
+                    removed_point = points.pop()
                     if points_dict:
                         last_marker = list(points_dict.keys())[-1]
                         points_dict.pop(last_marker)
                     print("Removed last labeled marker.")
 
-        # display labeled points on the image
         img = np.copy(frame)
         for p in points:
             cv2.circle(img, np.asarray(p, dtype=int), 6, (255, 0, 0), -1)
 
         return True, process_continue, points_dict, img
 
-
-    # TODO: correctly implement it
-    def correct_data(
-        self, e_ts, e_us, e_vs, event_indices, time_tags, period,
-        marker_names, c3d_data, points_3d, marker_t, T_system_to_camera, T_world_to_system, K, cam_res, delay, D=None
-    ) -> Tuple[bool, bool, dict, np.ndarray]:
-        # showcase markers from projection and allow user to correct the labels one frame at a time.
-        
-        dict_out = {'points': [], 'times': []}
-        corrected_frames = []
-        process_continue: bool = True
-
-        # Follow the same pattern as label_data
-        ft = e_ts[0] # + delay  # Start time with delay applied
-        img = np.ones(self.img_shape, dtype=np.uint8) * 255
-        i = 0
-        frame_idx = 0
-                
-        while i < len(e_ts):
-            if e_ts[i] >= ft:
-                # Show the current event frame
-                img[e_vs[i], e_us[i]] = 0
-                
-                # Find corresponding marker frame index for this timestamp
-                while frame_idx < len(marker_t) and marker_t[frame_idx] < ft - delay:
-                    frame_idx += 1
-                
-                # Use frame_idx as the frame index for projections
-                if frame_idx < len(T_world_to_system):
-                    success, process_continue, points_dict, frame = self.correct_labels(
-                        img, ft, period, T_system_to_camera, T_world_to_system, marker_names, c3d_data, points_3d, marker_t, frame_idx, K, cam_res, D
-                    )
-                    
-                    if not success:
-                        img = np.ones(self.img_shape, dtype=np.uint8) * 255
-                    else:
-                        corrected_frames.append(frame)
-                        dict_out['points'].append(points_dict)
-                        dict_out['times'].append(float(ft))
-                        img = np.ones(self.img_shape, dtype=np.uint8) * 255
-                        
-                    if not process_continue:
-                        break
-                
-                ft = ft + period    # Move to next frame time
-                    
-            img[e_vs[i], e_us[i]] = 0
-            i += 1
-            
-        cv2.destroyAllWindows()
-        
-        # Only update labeled_dict and labels_done if we actually have corrected points
-        has_corrections = any(len(points_dict) > 0 for points_dict in dict_out['points'])
-        if has_corrections:
-            self.labeled_dict = dict_out
-            self.labels_done = True
-            print(f"Correction completed with {len(dict_out['points'])} frames containing corrections.")
-        else:
-            print("No corrections were made. Existing labeled data unchanged.")
-            
-        return dict_out  
     
+class ViconHelperRGB:
     
-    # TODO: correctly implement it
-    def correct_labels(
-        self, frame, timestamp, period, T_system_to_camera, T_world_to_system, marker_names, c3d_data, points_3d, marker_t, frame_idx, K, cam_res, D=None
-    ) -> Tuple[bool, bool, dict, np.ndarray]:
-        # Given first projection of points, allow user to correct the labels by selecting the corresponding ones
-
-        # Don't calculate projections upfront - only when needed after first click
-        image_points = {}
-        projections_calculated = False
-        
-        corrected_points = []
-        finished = False
-        corrected_points_dict = {}
-        process_continue: bool = True
-        
-        # Load marker labels file
-        dirname = os.path.dirname(__file__)
-        filename = os.path.join(dirname, "../scripts/config/labels_tags.yml")
-        with open(filename) as f:
-            marker_labels = yaml.load(f, Loader=yaml.Loader)
-            
-        # State variables for two-click workflow
-        waiting_for_position = True
-        show_projected_markers = False
-        selected_position = None
-        
-        def calculate_projections():
-            """Calculate projections only when needed"""
-            nonlocal image_points, projections_calculated
-            
-            if projections_calculated:
-                return
-                
-            print("Calculating marker projections...")
-            for mark_name in marker_names:
-                ps = marker_p(c3d_data.point_labels, points_3d.values(), mark_name)
-                ps_trans: np.ndarray = np.empty_like(ps)
-                
-                for i in range(len(T_world_to_system)):    
-                    ps_trans[i] = (T_system_to_camera @ T_world_to_system[i] @ ps[i].transpose()).transpose()
-                    ps_trans[i] = ps_trans[i] / ps_trans[i, [3]]
-                ps_trans = ps_trans[:, :3]
-
-                ps_trans = ps_trans.astype(np.float64).reshape(-1, 1, 3)
-                img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, distCoeffs=D)
-                img_pts = img_pts.reshape(-1, 2)
-                
-                # Use the specific frame index for this correction
-                if frame_idx < len(img_pts):
-                    image_points[mark_name] = img_pts[frame_idx]
-                else:
-                    print(f"Warning: frame_idx {frame_idx} exceeds available projections for marker {mark_name}")
-                    continue
-            
-            projections_calculated = True
-            print("Projections calculated.")
-        
-        def on_click(event, x, y, flags, param):
-            nonlocal waiting_for_position, show_projected_markers, selected_position
-            
-            if event == cv2.EVENT_LBUTTONDOWN:
-                if waiting_for_position:
-                    # First click: calculate projections and show them
-                    selected_position = (x, y)
-                    calculate_projections()  # Only calculate when user clicks
-                    show_projected_markers = True
-                    waiting_for_position = False
-                    print(f"Position selected: ({x}, {y}). Now click on the projected marker you want to assign to this position.")
-                else:
-                    # Second click: find the nearest projected marker to the click
-                    if image_points:
-                        min_distance = float('inf')
-                        selected_marker = None
-                        
-                        for mark_name, pt in image_points.items():
-                            # Calculate distance from click to projected marker
-                            distance = np.sqrt((x - pt[0])**2 + (y - pt[1])**2)
-                            if distance < min_distance:
-                                min_distance = distance
-                                selected_marker = mark_name
-                        
-                        if selected_marker:
-                            corrected_points.append([selected_position[0], selected_position[1]])
-                            # Clean marker name by stripping whitespace for saving
-                            clean_marker_name = selected_marker.strip()
-                            corrected_points_dict[clean_marker_name] = {"x": int(selected_position[0]), "y": int(selected_position[1])}
-                            print(f"Assigned marker '{clean_marker_name}' to position ({selected_position[0]}, {selected_position[1]})")
-                        else:
-                            print("No marker found near click position.")
-                    
-                    # Reset for next correction
-                    waiting_for_position = True
-                    show_projected_markers = False
-                    selected_position = None
-
-        cv2.imshow("Correct Markers", frame)
-        cv2.setMouseCallback('Correct Markers', on_click)
-        
-        while not finished:
-            img = np.copy(frame)
-            
-            cv2.putText(img, "Keys: Space bar skip frame, S save labels for this frame", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-            cv2.putText(img, "Backspace delete last label, ESC=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-            
-            # Draw projected markers in red only if show_projected_markers is True
-            if show_projected_markers and projections_calculated:
-                for mark_name, pt in image_points.items():
-                    u, v = int(pt[0]), int(pt[1])
-                    if 0 <= u < img.shape[1] and 0 <= v < img.shape[0]:
-                        cv2.circle(img, (u, v), 6, (0, 0, 255), 2)
-                        cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 0, 255))
-            
-            # Draw corrected points in blue
-            for p in corrected_points:
-                cv2.circle(img, np.asarray(p, dtype=int), 4, (255, 0, 0), -1)
-            
-            # Show selected position if waiting for marker selection
-            if not waiting_for_position and selected_position:
-                cv2.circle(img, selected_position, 3, (0, 255, 0), cv2.FILLED)  # Green dot for selected position
-                #cv2.putText(img, "Selected", (selected_position[0] + 10, selected_position[1]), cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 255, 0))
-                
-            # Draw timestamp on the top right corner
-            if timestamp is not None:
-                text = f"t = {timestamp:.6f}s"
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                font_scale = 0.7
-                thickness = 2
-                color = (0, 0, 0)
-                (text_width, text_height), _ = cv2.getTextSize(text, font, font_scale, thickness)
-                x = img.shape[1] - text_width - 10
-                y = text_height + 10
-                cv2.putText(img, text, (x, y), font, font_scale, color, thickness, cv2.LINE_AA)
-            
-            # Draw instructions
-            if waiting_for_position:
-                instruction_text = "Click where you want to place a marker"
-            else:
-                instruction_text = "Click on the projected marker you want to assign"
-            cv2.putText(img, instruction_text, (10, img.shape[0] - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
-                
-            cv2.imshow("Correct Markers", img)
-            c = cv2.waitKey(100)
-            cv2.setMouseCallback('Correct Markers', on_click)
-            
-            if ' ' == chr(c & 255):  # space bar
-                finished = True
-                # skip current frame by pressing space bar
-                print("space pressed, skipping")
-                return False, process_continue, None, None
-            elif c == ord('s'):     # s key
-                # save corrected points for the current frame
-                finished = True
-                return True, process_continue, corrected_points_dict, img
-            elif c == 27 or c == ord('q'):   # ESC key
-                print("ESC pressed, stopping correction")
-                process_continue = False
-                finished = True
-                return True, process_continue, corrected_points_dict, img
-            elif c == 8:            # backspace
-                # remove latest corrected point for the current frame
-                if corrected_points:
-                    removed_point = corrected_points.pop()
-                    if corrected_points_dict:
-                        last_marker = list(corrected_points_dict.keys())[-1]
-                        corrected_points_dict.pop(last_marker)
-                    print("Removed last corrected marker.")
-
-            #TODO: check if it makes sense
-            elif c == ord('p'):  # p key - decrease period (increase frequency)
-                current_freq = round(1.0/period)
-                new_freq = min(200, current_freq + 10)  # increase by 10Hz, max 200Hz
-                period = 1.0/new_freq
-                print(f"Period decreased to: {period:.4f}s (frequency: {new_freq}Hz)")
-            elif c == ord('o'):  # o key - increase period (decrease frequency)
-                current_freq = round(1.0/period)
-                new_freq = max(10, current_freq - 10)  # decrease by 10Hz, min 10Hz
-                period = 1.0/new_freq
-                print(f"Period increased to: {period:.4f}s (frequency: {new_freq}Hz)")
-
-        return True, process_continue, corrected_points_dict, img   
-
-
-
-class ViconHelper:
     # functions relative to the extraction of the vicon data from c3d files.
     
     def __init__(self, frame_times, points_3d, delay, frame_count, point_rate, point_labels, camera_markers, filter_camera_markers):
@@ -1177,9 +950,9 @@ class ViconHelper:
         self.filter_camera_markers = filter_camera_markers
         
         self.calculate_frame_times()
-        
+
         self.marker_T_vector = {}
-        
+
         if not self.camera_markers:
             print("Selected the option to not use the markers on the camera, the identity transformation will be used instead")
         else:
@@ -1212,11 +985,37 @@ class ViconHelper:
             frame_ids.append(idx)
         return frame_ids
 
+
+    # TODO: check where this error is coming from and fix it by changing the indeces of that problematic point
     def get_points_dict(self, frame_id):
-        # get 3D points for a specific frame id.
-        
-        points = self.points_3d[frame_id]
+        # Handle both numpy arrays and dicts with arbitrary keys
+        if isinstance(self.points_3d, dict):
+            if frame_id in self.points_3d:
+                points = self.points_3d[frame_id]
+            elif (frame_id + 1) in self.points_3d:
+                # fallback: try shifting by +1 (common off-by-one mismatch)
+                points = self.points_3d[frame_id + 1]
+            elif (frame_id - 1) in self.points_3d:
+                # fallback: try shifting by -1
+                points = self.points_3d[frame_id - 1]
+            else:
+                raise KeyError(f"Frame {frame_id} not in Vicon data. "
+                            f"Available keys: {list(self.points_3d.keys())[:10]}...")
+        else:
+            # assume numpy array
+            if frame_id < 0 or frame_id >= len(self.points_3d):
+                raise IndexError(f"Frame {frame_id} is out of bounds for points_3d "
+                                f"(len={len(self.points_3d)})")
+            points = self.points_3d[frame_id]
+
         return {l: points[i][:3] for i, l in enumerate(self.point_labels)}
+    
+    # def get_points_dict(self, frame_id):
+    #     # get 3D points for a specific frame id.
+        
+    #     points = self.points_3d[frame_id]
+    #     return {l: points[i][:3] for i, l in enumerate(self.point_labels)}
+
 
     def interpolate_point_dict(self, dict_t1, dict_t2, f):
         out_dict = {}
@@ -1299,8 +1098,8 @@ class ViconHelper:
     
     def process_camera_markers(self):
         # Read position of markers on the camera system and calculate the corresponding reference frame
-        camera_labels = ['camera:cam_right', 'camera:cam_back', 'camera:cam_left']
-        # camera_labels = ['stereoatis:cam_right', 'stereoatis:cam_back', 'stereoatis:cam_left']
+        # camera_labels = ['camera:cam_right', 'camera:cam_back', 'camera:cam_left']
+        camera_labels = ['stereoatis:cam_right', 'stereoatis:cam_back', 'stereoatis:cam_left']
 
         vicon_points = self.get_vicon_points(range(1, self.frame_count), camera_labels)
 
@@ -1308,12 +1107,12 @@ class ViconHelper:
         camera_left = []
         camera_back = []
         for f in vicon_points['points']:
-            # camera_right.append(f['stereoatis:cam_right'][:3])
-            # camera_left.append(f['stereoatis:cam_left'][:3])
-            # camera_back.append(f['stereoatis:cam_back'][:3])
-            camera_right.append(f['camera:cam_right'][:3])
-            camera_left.append(f['camera:cam_left'][:3])
-            camera_back.append(f['camera:cam_back'][:3])
+            camera_right.append(f['stereoatis:cam_right'][:3])
+            camera_left.append(f['stereoatis:cam_left'][:3])
+            camera_back.append(f['stereoatis:cam_back'][:3])
+            # camera_right.append(f['camera:cam_right'][:3])
+            # camera_left.append(f['camera:cam_left'][:3])
+            # camera_back.append(f['camera:cam_back'][:3])
 
         camera_right = np.array(camera_right)
         camera_left = np.array(camera_left)
