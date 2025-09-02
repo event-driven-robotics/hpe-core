@@ -125,16 +125,20 @@ def project_vicon_to_rgb_plane(
         if not ret:
             break
 
-        # Compute RGB video timestamp
+        # Compute RGB timestamp
         t_frame = frame_idx * period + delay
 
-        # Print Vicon timestamp (if available)
-        if frame_idx < len(marker_t):
-            vicon_ts = marker_t[frame_idx]
-            print(f"[Frame {frame_idx}] RGB time={t_frame:.6f}s, Vicon time={vicon_ts:.6f}s")
-        else:
-            vicon_ts = None
-            print(f"[Frame {frame_idx}] RGB time={t_frame:.6f}s (no Vicon data)")
+        # Find closest Vicon index for this RGB time
+        vicon_idx = np.searchsorted(marker_t, t_frame)
+        if vicon_idx >= len(marker_t):
+            vicon_idx = len(marker_t) - 1
+        elif vicon_idx > 0 and (
+            abs(marker_t[vicon_idx] - t_frame) > abs(marker_t[vicon_idx - 1] - t_frame)
+        ):
+            vicon_idx = vicon_idx - 1  # use the nearest
+
+        vicon_ts = marker_t[vicon_idx]
+        print(f"[Frame {frame_idx}] RGB time={t_frame:.6f}s, Vicon time={vicon_ts:.6f}s")
 
         for mark_name in marker_names:
             ps = marker_p(c3d_data.point_labels, points_3d.values(), mark_name, subject=subject)
@@ -172,6 +176,144 @@ def project_vicon_to_rgb_plane(
         cv2.destroyAllWindows()
 
     return image_points
+
+
+def project_vicon_to_rgb_plane_dynamic(
+    marker_names,
+    c3d_data,
+    points_3d,
+    marker_t,
+    T_system_to_camera,
+    T_world_to_system,
+    K,
+    video_path: str,
+    delay: float = 0.0,
+    visualize: bool = False,
+    video_record: bool = False,
+    D: Optional[np.ndarray] = None,
+    subject: Optional[str] = None,
+):
+    # Open video
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise IOError(f"Cannot open video {video_path}")
+
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    if fps <= 1e-6:
+        fps = 30.0  # fallback
+    period = 1.0 / fps
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    image_points = {}
+
+    # Precompute projected points for each marker across all frames
+    for mark_name in marker_names:
+        ps = marker_p(c3d_data.point_labels, points_3d.values(), mark_name, subject=subject)
+        ps_trans: np.ndarray = np.empty_like(ps)
+        for i in range(len(T_world_to_system)):
+            # Construct full World -> Camera transformation
+            T_world_to_camera = T_system_to_camera @ T_world_to_system[i]
+            ps_trans[i] = (T_world_to_camera @ ps[i].T).T
+            ps_trans[i] = ps_trans[i] / ps_trans[i, [3]]
+        ps_trans = ps_trans[:, :3]
+
+        # Project to image plane
+        ps_trans = ps_trans.astype(np.float64).reshape(-1, 1, 3)
+        img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, distCoeffs=D)
+        img_pts = img_pts.reshape(-1, 2)
+        image_points[mark_name] = img_pts
+
+    # Setup for video recording
+    if video_record:
+        w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        out = cv2.VideoWriter('tmp_rgb.mp4', fourcc, fps, (w, h), isColor=True)
+
+    # Reset to start of video
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+
+    frame_idx = 0
+    delay_step = 0.01
+    current_delay = delay
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # Compute RGB timestamp
+        t_frame = frame_idx * period + current_delay
+
+        # Find closest Vicon index for this RGB time
+        vicon_idx = np.searchsorted(marker_t, t_frame)
+        if vicon_idx >= len(marker_t):
+            vicon_idx = len(marker_t) - 1
+        elif vicon_idx > 0 and (
+            abs(marker_t[vicon_idx] - t_frame) > abs(marker_t[vicon_idx - 1] - t_frame)
+        ):
+            vicon_idx = vicon_idx - 1  # use the nearest
+
+        vicon_ts = marker_t[vicon_idx]
+        print(f"[Frame {frame_idx}] RGB time={t_frame:.6f}s, Vicon time={vicon_ts:.6f}s")
+
+        # Draw projected markers from nearest Vicon timestamp
+        for mark_name in marker_names:
+            if vicon_idx < image_points[mark_name].shape[0]:
+                u_coord, v_coord = image_points[mark_name][vicon_idx]
+                if np.isfinite(u_coord) and np.isfinite(v_coord):
+                    u, v = int(u_coord), int(v_coord)
+                    if 0 <= u < frame.shape[1] and 0 <= v < frame.shape[0]:
+                        cv2.circle(frame, (u, v), 4, (0, 0, 255), -1)
+                        cv2.putText(frame, mark_name, (u, v),
+                                    cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 0, 255))
+
+        # Overlay delay info
+        cv2.putText(frame, f"Delay: {current_delay:.3f}s (step: {delay_step:.3f}s)",
+                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        cv2.putText(frame, "Keys: <-/-> adjust delay, +/- adjust step, q=quit",
+                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
+        # Show
+        if visualize:
+            cv2.imshow("Projected Vicon Markers (Dynamic)", frame)
+            c = cv2.waitKey(int(period * 1000)) & 0xFF
+            if c == 83:  # Right arrow - restart from beginning
+                current_delay += delay_step
+                print(f"Delay increased to {current_delay:.3f} - restarting from beginning")
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # reset to start
+                frame_idx = 0
+                continue
+            elif c == 81:  # Left arrow - restart from beginning
+                current_delay -= delay_step
+                print(f"Delay decreased to {current_delay:.3f} - restarting from beginning")
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)  # reset to start
+                frame_idx = 0
+                continue
+            elif c in (ord('+'), ord('=')):
+                delay_step += 0.001
+                print(f"Delay step increased to {delay_step:.3f}")
+            elif c == ord('-'):
+                delay_step = max(0.001, delay_step - 0.001)
+                print(f"Delay step decreased to {delay_step:.3f}")
+            elif c == ord('q'):
+                break
+
+        # Write frame to video
+        if video_record:
+            out.write(frame)
+
+        frame_idx += 1
+
+    cap.release()
+    if visualize:
+        cv2.destroyAllWindows()
+    if video_record:
+        out.release()
+        print("Video saved as 'tmp_rgb.mp4'")
+
+    return image_points
+
 
 
 #TODO: output the delay
