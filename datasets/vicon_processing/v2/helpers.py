@@ -549,11 +549,28 @@ def project_and_manual_rotation(
             while e_ts[i_events] < tic_events:
                 img[e_vs[i_events], e_us[i_events]] = 0
                 i_events += 1
+                print(e_ts[i_events])
 
             cv2.putText(img, f"Rot (deg) roll={Rot_deg[0]:+.2f} pitch={Rot_deg[1]:+.2f} yaw={Rot_deg[2]:+.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
             cv2.putText(img, "Keys: space=start/stop | a/z roll | h/y pitch | s/x yaw | q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
 
             if visualize:
+                
+                # if chosen_one is not None:
+                #     try:
+                #         # displayed frame corresponds to i_markers-1
+                #         idx = max(0, min(i_markers - 1, len(marker_t) - 1))
+
+                #         # image coordinates (may be outside bounds)
+                #         img_uv = None
+                #         if chosen_one in image_points and idx < image_points[chosen_one].shape[0]:
+                #             uv = image_points[chosen_one][idx]
+                #             img_uv = (float(uv[0]), float(uv[1]))
+
+                #         print(f"[recalc] marker='{chosen_one}' frame_idx={idx} image_uv={img_uv}")
+                #     except Exception as _e:
+                #         print(f"[recalc] error printing chosen_one '{chosen_one}': {_e}")
+                
                 cv2.imshow('Projected Points', img)
                 c = cv2.waitKey(int(period * 1000))
 
@@ -662,63 +679,61 @@ def project_and_manual_rotation(
 
                 # if rotation changed, recompute projections live and update frame
                 if recalc_needed:
-                    T_current = makeT(Rot_deg, np.array(Trans_orig, dtype=np.float64))
                     try:
-                        # recompute projections
+                        # Build updated rotation + translation
+                        R_new = Rotation.from_euler('zyx',
+                                                    [Rot_deg[2], Rot_deg[1], Rot_deg[0]],
+                                                    degrees=True).as_matrix()
+                        T_current = np.eye(4)
+                        T_current[:3, :3] = R_new
+
+                        # Recompute projections
                         image_points = {}
                         for mark_name in marker_names:
                             ps = marker_p(c3d_data.point_labels, points_3d.values(), mark_name, subject=subject)
-                            ps_trans: np.ndarray = np.empty_like(ps)
+                            ps_trans = np.empty_like(ps)
                             for i in range(len(T_world_to_system)):
-                                ps_trans[i] = (T_current @ T_world_to_system[i] @ ps[i].transpose()).transpose()
-                                ps_trans[i] = ps_trans[i] / ps_trans[i, [3]]
-                            ps_trans = ps_trans[:, :3]                            
-                            
-                            ps_trans = ps_trans.astype(np.float64).reshape(-1, 1, 3)
-                            img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), K, distCoeffs=D)
-                            img_pts = img_pts.reshape(-1, 2)
-                            
-                            image_points[mark_name] = img_pts
+                                ps_trans[i] = (T_current @ T_world_to_system[i] @ ps[i].T).T
+                                ps_trans[i] /= ps_trans[i, [3]]
+                            ps_trans = ps_trans[:, :3]
 
-                        # redraw current frame after recompute
+                            # only keep points in front of camera
+                            valid = ps_trans[:, 2] > 1e-6
+                            ps_valid = ps_trans[valid]
+
+                            if len(ps_valid) > 0:
+                                img_pts, _ = cv2.projectPoints(ps_valid.astype(np.float64).reshape(-1, 1, 3),
+                                                            np.zeros(3), np.zeros(3), K, distCoeffs=D)
+                                img_pts = img_pts.reshape(-1, 2)
+                            else:
+                                img_pts = np.zeros((len(ps_trans), 2)) * np.nan
+
+                            # put back into same shape (NaNs where invalid)
+                            full_img_pts = np.full((len(ps_trans), 2), np.nan)
+                            full_img_pts[valid] = img_pts
+                            image_points[mark_name] = full_img_pts
+
+                        # redraw current frame
                         img = np.ones(cam_res, dtype=np.uint8) * 255
-                        if i_markers < len(marker_t) and i_markers >= 0:
+                        if 0 <= i_markers < len(marker_t):
                             for mark_name in marker_names:
-                                u = int(image_points[mark_name][i_markers][0])
-                                v = int(image_points[mark_name][i_markers][1])
-                                if 0 <= u < cam_res[1] and 0 <= v < cam_res[0]:
-                                    cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                                    cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                                uv = image_points[mark_name][i_markers]
+                                if np.isfinite(uv[0]) and np.isfinite(uv[1]):
+                                    u, v = int(uv[0]), int(uv[1])
+                                    if 0 <= u < cam_res[1] and 0 <= v < cam_res[0]:
+                                        cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
+                                        cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
 
-                        event_time_end = tic_markers + current_delay
-                        event_time_start = event_time_end - period
-                        temp_i_events = 0
-                        while temp_i_events < len(e_ts) and e_ts[temp_i_events] < event_time_start:
-                            temp_i_events += 1
-                        while temp_i_events < len(e_ts) and e_ts[temp_i_events] < event_time_end:
-                            img[e_vs[temp_i_events], e_us[temp_i_events]] = 0
-                            temp_i_events += 1
-
-                        tic_events = tic_markers + current_delay
                         print(f"Recomputed projections: roll={Rot_deg[0]:.2f}, pitch={Rot_deg[1]:.2f}, yaw={Rot_deg[2]:.2f}")
-                        
-                        if chosen_one is not None:
-                            try:
-                                # displayed frame corresponds to i_markers-1
-                                idx = max(0, min(i_markers - 1, len(marker_t) - 1))
 
-                                # image coordinates (may be outside bounds)
-                                img_uv = None
-                                if chosen_one in image_points and idx < image_points[chosen_one].shape[0]:
-                                    uv = image_points[chosen_one][idx]
-                                    img_uv = (float(uv[0]), float(uv[1]))
+                        if chosen_one is not None and chosen_one in image_points:
+                            idx = max(0, min(i_markers - 1, len(marker_t) - 1))
+                            uv = image_points[chosen_one][idx]
+                            print(f"[recalc] marker='{chosen_one}' frame_idx={idx} image_uv={tuple(uv)}")
 
-                                print(f"[recalc] marker='{chosen_one}' frame_idx={idx} image_uv={img_uv}")
-                            except Exception as _e:
-                                print(f"[recalc] error printing chosen_one '{chosen_one}': {_e}")
-                        
                     except Exception as e:
                         print("Error recomputing projections:", e)
+
                     recalc_needed = False
 
             # Reset image and update timer (only when not paused)
@@ -732,7 +747,6 @@ def project_and_manual_rotation(
             
     r_vec = Rotation.from_euler('zyx', [Rot_deg[2], Rot_deg[1], Rot_deg[0]], degrees=True).as_rotvec()
     return r_vec
-
 
 class DvsLabeler:
     # functions relative to the labeling of the sequences
@@ -890,7 +904,7 @@ class DvsLabeler:
                 # save labeled points for the current frame
                 finished = True
                 return True, process_continue, points_dict, img
-            elif c == 27:   # ESC key
+            elif c == ord('q') or c == 27:   # ESC key
                 print("ESC pressed, stopping labeling")
                 process_continue = False
                 finished = True
@@ -1299,8 +1313,8 @@ class ViconHelper:
     
     def process_camera_markers(self):
         # Read position of markers on the camera system and calculate the corresponding reference frame
-        camera_labels = ['camera:cam_right', 'camera:cam_back', 'camera:cam_left']
-        # camera_labels = ['stereoatis:cam_right', 'stereoatis:cam_back', 'stereoatis:cam_left']
+        # camera_labels = ['camera:cam_right', 'camera:cam_back', 'camera:cam_left']
+        camera_labels = ['stereoatis:cam_right', 'stereoatis:cam_back', 'stereoatis:cam_left']
 
         vicon_points = self.get_vicon_points(range(1, self.frame_count), camera_labels)
 
@@ -1308,12 +1322,12 @@ class ViconHelper:
         camera_left = []
         camera_back = []
         for f in vicon_points['points']:
-            # camera_right.append(f['stereoatis:cam_right'][:3])
-            # camera_left.append(f['stereoatis:cam_left'][:3])
-            # camera_back.append(f['stereoatis:cam_back'][:3])
-            camera_right.append(f['camera:cam_right'][:3])
-            camera_left.append(f['camera:cam_left'][:3])
-            camera_back.append(f['camera:cam_back'][:3])
+            camera_right.append(f['stereoatis:cam_right'][:3])
+            camera_left.append(f['stereoatis:cam_left'][:3])
+            camera_back.append(f['stereoatis:cam_back'][:3])
+            # camera_right.append(f['camera:cam_right'][:3])
+            # camera_left.append(f['camera:cam_left'][:3])
+            # camera_back.append(f['camera:cam_back'][:3])
 
         camera_right = np.array(camera_right)
         camera_left = np.array(camera_left)
