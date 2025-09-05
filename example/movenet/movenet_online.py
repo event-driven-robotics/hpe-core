@@ -1,15 +1,13 @@
-from pycore.moveenet import init, MoveNet, Task
+from pycore.moveenet import MoveNet, Task
 
 from config import cfg
 from pycore.moveenet.utils.utils import arg_parser
-from pycore.moveenet.task.task_tools import image_show, write_output, superimpose
-from pycore.moveenet.visualization.visualization import add_skeleton, movenet_to_hpecore
+from pycore.moveenet.task.task_tools import write_output
 
 import sys
 import yarp
 import numpy as np
 import cv2
-import torch
 
 import datetime
 
@@ -17,7 +15,6 @@ dev = False
 
 if dev:
     import glob
-    import os
 
 
 class MovenetModule(yarp.RFModule):
