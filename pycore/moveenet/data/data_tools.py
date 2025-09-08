@@ -2,22 +2,14 @@
 @Fire
 https://github.com/fire717
 """
-from PIL import Image
 import numpy as np
-import pandas as pd
 import os
 import torch
 from torch.utils.data.dataset import Dataset
 
 import random
 import cv2
-import albumentations as A
-import json
-import platform
 import math
-
-from pycore.moveenet.data.data_augment import DataAug
-from pycore.moveenet.utils.utils import maxPoint, extract_keypoints
 
 
 def getFileNames(file_dir, tail_list=['.png', '.jpg', '.JPG', '.PNG']):
