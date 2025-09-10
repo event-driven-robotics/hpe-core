@@ -255,8 +255,8 @@ def arg_parser(cfg):
                         default=cfg['eval_label_path'], type=str)
     parser.add_argument('--results_path', help='Path to the location where the resultant .csv files should be stored',
                         default=cfg['eval_label_path'], type=str)
-    parser.add_argument('--upper', help='Use if only the top 7 joints should be estimated. Overwrites the num_classes '
-                                        'flag Dafault: False', action='store_true', default=False, required=False)
+    parser.add_argument('--checkpoint_path', help='Path to the model checkpoint for prediction or evaluation',
+                        default="/usr/local/src/hpe-core/example/movenet/models/h36m_finetuned.pth", type=str)
     parser.add_argument('--confidence', help='Use if confidence values should be shown as circles. Only activated in dev mode',
                         action='store_true', default=False, required=False)
     parser.add_argument('--text', help='Use if confidence values should be shown as text. Only activated in dev mode with confidence on',
