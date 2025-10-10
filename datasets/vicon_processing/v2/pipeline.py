@@ -553,7 +553,7 @@ class ViconDVSPipeline:
         
         labels_path = os.path.join(os.path.dirname(self.output_path), 'labeled_points.yml')
         
-        window_size = 100 * self.period
+        window_size = 1000 * self.period
         window_start = self.start_time
         
         # Create labeler instance
