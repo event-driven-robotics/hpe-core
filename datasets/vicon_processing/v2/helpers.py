@@ -17,7 +17,23 @@ from scipy.optimize import least_squares
 import tkinter as tk
 from tkinter import simpledialog
 
+# Exceptions to pass values even after interruptions
+class RotationExit(Exception):
+    def __init__(self, r_vec):
+        super().__init__("Rotation adjustment finished by user.")
+        self.r_vec = r_vec
 
+class DelayExit(Exception):
+    def __init__(self, delay):
+        super().__init__("Delay adjustment finished by user.")
+        self.delay = delay
+        
+class LabelExit(Exception):
+    """Raised when user quits labeling/correction early."""
+    def __init__(self, labeled_dict: dict):
+        super().__init__("User exited labeling/correction.")
+        self.labeled_dict = labeled_dict
+        
 def makeT(Rot, Trans):
 
     Rot = np.array(Rot) * (math.pi / 180.0)
@@ -147,23 +163,6 @@ def estimate_Tstoc(Ps, pc, K, dist, init_params=None):
     T[:3, 3] = tvec_opt
 
     return T
-
-# Exceptions to pass values even after interruptions
-class RotationExit(Exception):
-    def __init__(self, r_vec):
-        super().__init__("Rotation adjustment finished by user.")
-        self.r_vec = r_vec
-
-class DelayExit(Exception):
-    def __init__(self, delay):
-        super().__init__("Delay adjustment finished by user.")
-        self.delay = delay
-        
-class LabelExit(Exception):
-    """Raised when user quits labeling/correction early."""
-    def __init__(self, labeled_dict: dict):
-        super().__init__("User exited labeling/correction.")
-        self.labeled_dict = labeled_dict
 
 class ViconProjector:
     def __init__(self, marker_names, c3d_data, points_3d, T_system_to_camera, 
@@ -624,7 +623,7 @@ class ViconProjector:
                                     cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
 
                 # Calculate event time window based on marker time + current delay
-                event_time_end = tic_markers + current_delay        # TODO: maybe here?
+                event_time_end = tic_markers + current_delay
                 event_time_start = event_time_end - period
                 
                 # Find and render events within the adjusted time window
@@ -642,7 +641,6 @@ class ViconProjector:
                 
             elif c == 83 and paused:  # Right arrow -> go to next frame
                 
-                # TODO: check
                 tic_events += period
                 tic_markers = tic_events - current_delay
                 
@@ -708,7 +706,6 @@ class ViconProjector:
                                     cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
                                     cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
                 
-                # TODO: check
                 # Calculate and render events with new delay
                 event_time_end = tic_markers + current_delay
                 event_time_start = event_time_end - period
@@ -722,7 +719,6 @@ class ViconProjector:
                         img[e_vs[temp_i_events], e_us[temp_i_events]] = 0
                     temp_i_events += 1
                     
-                # TODO: check 
                 # Update tic_events for continuous playback
                 tic_events = tic_markers + current_delay
                 print(f"Updated frame with new delay: markers at {tic_markers:.3f}s, events at {event_time_end:.3f}s")
@@ -751,7 +747,6 @@ class ViconProjector:
                                     cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
                                     cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
                 
-                # TODO: check 
                 # Calculate and render events with new delay
                 event_time_end = tic_markers + current_delay
                 event_time_start = event_time_end - period
@@ -765,7 +760,6 @@ class ViconProjector:
                         img[e_vs[temp_i_events], e_us[temp_i_events]] = 0
                     temp_i_events += 1
                                         
-                # TODO: check 
                 # Update tic_events for continuous playback
                 tic_events = tic_markers + current_delay
                 print(f"Updated frame with new delay: markers at {tic_markers:.3f}s, events at {event_time_end:.3f}s")
@@ -853,7 +847,7 @@ class DvsLabeler:
     #             self.accumulated_dict['points'].extend(non_empty_points)
     #             self.accumulated_dict['times'].extend(corresponding_times)
     #             print(f"Merged {len(non_empty_points)} corrections. Total: {len(self.accumulated_dict['points'])}")
-        
+    
     def label_data(self, e_ts, e_us, e_vs, period, label_tag_file: str = None):
         # Go though every event frame and call function to do the labelling.
         
@@ -906,7 +900,7 @@ class DvsLabeler:
             print("No labels in this window")
         
         return window_dict
-
+    
     def save_labeled_points(self, out_file: str):
         # Save labeled points to a YAML file.
         
@@ -1024,12 +1018,6 @@ class DvsLabeler:
                 process_continue = False
                 finished = True
                 return True, process_continue, points_dict, img
-            # elif c == ord('q') or c == 27 or getattr(self, 'abort_labeling', False):    # q key or esc
-            #     # abort labeling by pressing q or esc
-            #     # TODO: quit and save            
-            #     print("Labeling aborted by user.")
-            #     cv2.destroyWindow("image")
-            #     return False, None, None
             elif c == 8:            # backspace
                 # remove latest added point for the current frame
                 if points:
@@ -1047,7 +1035,7 @@ class DvsLabeler:
         return True, process_continue, points_dict, img
 
 
-    # TODO: correctly implement it
+    # TODO: improve on GUI, maybe show name of the markers only when mouse hover them or is close to them or something
     def correct_data(
         self, e_ts, e_us, e_vs, period,
         marker_names, c3d_data, points_3d, marker_t,
@@ -1107,7 +1095,7 @@ class DvsLabeler:
 
         return window_dict
     
-    # TODO: correctly implement it
+    # TODO: make GUI better, more user friendly
     def correct_labels(
         self, frame, timestamp, period, T_system_to_camera, T_world_to_system,
         marker_names, c3d_data, points_3d, marker_t, frame_idx, K, cam_res,

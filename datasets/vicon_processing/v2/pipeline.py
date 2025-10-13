@@ -209,16 +209,60 @@ class ViconDVSPipeline:
         # Fallback
         # print(f"Using all {len(available_markers_raw)} available markers.")
         return available_markers_raw   
-###     
+###
         
     def load_event_data(self):
-        """Load event data using importAe for memory efficiency."""
+        """Load event data efficiently using importAe, with interactive camera stream selection."""
         print("Loading event data...")
+
         importers = importAe(self.dvs_path)
-        self.imp = importers['data']['']['dvs']        # TODO: read middle from folder name
+
+        # from what i understand, importAe always returns a dict with 'data' key containing available streams
+        if 'data' not in importers:
+            raise KeyError("Missing 'data' in importAe output — check that dvs_path is correct.")
+
+        data_keys = list(importers['data'].keys())
+        if not data_keys:
+            raise KeyError("No keys found under importers['data'] — event data not loaded properly.")
+
+        if len(data_keys) == 1:
+            middle_key = data_keys[0]
+            print(f"Only one event stream found, using: '{middle_key}'")
+        else:
+            print("\nMultiple event streams detected:")
+            for i, key in enumerate(data_keys):
+                print(f"  [{i}] {key}")
+            print()
+
+            # Loop until valid input
+            while True:
+                user_input = input("Select event stream (type index number or name): ").strip()
+
+                if user_input.isdigit():
+                    # Number input
+                    idx = int(user_input)
+                    if 0 <= idx < len(data_keys):
+                        middle_key = data_keys[idx]
+                        break
+                    else:
+                        print("Invalid index. Please try again.")
+                else:
+                    # String input
+                    if user_input in data_keys:
+                        middle_key = user_input
+                        break
+                    else:
+                        print("Invalid name. Please type one of:", data_keys)
+
+        # Load event stream
+        self.imp = importers['data'][middle_key]['dvs']
+
         self.start_time = self.imp.get_first_ts()
         self.end_time = self.imp.get_last_ts()
+
+        print(f"\n✅ Loaded event stream: '{middle_key}'")
         print(f"Events from {self.start_time:.3f}s to {self.end_time:.3f}s")
+
     
     def load_vicon_data(self):
         """Load VICON C3D data."""
@@ -407,9 +451,7 @@ class ViconDVSPipeline:
         window_size = 1000 * self.period  # 10 seconds window
         window_start = self.start_time
         rvec_init = np.zeros(3)
-        
-        R_init = [-117.0, 10.0, -31.0]
-                
+                        
         # TODO: find better solution than .2f 
         try:
             while window_start < float("%.2f" % self.end_time):
@@ -432,7 +474,7 @@ class ViconDVSPipeline:
                 # Call projector manual rotation adjustment
                 rvec_init = projector.manual_rotation_adjustment(
                     self.marker_t, self.delay, e_ts, e_us, e_vs, 
-                    self.period, R_init=R_init, visualize=True, chosen_one=chosen_one,
+                    self.period, visualize=True, chosen_one=chosen_one,
                     marker_time_offset=window_start
                 )
 
@@ -786,7 +828,7 @@ class ViconDVSPipeline:
             # Collect all points with timestamps and sort them
             all_timestamped_points = []
                         
-            # TODO: use event timestamps or marker timestamps
+            # TODO: use event timestamps or marker timestamps?
 
             for marker_name, points_list in all_projected_points.items():
                 for point_data in points_list:
