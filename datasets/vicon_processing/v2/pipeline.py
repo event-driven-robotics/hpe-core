@@ -11,13 +11,28 @@ import argparse
 from scipy.optimize import least_squares
 from scipy.spatial.transform import Rotation
 
-# Import helpers
-sys.path.append('/home/cappe/hpe/hpe-core/datasets/vicon_processing/v2')
-import helpers
+# # Import helpers
+# sys.path.append('/home/cappe/hpe/hpe-core/datasets/vicon_processing/v2')
+# import helpers
 
-# Import bimvee
-sys.path.append('/home/cappe/hpe/hpe-core/datasets/vicon_processing/v2/submodules/bimvee')
-# from bimvee.importIitYarp import importIitYarp
+# # Import bimvee
+# sys.path.append('/home/cappe/hpe/hpe-core/datasets/vicon_processing/v2/submodules/bimvee')
+# # from bimvee.importIitYarp import importIitYarp
+# from bimvee.importAe import importAe
+
+# Get the absolute path to the current file (pipeline.py)
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Add needed paths dynamically
+HELPERS_PATH = os.path.join(CURRENT_DIR)
+BIMVEE_PATH = os.path.join(CURRENT_DIR, "submodules/bimvee")
+
+for path in [HELPERS_PATH, BIMVEE_PATH]:
+    if path not in sys.path:
+        sys.path.append(path)
+
+# Now safely import your modules
+import helpers
 from bimvee.importAe import importAe
 
 

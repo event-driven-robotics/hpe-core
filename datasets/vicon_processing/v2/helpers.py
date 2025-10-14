@@ -334,6 +334,7 @@ class ViconProjector:
     def manual_rotation_adjustment(self, marker_t, delay, e_ts, e_us, e_vs, period,
                                    R_init=None, tvec=None, visualize=True, 
                                    chosen_one=None, angle_step=1.0, marker_time_offset=0.0):
+        
         # Create a copy of the current transformation for adjustment
         current_T = self.T_system_to_camera.copy()
         selected_angle = 0
@@ -418,6 +419,13 @@ class ViconProjector:
             elif c == 13:
                 selected_angle = (selected_angle + 1) % 3
                 print(f"Selected rotation axis: {['roll', 'pitch', 'yaw'][selected_angle]}")
+                
+                # Force immediate redraw to show the updated axis selection
+                img_temp = np.copy(img)
+                cv2.putText(img_temp, f"Rot (deg) roll={Rot_deg[0]:+.2f} pitch={Rot_deg[1]:+.2f} yaw={Rot_deg[2]:+.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
+                cv2.putText(img_temp, "Keys: space=start/stop | enter = select roll/pitch/yaw | +/- = increase/decrease angle value | q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                cv2.putText(img_temp, "Currently modifying: " + ['roll', 'pitch', 'yaw'][selected_angle], (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                cv2.imshow('Manual Rotation', img_temp)
 
             # - key pressed -> decrease angle by angle step
             elif c == ord('-'):
@@ -432,9 +440,26 @@ class ViconProjector:
             elif c == ord('l'):
                 angle_step += 0.5
                 print(f"Angle step increased to: {angle_step:.3f}")
+                
+                # Force immediate redraw to show updated step size
+                img_temp = np.copy(img)
+                cv2.putText(img_temp, f"Rot (deg) roll={Rot_deg[0]:+.2f} pitch={Rot_deg[1]:+.2f} yaw={Rot_deg[2]:+.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
+                cv2.putText(img_temp, f"Angle step: {angle_step:.1f}deg", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 64, 2)
+                cv2.putText(img_temp, "Keys: space=start/stop | enter = select roll/pitch/yaw | +/- = increase/decrease angle value | q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                cv2.putText(img_temp, "Currently modifying: " + ['roll', 'pitch', 'yaw'][selected_angle], (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                cv2.imshow('Manual Rotation', img_temp)
+                
             elif c == ord('k'):
                 angle_step = max(0.5, angle_step - 0.5)
                 print(f"Angle step decreased to: {angle_step:.3f}")
+                
+                # Force immediate redraw to show updated step size
+                img_temp = np.copy(img)
+                cv2.putText(img_temp, f"Rot (deg) roll={Rot_deg[0]:+.2f} pitch={Rot_deg[1]:+.2f} yaw={Rot_deg[2]:+.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
+                cv2.putText(img_temp, f"Angle step: {angle_step:.1f}deg", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 64, 2)
+                cv2.putText(img_temp, "Keys: space=start/stop | enter = select roll/pitch/yaw | +/- = increase/decrease angle value | q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                cv2.putText(img_temp, "Currently modifying: " + ['roll', 'pitch', 'yaw'][selected_angle], (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                cv2.imshow('Manual Rotation', img_temp)
 
             # quit and save current rotation
             elif c == ord('q') or c == 27:
@@ -767,9 +792,41 @@ class ViconProjector:
             elif c == ord('l'):
                 delay_step += 0.001  # Increase step by 1ms
                 print(f"Delay step increased to: {delay_step:.3f}s")
+                
+                # Force immediate redraw to show updated step size
+                img_temp = np.copy(img)
+                cv2.putText(img_temp, f"Delay: {current_delay:.3f}s (step: {delay_step:.3f}s)", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
+                cv2.putText(img_temp, f"Delay step: {delay_step:.3f}s", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 64, 2)
+                cv2.putText(img_temp, "Keys: +/- decrease/increase delay, k/l adjust step", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                cv2.putText(img_temp, "Keys: <-/-> navigate frames, space bar stop/start, q=quit", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                
+                # Add timestamp display
+                marker_time_text = f"Marker: {tic_markers:.3f}s"
+                event_time_text = f"Event: {tic_events:.3f}s"
+                cv2.putText(img_temp, marker_time_text, (self.cam_res[1] - 200, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                cv2.putText(img_temp, event_time_text, (self.cam_res[1] - 200, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                
+                cv2.imshow('Fix Delay', img_temp)
+                
             elif c == ord('k'):
                 delay_step = max(0.001, delay_step - 0.001)  # Decrease step by 1ms, minimum 1ms
                 print(f"Delay step decreased to: {delay_step:.3f}s")
+                
+                # Force immediate redraw to show updated step size
+                img_temp = np.copy(img)
+                cv2.putText(img_temp, f"Delay: {current_delay:.3f}s (step: {delay_step:.3f}s)", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
+                cv2.putText(img_temp, f"Delay step: {delay_step:.3f}s", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 64, 2)
+                cv2.putText(img_temp, "Keys: +/- decrease/increase delay, k/l adjust step", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                cv2.putText(img_temp, "Keys: <-/-> navigate frames, space bar stop/start, q=quit", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                
+                # Add timestamp display
+                marker_time_text = f"Marker: {tic_markers:.3f}s"
+                event_time_text = f"Event: {tic_events:.3f}s"
+                cv2.putText(img_temp, marker_time_text, (self.cam_res[1] - 200, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                cv2.putText(img_temp, event_time_text, (self.cam_res[1] - 200, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                
+                cv2.imshow('Fix Delay', img_temp)              
+                 
             elif c == ord('q') or c == 27:  # quit
                 print("Delay adjustment completed")
                 raise DelayExit(current_delay)
@@ -818,35 +875,6 @@ class DvsLabeler:
         """Legacy method - now uses _merge_window_into_accumulated"""
         if new_dict:
             self._merge_window_into_accumulated(new_dict)
-        
-    # def merge_labels(self, new_dict):
-    #     if self.labeled_dict is None:
-    #         self.labeled_dict = new_dict
-    #     else:
-    #         self.labeled_dict['points'].extend(new_dict['points'])
-    #         self.labeled_dict['times'].extend(new_dict['times'])
-            
-    # def merge_labels(self, new_dict):
-    #     """Merge new labels into the accumulated dictionary"""
-    #     if self.labeled_dict is None:
-    #         if not hasattr(self, 'accumulated_dict') or self.accumulated_dict is None:
-    #             self.accumulated_dict = {'points': [], 'times': []}
-    #         self.labeled_dict = self.accumulated_dict
-        
-    #     if new_dict and 'points' in new_dict and 'times' in new_dict:
-    #         # Only merge non-empty corrections
-    #         non_empty_points = []
-    #         corresponding_times = []
-            
-    #         for i, points_dict in enumerate(new_dict['points']):
-    #             if points_dict:  # Only add if there are actual corrections
-    #                 non_empty_points.append(points_dict)
-    #                 corresponding_times.append(new_dict['times'][i])
-            
-    #         if non_empty_points:
-    #             self.accumulated_dict['points'].extend(non_empty_points)
-    #             self.accumulated_dict['times'].extend(corresponding_times)
-    #             print(f"Merged {len(non_empty_points)} corrections. Total: {len(self.accumulated_dict['points'])}")
     
     def label_data(self, e_ts, e_us, e_vs, period, label_tag_file: str = None):
         # Go though every event frame and call function to do the labelling.
@@ -1201,15 +1229,6 @@ class DvsLabeler:
                 for mark_name, pt in image_points.items():
                     clean_name = mark_name.split(":")[-1].strip()
                     u, v = int(pt[0]), int(pt[1])
-
-                    # if 0 <= u < img.shape[1] and 0 <= v < img.shape[0]:
-                    #     cv2.circle(img, (u, v), circle_radius, normal_color, circle_thickness, cv2.LINE_AA)
-                    #     (tw, th), _ = cv2.getTextSize(clean_name, cv2.FONT_HERSHEY_SIMPLEX, text_scale, text_thickness)
-                    #     box_tl = (u + label_offset[0], v + label_offset[1] - th)
-                    #     box_br = (u + label_offset[0] + tw + 2, v + label_offset[1] + 2)
-                    #     cv2.rectangle(img, box_tl, box_br, label_bg, -1)
-                    #     cv2.putText(img, clean_name, (u + label_offset[0], v + label_offset[1]),
-                    #                 cv2.FONT_HERSHEY_SIMPLEX, text_scale, normal_color, text_thickness, cv2.LINE_AA)
                         
                     if 0 <= u < img.shape[1] and 0 <= v < img.shape[0]:
                         cv2.circle(img, (u, v), 4, (0, 0, 255), 2)
