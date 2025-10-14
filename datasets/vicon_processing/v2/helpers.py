@@ -13,7 +13,9 @@ from scipy.spatial.transform import Rotation
 from scipy.signal import butter, lfilter, freqz, filtfilt
 from scipy.optimize import least_squares
 
-# Terminal-based input for labeling points
+# dropdown menu for labeling points
+import tkinter as tk
+from tkinter import simpledialog
 
 # Exceptions to pass values even after interruptions
 class RotationExit(Exception):
@@ -330,18 +332,18 @@ class ViconProjector:
         return self.image_points, video_segment
 
     def manual_rotation_adjustment(self, marker_t, delay, e_ts, e_us, e_vs, period,
-                                   R_init=None, tvec=None, visualize=True, 
+                                   R_init=None, tvec=None, visualize=True,
                                    chosen_one=None, angle_step=1.0, marker_time_offset=0.0):
-        
+       
         # Create a copy of the current transformation for adjustment
         current_T = self.T_system_to_camera.copy()
         selected_angle = 0
-        
+       
         # if visualize:
         current_delay = delay
         paused = False
         recalc_needed = False
-
+ 
         # TODO: check and remove eventually useless stuff
         if R_init is not None:
             print(f"Using provided R_init: {R_init}")
@@ -354,9 +356,9 @@ class ViconProjector:
                 recalc_needed = True
             else:
                 current_T[:3, :3] = R_init
-                
+               
             try:
-                angles_zyx = Rotation.from_matrix(current_T[:3, :3]).as_euler('zyx', degrees=True) 
+                angles_zyx = Rotation.from_matrix(current_T[:3, :3]).as_euler('zyx', degrees=True)
                 print(f"Extracted Euler angles (ZYX): {angles_zyx}")
             except Exception as e:
                 print(f"Error extracting Euler angles: {e}")
@@ -364,18 +366,18 @@ class ViconProjector:
         else:
             angles_zyx = np.array([0.0, 0.0, 0.0], dtype=np.float64)
             print("No R_init provided, using [0.0, 0.0, 0.0]")
-                
+               
         if tvec is not None:
             current_T[:3, 3] = tvec
-                    
+                   
         Rot_deg = np.array([angles_zyx[2], angles_zyx[1], angles_zyx[0]], dtype=np.float64)
-
+ 
         i_markers = 0
         i_events = 0
         tic_markers = marker_t[0] + marker_time_offset - current_delay # + period
         tic_events = e_ts[0] # + period
         img = np.ones(self.cam_res, dtype=np.uint8) * 255
-
+ 
         while tic_markers < marker_t[-1] and tic_events < e_ts[-1]:
             # Draw markers and events only when not paused
             if not paused:
@@ -383,27 +385,27 @@ class ViconProjector:
                     for mark_name in self.marker_names:
                         u_coord = self.image_points[mark_name][i_markers][0]
                         v_coord = self.image_points[mark_name][i_markers][1]
-                            
+                           
                         if np.isfinite(u_coord) and np.isfinite(v_coord):
                             u = int(u_coord)
                             v = int(v_coord)
-                            
+                           
                             if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
                                 cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
                                 cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
                     i_markers += 1
-
+ 
                 while e_ts[i_events] < tic_events:
                     img[e_vs[i_events], e_us[i_events]] = 0
                     i_events += 1                
-            
+           
             cv2.putText(img, f"Rot (deg) roll={Rot_deg[0]:+.2f} pitch={Rot_deg[1]:+.2f} yaw={Rot_deg[2]:+.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
             cv2.putText(img, "Keys: space=start/stop | enter = select roll/pitch/yaw | +/- = increase/decrease angle value | q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-            cv2.putText(img, "Currently modifying: " + ['roll', 'pitch', 'yaw'][selected_angle], (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-
+            cv2.putText(img, "Currently modifying: " + ['roll', 'pitch', 'yaw'][selected_angle] + " by a factor of: " + str(angle_step) + " degrees", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+ 
             cv2.imshow('Manual Rotation', img)
             c = cv2.waitKey(int(1000 * period))
-
+ 
             # Handle input
             if ' ' == chr(c & 255):  # space bar
                 paused = not paused
@@ -411,20 +413,41 @@ class ViconProjector:
                     print(f"Space pressed, visualization paused at markers: {tic_markers:.3f}s, events: {tic_events:.3f}s")
                 else:
                     print(f"Space pressed, visualization resumed from markers: {tic_markers:.3f}s, events: {tic_events:.3f}s")
-
+ 
             # Manual rotation adjustment GUI
             # Enter key pressed, change the angle to change
             elif c == 13:
                 selected_angle = (selected_angle + 1) % 3
                 print(f"Selected rotation axis: {['roll', 'pitch', 'yaw'][selected_angle]}")
+               
+                img = np.ones(self.cam_res, dtype=np.uint8) * 255
+ 
+                # First, redraw events up to current time
+                event_time_end = tic_markers + current_delay
+                event_time_start = event_time_end - period
                 
-                # Force immediate redraw to show the updated axis selection
-                img_temp = np.copy(img)
-                cv2.putText(img_temp, f"Rot (deg) roll={Rot_deg[0]:+.2f} pitch={Rot_deg[1]:+.2f} yaw={Rot_deg[2]:+.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
-                cv2.putText(img_temp, "Keys: space=start/stop | enter = select roll/pitch/yaw | +/- = increase/decrease angle value | q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-                cv2.putText(img_temp, "Currently modifying: " + ['roll', 'pitch', 'yaw'][selected_angle], (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-                cv2.imshow('Manual Rotation', img_temp)
-
+                temp_i_events = 0
+                while temp_i_events < len(e_ts) and e_ts[temp_i_events] < event_time_start:
+                    temp_i_events += 1
+                while temp_i_events < len(e_ts) and e_ts[temp_i_events] < event_time_end:
+                    if 0 <= e_vs[temp_i_events] < self.cam_res[0] and 0 <= e_us[temp_i_events] < self.cam_res[1]:
+                        img[e_vs[temp_i_events], e_us[temp_i_events]] = 0
+                    temp_i_events += 1
+                
+                # Then, draw markers on top
+                if 0 <= i_markers < len(marker_t):
+                    for mark_name in self.marker_names:
+                        if i_markers < len(self.image_points[mark_name]):
+                            u_coord = self.image_points[mark_name][i_markers][0]
+                            v_coord = self.image_points[mark_name][i_markers][1]
+                            
+                            if np.isfinite(u_coord) and np.isfinite(v_coord):
+                                u = int(u_coord)
+                                v = int(v_coord)
+                                if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
+                                    cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
+                                    cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+ 
             # - key pressed -> decrease angle by angle step
             elif c == ord('-'):
                 Rot_deg[selected_angle] -= angle_step
@@ -433,32 +456,72 @@ class ViconProjector:
             elif c == ord('+') or c == ord('='):
                 Rot_deg[selected_angle] += angle_step
                 recalc_needed = True
-
+ 
             # Modify angle_step
             elif c == ord('l'):
                 angle_step += 0.5
                 print(f"Angle step increased to: {angle_step:.3f}")
+               
+                img = np.ones(self.cam_res, dtype=np.uint8) * 255
+ 
+                # First, redraw events up to current time
+                event_time_end = tic_markers + current_delay
+                event_time_start = event_time_end - period
                 
-                # Force immediate redraw to show updated step size
-                img_temp = np.copy(img)
-                cv2.putText(img_temp, f"Rot (deg) roll={Rot_deg[0]:+.2f} pitch={Rot_deg[1]:+.2f} yaw={Rot_deg[2]:+.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
-                cv2.putText(img_temp, f"Angle step: {angle_step:.1f}deg", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 64, 2)
-                cv2.putText(img_temp, "Keys: space=start/stop | enter = select roll/pitch/yaw | +/- = increase/decrease angle value | q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-                cv2.putText(img_temp, "Currently modifying: " + ['roll', 'pitch', 'yaw'][selected_angle], (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-                cv2.imshow('Manual Rotation', img_temp)
+                temp_i_events = 0
+                while temp_i_events < len(e_ts) and e_ts[temp_i_events] < event_time_start:
+                    temp_i_events += 1
+                while temp_i_events < len(e_ts) and e_ts[temp_i_events] < event_time_end:
+                    if 0 <= e_vs[temp_i_events] < self.cam_res[0] and 0 <= e_us[temp_i_events] < self.cam_res[1]:
+                        img[e_vs[temp_i_events], e_us[temp_i_events]] = 0
+                    temp_i_events += 1
                 
+                # Then, draw markers on top
+                if 0 <= i_markers < len(marker_t):
+                    for mark_name in self.marker_names:
+                        if i_markers < len(self.image_points[mark_name]):
+                            u_coord = self.image_points[mark_name][i_markers][0]
+                            v_coord = self.image_points[mark_name][i_markers][1]
+                            
+                            if np.isfinite(u_coord) and np.isfinite(v_coord):
+                                u = int(u_coord)
+                                v = int(v_coord)
+                                if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
+                                    cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
+                                    cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+               
             elif c == ord('k'):
                 angle_step = max(0.5, angle_step - 0.5)
                 print(f"Angle step decreased to: {angle_step:.3f}")
+               
+                img = np.ones(self.cam_res, dtype=np.uint8) * 255
+ 
+                # First, redraw events up to current time
+                event_time_end = tic_markers + current_delay
+                event_time_start = event_time_end - period
                 
-                # Force immediate redraw to show updated step size
-                img_temp = np.copy(img)
-                cv2.putText(img_temp, f"Rot (deg) roll={Rot_deg[0]:+.2f} pitch={Rot_deg[1]:+.2f} yaw={Rot_deg[2]:+.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
-                cv2.putText(img_temp, f"Angle step: {angle_step:.1f}deg", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 64, 2)
-                cv2.putText(img_temp, "Keys: space=start/stop | enter = select roll/pitch/yaw | +/- = increase/decrease angle value | q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-                cv2.putText(img_temp, "Currently modifying: " + ['roll', 'pitch', 'yaw'][selected_angle], (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-                cv2.imshow('Manual Rotation', img_temp)
-
+                temp_i_events = 0
+                while temp_i_events < len(e_ts) and e_ts[temp_i_events] < event_time_start:
+                    temp_i_events += 1
+                while temp_i_events < len(e_ts) and e_ts[temp_i_events] < event_time_end:
+                    if 0 <= e_vs[temp_i_events] < self.cam_res[0] and 0 <= e_us[temp_i_events] < self.cam_res[1]:
+                        img[e_vs[temp_i_events], e_us[temp_i_events]] = 0
+                    temp_i_events += 1
+                
+                # Then, draw markers on top
+                if 0 <= i_markers < len(marker_t):
+                    for mark_name in self.marker_names:
+                        if i_markers < len(self.image_points[mark_name]):
+                            u_coord = self.image_points[mark_name][i_markers][0]
+                            v_coord = self.image_points[mark_name][i_markers][1]
+                            
+                            if np.isfinite(u_coord) and np.isfinite(v_coord):
+                                u = int(u_coord)
+                                v = int(v_coord)
+                                if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
+                                    cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
+                                    cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+ 
             # quit and save current rotation
             elif c == ord('q') or c == 27:
                 cv2.destroyAllWindows()
@@ -466,32 +529,32 @@ class ViconProjector:
                 self.T_system_to_camera[:3, :3] = cv2.Rodrigues(r_vec)[0]
                 self._calculate_projections()
                 raise RotationExit(r_vec)
-            
+           
                 # r_vec = Rotation.from_euler('zyx', [Rot_deg[2], Rot_deg[1], Rot_deg[0]], degrees=True).as_rotvec()
                 # # Update the class transformation matrix
                 # self.T_system_to_camera[:3, :3] = cv2.Rodrigues(r_vec)[0]
                 # # Recalculate projections with new transformation
                 # self._calculate_projections()
                 # return r_vec
-
+ 
             # If rotation changed, recompute projections live and update frame
             if recalc_needed:
                 try:
                     # Build updated rotation
                     R_new = Rotation.from_euler('zyx', [Rot_deg[2], Rot_deg[1], Rot_deg[0]], degrees=True).as_matrix()
                     current_T[:3, :3] = R_new
-
+ 
                     # Temporarily update transformation and recalculate projections
                     self.T_system_to_camera = current_T
                     self._calculate_projections()
-
+ 
                     # Redraw current frame with both markers and events
                     img = np.ones(self.cam_res, dtype=np.uint8) * 255
-                    
+                   
                     # First, redraw events up to current time
                     event_time_end = tic_markers + current_delay
                     event_time_start = event_time_end - period
-                    
+                   
                     temp_i_events = 0
                     while temp_i_events < len(e_ts) and e_ts[temp_i_events] < event_time_start:
                         temp_i_events += 1
@@ -499,48 +562,48 @@ class ViconProjector:
                         if 0 <= e_vs[temp_i_events] < self.cam_res[0] and 0 <= e_us[temp_i_events] < self.cam_res[1]:
                             img[e_vs[temp_i_events], e_us[temp_i_events]] = 0
                         temp_i_events += 1
-                    
+                   
                     # Then, draw markers on top
                     if 0 <= i_markers < len(marker_t):
                         for mark_name in self.marker_names:
                             if i_markers < len(self.image_points[mark_name]):
                                 u_coord = self.image_points[mark_name][i_markers][0]
                                 v_coord = self.image_points[mark_name][i_markers][1]
-                                
+                               
                                 if np.isfinite(u_coord) and np.isfinite(v_coord):
                                     u = int(u_coord)
                                     v = int(v_coord)
                                     if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
                                         cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
                                         cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
-                                
+                               
                     print(f"Recomputed projections: roll={Rot_deg[0]:.2f}, pitch={Rot_deg[1]:.2f}, yaw={Rot_deg[2]:.2f}")
-
+ 
                     if chosen_one is not None and chosen_one in self.image_points:
                         idx = max(0, min(i_markers - 1, len(marker_t) - 1))
                         if idx < len(self.image_points[chosen_one]):
                             uv = self.image_points[chosen_one][idx]
                             print(f"[recalc] marker='{chosen_one}' frame_idx={idx} image_uv={tuple(uv)}")
-
+ 
                 except Exception as e:
                     print("Error recomputing projections:", e)
-
+ 
                 recalc_needed = False
-
+ 
             # Update timers (only when not paused)
             if not paused:
                 img = np.ones(self.cam_res, dtype=np.uint8) * 255
                 tic_markers += period
                 tic_events += period
-
+ 
         #cv2.destroyAllWindows()
         r_vec = Rotation.from_euler('zyx', [Rot_deg[2], Rot_deg[1], Rot_deg[0]], degrees=True).as_rotvec()
         # Update the class transformation matrix
         self.T_system_to_camera[:3, :3] = cv2.Rodrigues(r_vec)[0]
         # Recalculate projections with new transformation
         self._calculate_projections()
-        return r_vec   
-     
+        return r_vec  
+    
     def fix_delay(self, marker_t, delay, e_ts, e_us, e_vs, period, 
               visualize=True, marker_time_offset=0.0):
         # Project points from Vicon to event plane using a transformation matrix for each frame
@@ -946,6 +1009,21 @@ class DvsLabeler:
         
     # TODO: add method to match markers from first estimated projection 
     # and manually match it to object in the scene
+    
+    def select_label_tkinter(self, marker_labels):
+        # dropdown menu to select labels.
+        # TODO: make it better
+        
+        root = tk.Tk()
+        root.withdraw()
+
+        selected = simpledialog.askstring(
+            "Select Label",
+            "Choose a label:\n" + "\n".join(f"{i}: {l}" for i, l in enumerate(marker_labels)),
+            parent=root
+        )
+        root.destroy()
+        return selected
 
     def select_label_terminal(self, marker_labels):
         # Terminal-based label selection
@@ -1004,7 +1082,8 @@ class DvsLabeler:
 
         def on_click(event, x, y, flags, param):
             if event == cv2.EVENT_LBUTTONDOWN:
-                label_val = self.select_label_terminal(marker_labels)
+                # label_val = self.select_label_terminal(marker_labels)
+                label_val = self.select_label_tkinter(marker_labels)
                 if label_val is None:
                     print("Labeling aborted by user.")
                     self.abort_labeling = True

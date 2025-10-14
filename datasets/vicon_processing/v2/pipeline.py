@@ -67,6 +67,31 @@ class ViconDVSPipeline:
         self.Ts_world_to_system = None    
 
 ###
+    def _detect_subject_from_c3d(self) -> Optional[str]:
+        subject_counts = {}
+        
+        for marker_name in self.marker_names:
+            marker_name = marker_name.strip()
+            if ':' in marker_name:
+                # Extract the part before the colon as potential subject
+                potential_subject = marker_name.split(':', 1)[0].strip()
+                
+                # Check if it matches common subject patterns (P1, P2, etc. or S1, S2, etc.)
+                if potential_subject and (
+                    potential_subject.startswith('P') or
+                    potential_subject.startswith('S') or
+                    potential_subject.startswith('Subject')
+                ):
+                    subject_counts[potential_subject] = subject_counts.get(potential_subject, 0) + 1
+        
+        if subject_counts:
+            # Return the subject with the most markers
+            most_common_subject = max(subject_counts.keys(), key=lambda x: subject_counts[x])
+            print(f"Found subject patterns: {dict(subject_counts)}")
+            return most_common_subject
+        
+        return None
+
     # TODO: make it so that i don't use list of known markers but look for 'cam', 'camera', 'dvs', etc...
     def prompt_camera_setup(self) -> str:
         """Ask user how many markers are attached to the camera to understand setup."""
@@ -293,6 +318,14 @@ class ViconDVSPipeline:
         self.marker_names = [name.strip() for name in self.c3d_data.point_labels]
         print(f"Loaded {len(self.marker_names)} total markers")
         
+        # Auto-detect subject from C3D file if not provided
+        if self.subject is None:
+            self.subject = self._detect_subject_from_c3d()
+            if self.subject:
+                print(f"Auto-detected subject from C3D file: {self.subject}")
+            else:
+                print("No subject pattern detected in C3D marker names")
+        
         # # Detect camera setup if auto
         # if self.camera_setup == "auto":
         #     self.camera_setup = self.detect_marker_setup()
@@ -387,7 +420,7 @@ class ViconDVSPipeline:
         cv2.namedWindow('Event Visualization', cv2.WINDOW_NORMAL)
         
         try:
-            while ft < float("%.2f" % self.end_time):
+            while ft < float("%.1f" % self.end_time):
                 window_end = min(window_start + window_size, self.end_time)
                 window_center = (window_start + window_end) / 2
                 
@@ -467,9 +500,9 @@ class ViconDVSPipeline:
         window_start = self.start_time
         rvec_init = np.zeros(3)
                         
-        # TODO: find better solution than .2f 
+        # TODO: find better solution than .1f 
         try:
-            while window_start < float("%.2f" % self.end_time):
+            while window_start < self.end_time:  # float("%.1f" % self.end_time):
                 window_end = window_start + window_size
                 window_center = (window_start + window_end) / 2
 
@@ -485,16 +518,20 @@ class ViconDVSPipeline:
                     continue
 
                 print(f"Processing {len(e_ts)} events between {e_ts[0]:.3f}s and {e_ts[-1]:.3f}s")
+                
+                R_init = Rotation.from_rotvec(rvec_init).as_matrix()
 
                 # Call projector manual rotation adjustment
                 rvec_init = projector.manual_rotation_adjustment(
                     self.marker_t, self.delay, e_ts, e_us, e_vs, 
-                    self.period, visualize=True, chosen_one=chosen_one,
-                    marker_time_offset=window_start
+                    self.period, R_init=R_init, visualize=True, 
+                    chosen_one=chosen_one, marker_time_offset=window_start
                 )
-
-                window_start = e_ts[-1] if len(e_ts) > 0 else window_start + window_size
                 
+                window_start = window_end
+
+                print("window_start updated to:", window_start)
+
         except helpers.RotationExit as e:
             print("Visualization stopped by user with final rotation.")
             rvec_init = e.r_vec
@@ -535,7 +572,7 @@ class ViconDVSPipeline:
         )
 
         try:
-            while window_start < float("%.2f" % self.end_time):
+            while window_start < float("%.1f" % self.end_time):
                 window_end = window_start + window_size
                 window_center = (window_start + window_end) / 2
 
@@ -555,7 +592,7 @@ class ViconDVSPipeline:
                 
                 print("e_ts final:", e_ts[-1], "window_start:", window_start, "window_size:", window_size)
 
-                window_start = e_ts[-1] if len(e_ts) > 0 else window_start + window_size
+                window_start = window_end
                 
                 print("window_start updated to:", window_start)
                 
@@ -608,7 +645,9 @@ class ViconDVSPipeline:
         if not self.markers_names:
             self.markers_names = self.get_markers_names()
         
-        labels_path = os.path.join(os.path.dirname(self.output_path), 'labeled_points.yml')
+        # labels_path = os.path.join(os.path.dirname(self.output_path), 'labeled_points.yml')
+        
+        
         
         window_size = 1000 * self.period
         window_start = self.start_time
@@ -619,7 +658,7 @@ class ViconDVSPipeline:
         labeler.points_dict = {'points': [], 'times': []}
         
         try:
-            while window_start < float("%.2f" % self.end_time):
+            while window_start < float("%.1f" % self.end_time):
                 window_end = window_start + window_size
                 window_center = (window_start + window_end) / 2
 
@@ -650,7 +689,7 @@ class ViconDVSPipeline:
                     )
                     # labeler._merge_window_into_accumulated(window_dict)
 
-                window_start = e_ts[-1] if len(e_ts) > 0 else window_start + window_size
+                window_start = window_end
                 
         except helpers.LabelExit as e:
             print("Labeling stopped early by user, saving partial results.")
@@ -660,18 +699,32 @@ class ViconDVSPipeline:
 
         finally:
             cv2.destroyAllWindows()
-            
-            # Ensure labeled_dict is set to accumulated points_dict before saving
-            if hasattr(labeler, 'points_dict') and labeler.points_dict:
+
+            # Always merge final accumulated results
+            if hasattr(labeler, "points_dict") and labeler.points_dict:
                 labeler.labeled_dict = labeler.points_dict
 
-            if hasattr(labeler, 'labels_done') and labeler.labels_done and labeler.labeled_dict:
-                labeler.save_labeled_points(labels_path)
-                print(f"Saved labeled points to: {labels_path}")
+                # Check if we actually have labels
+                has_labels = (
+                    'points' in labeler.labeled_dict
+                    and any(len(p) > 0 for p in labeler.labeled_dict['points'])
+                )
+
+                if has_labels:
+                    labeler.labels_done = True
+
+                    # Define default save path if not provided
+                    # labels_path = self.output_path
+
+                    labeler.save_labeled_points(self.output_path)
+                    print(f"Saved labeled points to: {self.output_path}")
+                else:
+                    print("No labeled points found — nothing saved.")
             else:
-                print("No labels were created - labeling process was incomplete")
-        
-        return labels_path
+                print("Labeler has no labeled_dict or points_dict.")
+
+
+        return self.output_path
 
     def create_projection_video(self, output_video: str = 'projection_video.mp4'):
         """Create video with projected markers using windowed approach and collect all image points."""
@@ -699,7 +752,7 @@ class ViconDVSPipeline:
             all_projected_points[marker_name] = []
         
         try:
-            while window_start < float("%.2f" % self.end_time): # TODO: properly fix this, as it is pretty bad like this
+            while window_start < float("%.1f" % self.end_time): # TODO: properly fix this, as it is pretty bad like this
                 window_end = window_start + window_size
                 window_center = (window_start + window_end) / 2
 
@@ -732,7 +785,7 @@ class ViconDVSPipeline:
                         image_points, all_projected_points, window_start
                     )
 
-                window_start = e_ts[-1] if len(e_ts) > 0 else window_start + window_size
+                window_start = window_end
                 
                 print(e_ts[-1], "window_start updated to:", window_start)
 
@@ -1201,7 +1254,7 @@ class ViconDVSPipeline:
         
     def run_full_pipeline(self, manual_calibration: bool = True, 
         use_projections: bool = False, create_video: bool = True,
-        init_file_path: str = None, labels_path: str = None, chosen_marker: str = None):
+        init_file_path: str = None, chosen_marker: str = None):
         
         """Run the complete pipeline."""
         print("Starting VICON-DVS pipeline...")
@@ -1239,14 +1292,10 @@ class ViconDVSPipeline:
             self.delay = self.manual_delay_correction()
             
             # 6. Interactive labeling or use existing labels
-            if labels_path and os.path.exists(labels_path):
-                final_labels_path = labels_path
-            else:
-                print("Starting interactive labeling...")
-                final_labels_path = self.label_data_interactive(use_projections=use_projections)
+            self.label_data_interactive(use_projections=use_projections)
             
             # 7. Optimize calibration
-            self.optimize_calibration(final_labels_path)
+            self.optimize_calibration(self.output_path)
             
             # 8. Save calibration
             self.save_calibration(init_file)
@@ -1291,7 +1340,6 @@ class ViconDVSPipeline:
                         use_projections=use_projections,
                         create_video=create_video,
                         init_file_path=None,  # Force no init file on restart
-                        labels_path=labels_path,  # Keep the same labels path for restart
                         chosen_marker=chosen_marker
                     )
                 else:
@@ -1311,19 +1359,17 @@ def main():
     )
     
     parser.add_argument('--dvs_path', required=True,
-                       help='Path to the YARP folder containing DVS recording')
+                       help='REQUIRED: Path to the YARP folder containing DVS recording')
     parser.add_argument('--vicon_path', required=True,
-                       help='Path to the .c3d file containing VICON recording')
+                       help='REQUIRED: Path to the .c3d file containing VICON recording')
     parser.add_argument('--intrinsic', required=True,
-                       help='path directing to the intrinsic calibration file for the camera')
+                       help='REQUIRED: path directing to the intrinsic calibration file for the camera')
     parser.add_argument('--init_file', default=None,
                        help='Path to initialization file containing transformation matrix and delay')
     parser.add_argument('--output_path', required=True,
-                       help='Output path for labeled points (YAML file)')
+                       help='REQUIRED: Output path for labeled points (YAML file)')
     parser.add_argument('--subject', default=None,      # TODO: needed only for hpe, maybe read the subject from the c3d file?
                        help='Subject name for labels (e.g., P1, P11)')
-    parser.add_argument('--labels_path', default=None,
-                       help='Path to existing labeled points YAML file')
     parser.add_argument('--marker_list_path', default=None,
                        help='Path to a text or YAML file listing desired marker labels')
     parser.add_argument('--camera_setup', choices=['single', 'multi', 'auto'], default='auto',      # TODO: remove this and try to look for known words in the c3d file
@@ -1331,7 +1377,7 @@ def main():
     parser.add_argument('--chosen_marker', default=None,            # TODO: not really that usefult as it is read to be the first element of array of markers, but can be useful depending on c3d structure
                        help='Specific marker to use for rotation adjustment feedback')
     parser.add_argument('--list', action='store_true',
-                       help='Use list-based labeling interface')
+                       help='Use list-based labeling interface, N.B. there are two ways to do this, by apt installing tkinter or by using the terminal interface, default is tkinter, modify line 1085 in helpers.py to change between the two')
     parser.add_argument('--projections', action='store_true',
                        help='Use projection-based labeling interface')
     parser.add_argument('--no-manual', action='store_true',
@@ -1379,7 +1425,6 @@ def main():
         use_projections=args.projections,
         create_video=not args.no_video,
         init_file_path=args.init_file,
-        labels_path=args.labels_path,
         chosen_marker=args.chosen_marker
     )
     
