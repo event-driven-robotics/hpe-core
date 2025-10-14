@@ -13,9 +13,7 @@ from scipy.spatial.transform import Rotation
 from scipy.signal import butter, lfilter, freqz, filtfilt
 from scipy.optimize import least_squares
 
-# dropdown menu for labeling points
-import tkinter as tk
-from tkinter import simpledialog
+# Terminal-based input for labeling points
 
 # Exceptions to pass values even after interruptions
 class RotationExit(Exception):
@@ -949,20 +947,39 @@ class DvsLabeler:
     # TODO: add method to match markers from first estimated projection 
     # and manually match it to object in the scene
 
-    def select_label_tkinter(self, marker_labels):
-        # dropdown menu to select labels.
-        # TODO: make it better
+    def select_label_terminal(self, marker_labels):
+        # Terminal-based label selection
         
-        root = tk.Tk()
-        root.withdraw()
-
-        selected = simpledialog.askstring(
-            "Select Label",
-            "Choose a label:\n" + "\n".join(f"{i}: {l}" for i, l in enumerate(marker_labels)),
-            parent=root
-        )
-        root.destroy()
-        return selected
+        print("\nAvailable labels:")
+        for i, label in enumerate(marker_labels):
+            print(f"  {i}: {label}")
+        
+        while True:
+            try:
+                user_input = input("Select label (enter number or exact label name): ").strip()
+                
+                # Try to parse as number first
+                if user_input.isdigit():
+                    idx = int(user_input)
+                    if 0 <= idx < len(marker_labels):
+                        return str(idx)
+                    else:
+                        print(f"Invalid index. Please enter a number between 0 and {len(marker_labels)-1}")
+                        continue
+                
+                # Try to match exact label name
+                if user_input in marker_labels:
+                    return user_input
+                
+                # If nothing matches, ask again
+                print("Invalid input. Please enter a valid number or exact label name.")
+                
+            except KeyboardInterrupt:
+                print("\nLabeling cancelled by user.")
+                return None
+            except Exception as e:
+                print(f"Error: {e}. Please try again.")
+                continue
 
     #TODO: CLEAN CODE!!!!!!
     def label_frame(self, frame: np.ndarray, timestamp: float = None, label_tag_file: str = None) -> Tuple[bool, bool, dict, np.ndarray]:
@@ -987,7 +1004,7 @@ class DvsLabeler:
 
         def on_click(event, x, y, flags, param):
             if event == cv2.EVENT_LBUTTONDOWN:
-                label_val = self.select_label_tkinter(marker_labels)
+                label_val = self.select_label_terminal(marker_labels)
                 if label_val is None:
                     print("Labeling aborted by user.")
                     self.abort_labeling = True
