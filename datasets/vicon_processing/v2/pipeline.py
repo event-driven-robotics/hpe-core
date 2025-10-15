@@ -1252,8 +1252,7 @@ class ViconDVSPipeline:
                 
     #     print(f"Saved transformation matrices to {output_file}")
         
-    def run_full_pipeline(self, manual_calibration: bool = True, 
-        use_projections: bool = False, create_video: bool = True,
+    def run_full_pipeline(self, use_projections: bool = False, create_video: bool = True,
         init_file_path: str = None, chosen_marker: str = None):
         
         """Run the complete pipeline."""
@@ -1275,7 +1274,7 @@ class ViconDVSPipeline:
         # 3. Compute world to system transforms
         self.compute_world_to_system_transforms()
         
-        if not calibration_exists and manual_calibration:
+        if not calibration_exists:
             print("No existing calibration found. Starting manual calibration...")
             
             # 4. Manual rotation estimation with marker filter
@@ -1336,7 +1335,6 @@ class ViconDVSPipeline:
                     
                     # Restart the full pipeline with no init file and forced manual calibration
                     return self.run_full_pipeline(
-                        manual_calibration=True,
                         use_projections=use_projections,
                         create_video=create_video,
                         init_file_path=None,  # Force no init file on restart
@@ -1365,23 +1363,21 @@ def main():
     parser.add_argument('--intrinsic', required=True,
                        help='REQUIRED: path directing to the intrinsic calibration file for the camera')
     parser.add_argument('--init_file', default=None,
-                       help='Path to initialization file containing transformation matrix and delay')
+                       help='Path to initialization file containing transformation matrix and delay, or path to save new one if not existing')
     parser.add_argument('--output_path', required=True,
                        help='REQUIRED: Output path for labeled points (YAML file)')
     parser.add_argument('--subject', default=None,      # TODO: needed only for hpe, maybe read the subject from the c3d file?
-                       help='Subject name for labels (e.g., P1, P11)')
+                       help='Subject name for labels (e.g., P1, P11), it is read from the .c3d file if not provided')
     parser.add_argument('--marker_list_path', default=None,
                        help='Path to a text or YAML file listing desired marker labels')
     parser.add_argument('--camera_setup', choices=['single', 'multi', 'auto'], default='auto',      # TODO: remove this and try to look for known words in the c3d file
-                       help='Camera marker setup: single marker, multi-marker, or auto-detect')
+                       help='Camera marker setup: single marker, multi-marker, or auto-detect, default auto detects the setup, however it is not generalized')
     parser.add_argument('--chosen_marker', default=None,            # TODO: not really that usefult as it is read to be the first element of array of markers, but can be useful depending on c3d structure
                        help='Specific marker to use for rotation adjustment feedback')
     parser.add_argument('--list', action='store_true',
                        help='Use list-based labeling interface, N.B. there are two ways to do this, by apt installing tkinter or by using the terminal interface, default is tkinter, modify line 1085 in helpers.py to change between the two')
     parser.add_argument('--projections', action='store_true',
                        help='Use projection-based labeling interface')
-    parser.add_argument('--no-manual', action='store_true',
-                       help='Skip manual calibration if existing calibration found')
     parser.add_argument('--no_video', action='store_true',
                        help='Skip video creation')
     parser.add_argument('--visualize_events', action='store_true',
@@ -1421,7 +1417,6 @@ def main():
     
     # Run full pipeline
     pipeline.run_full_pipeline(
-        manual_calibration=not args.no_manual,
         use_projections=args.projections,
         create_video=not args.no_video,
         init_file_path=args.init_file,
