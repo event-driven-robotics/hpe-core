@@ -1224,7 +1224,7 @@ class ViconDVSPipeline:
         def format_matrix_block(T: np.ndarray) -> str:
             rows = []
             for i, row in enumerate(T):
-                row_str = " ".join(f"{val: .8e}" for val in row).lstrip()
+                row_str = " ".join(f"{val: .5f}" for val in row).lstrip()
                 if i == 0:
                     rows.append(f"[[ {row_str}]")
                 elif i == T.shape[0] - 1:
