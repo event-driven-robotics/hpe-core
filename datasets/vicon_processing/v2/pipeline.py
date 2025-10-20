@@ -251,7 +251,7 @@ class ViconDVSPipeline:
 
             # Loop until valid input
             while True:
-                user_input = input("Select event stream (type index number or name): ").strip()
+                user_input = input("Select event stream (type index number or name): ")).strip()
 
                 if user_input.isdigit():
                     # Number input
@@ -369,15 +369,42 @@ class ViconDVSPipeline:
     def visualize_events(self):
         """Visualize event data for a specified duration."""
         
-        print(f"Visualizing events")
-        print("\n" + "="*60)
-        print("EVENT VISUALIZATION - GUI INSTRUCTIONS")
-        print("="*60)
-        print("A window will show the raw event data stream.")
-        print("This helps you understand the data before calibration.")
-        print("\nControls:")
-        print("  • q or ESC: Stop visualization")
-        print("="*60)    
+        print("Visualizing events...")
+        print("\n" + "="*80)
+        print("EVENT VISUALIZATION - DETAILED GUI INSTRUCTIONS")
+        print("="*80)
+        print("🎯 OBJECTIVE: Understand your DVS event data")
+        print("   This preview helps you examine the raw event stream before")
+        print("   beginning calibration, so you know what to expect.")
+        print()
+        print("📋 WHAT YOU'LL SEE:")
+        print("   • White pixels on black background (each white pixel = 1 event)")
+        print("   • Events appear and fade as time progresses")
+        print("   • Timestamp counter in the corner")
+        print("   • Activity patterns from camera motion and scene dynamics")
+        print()
+        print("🎮 CONTROLS:")
+        print("   • Q or ESC: Stop visualization and continue")
+        print("   • Window can be resized by dragging corners")
+        print()
+        print("💡 WHAT TO LOOK FOR:")
+        print("   • Overall event density and distribution")
+        print("   • Patterns that might correspond to marker movements")
+        print("   • Areas of high activity (potential marker locations)")
+        print("   • Noise levels and data quality")
+        print("   • Timing of major movements or scene changes")
+        print()
+        print("📊 DATA QUALITY INDICATORS:")
+        print("   • Smooth, consistent patterns = good data quality")
+        print("   • Random scattered events = noise or poor lighting")
+        print("   • Dense clusters = potential marker activity")
+        print("   • Clear motion trails = good for calibration")
+        print("="*80)
+        
+        input("\n📖 Press ENTER to start event visualization...")
+        print("🚀 Starting event stream preview...")
+        print("   (Press 'q' in the window to stop and continue)")
+        print()    
         
         img = np.ones(self.cam_res, dtype=np.uint8) * 255
         ft = self.start_time
@@ -391,7 +418,14 @@ class ViconDVSPipeline:
                 window_end = min(window_start + window_size, self.end_time)
                 window_center = (window_start + window_end) / 2
                 
-                e_data = self.imp.get_data_at_time(window_center, window_size)
+                # Load events for this window with proper waiting
+                e_data = self._load_events_with_wait(window_center, window_size, max_retries=3)
+                
+                if e_data is None:
+                    print(f"Failed to load events for window [{window_start:.3f}, {window_end:.3f}] after retries")
+                    window_start += window_size
+                    continue
+                
                 e_ts = np.array(e_data['ts'])
                 e_us = np.array(e_data['x'])
                 e_vs = np.array(e_data['y'])
@@ -420,21 +454,96 @@ class ViconDVSPipeline:
         finally:
             cv2.destroyAllWindows()
         
+    def _load_events_with_wait(self, window_center: float, window_size: float, max_retries: int = 3):
+        """Load events with proper waiting and validation to prevent visualization gaps."""
+        import time
+        
+        for attempt in range(max_retries):
+            try:
+                # Load events with a small delay to ensure proper loading
+                time.sleep(0.1)  # Small pause to allow proper data access
+                
+                e_data = self.imp.get_data_at_time(window_center, window_size)
+                
+                # Validate that we got proper event data
+                if ('ts' in e_data and 'x' in e_data and 'y' in e_data and
+                    len(e_data['ts']) > 0 and 
+                    len(e_data['x']) == len(e_data['ts']) and
+                    len(e_data['y']) == len(e_data['ts'])):
+                    
+                    # Additional validation: check for reasonable timestamp range
+                    ts_array = np.array(e_data['ts'])
+                    expected_start = window_center - window_size/2
+                    expected_end = window_center + window_size/2
+                    
+                    if (ts_array.min() >= expected_start - window_size*0.1 and 
+                        ts_array.max() <= expected_end + window_size*0.1):
+                        return e_data
+                    else:
+                        print(f"  ⚠️ Attempt {attempt+1}: Event timestamps outside expected range, retrying...")
+                else:
+                    print(f"  ⚠️ Attempt {attempt+1}: Incomplete event data, retrying...")
+                    
+            except Exception as e:
+                print(f"  ⚠️ Attempt {attempt+1}: Error loading events - {e}")
+            
+            # Wait before retry with exponential backoff
+            if attempt < max_retries - 1:
+                wait_time = 0.2 * (2 ** attempt)  # 0.2s, 0.4s, 0.8s
+                time.sleep(wait_time)
+        
+        print(f"  ❌ Failed to load valid event data after {max_retries} attempts")
+        return None
+
     def manual_rotation_estimation(self, chosen_marker: Optional[str] = None) -> np.ndarray:
         """Manually estimate rotation using visual feedback with windowed approach."""
         print("Starting manual rotation estimation...")
-        print("\n" + "="*60)
-        print("MANUAL ROTATION ESTIMATION - GUI INSTRUCTIONS")
-        print("="*60)
-        print("A window will open showing event data with projected markers.")
-        print("Use the following controls to manually adjust the camera rotation:")
-        print("  • SPACE: Pause/resume event visualization")
-        print("  • ENTER: Select rotation axis (roll/pitch/yaw)")
-        print("  • +/-: Increase/decrease angle of selected axis by the current step size")
-        print("  • k/l: Increase/decrease angle step size (default 0.5 degrees)")
-        print("  • q or ESC: Finish rotation adjustment")
-        print("\nGoal: Align the projected markers with the events as closely as possible.")
-        print("Look for the feedback marker to get an idea of where on the event plane the markers are being projected:\n")
+        print("\n" + "="*80)
+        print("MANUAL ROTATION ESTIMATION - DETAILED GUI INSTRUCTIONS")
+        print("="*80)
+        print("🎯 OBJECTIVE: Align projected markers with actual event data")
+        print("   The goal is to find the correct camera rotation so that VICON marker")
+        print("   projections overlap with the corresponding events in the DVS stream.")
+        print()
+        print("📋 WHAT YOU'LL SEE:")
+        print("   • Black background with white events (pixels)")
+        print("   • Colored circles: projected marker positions")
+        print("   • Text overlay: current rotation values and step size")
+        print("   • One highlighted marker for reference (feedback marker)")
+        print()
+        print("🎮 CONTROLS:")
+        print("   • SPACE: Pause/resume event stream playback")
+        print("   • ENTER: Cycle through rotation axes (Roll → Pitch → Yaw → Roll...)")
+        print("   • + or =: Increase current axis angle by step size")
+        print("   • - or _: Decrease current axis angle by step size") 
+        print("   • k: Decrease step size (more precise adjustments)")
+        print("   • l: Increase step size (faster adjustments)")
+        print("   • r: Reset all rotations to zero")
+        print("   • h: Show this help again")
+        print("   • q or ESC: Finish and save current rotation")
+        print()
+        print("💡 TIPS:")
+        print("   • Start with large steps (5-10°) for rough alignment")
+        print("   • Use smaller steps (0.1-1°) for fine-tuning")
+        print("   • Pause the stream to examine alignment closely")
+        print("   • Focus on the feedback marker movement as you adjust")
+        print("   • If markers disappear, they may be outside camera view")
+        print()
+        print("🔄 WORKFLOW:")
+        print("   1. Watch the event stream and projected markers")
+        print("   2. Identify which direction markers need to move")
+        print("   3. Select appropriate axis with ENTER")
+        print("   4. Adjust angle with +/- keys")
+        print("   5. Switch to different axis as needed")
+        print("   6. Fine-tune with smaller steps")
+        print("   7. Press 'q' when satisfied with alignment")
+        print("="*80)
+        
+        # Wait for user confirmation
+        input("\n📖 Press ENTER when you've read the instructions and are ready to begin...")
+        print("🚀 Starting rotation estimation GUI...")
+        print("   (Remember: press 'h' in the GUI window to see controls again)")
+        print()
 
         # TODO: ask user input for initial rotation values and translations??
         
@@ -473,8 +582,15 @@ class ViconDVSPipeline:
                 window_end = window_start + window_size
                 window_center = (window_start + window_end) / 2
 
-                # Load events for this window
-                e_data = self.imp.get_data_at_time(window_center, window_size)
+                # Load events for this window with proper waiting
+                print(f"Loading events for window [{window_start:.3f}, {window_end:.3f}]...")
+                e_data = self._load_events_with_wait(window_center, window_size, max_retries=3)
+                
+                if e_data is None:
+                    print(f"Failed to load events for window [{window_start:.3f}, {window_end:.3f}] after retries")
+                    window_start += window_size
+                    continue
+                
                 e_ts = np.array(e_data['ts'])
                 e_us = np.array(e_data['x'])
                 e_vs = np.array(e_data['y'])
@@ -484,7 +600,7 @@ class ViconDVSPipeline:
                     window_start += window_size
                     continue
 
-                print(f"Processing {len(e_ts)} events between {e_ts[0]:.3f}s and {e_ts[-1]:.3f}s")
+                print(f"✅ Successfully loaded {len(e_ts)} events between {e_ts[0]:.3f}s and {e_ts[-1]:.3f}s")
 
                 # Call projector manual rotation adjustment
                 rvec_init = projector.manual_rotation_adjustment(
@@ -506,19 +622,52 @@ class ViconDVSPipeline:
 
     def manual_delay_correction(self) -> float:
         """Manually correct synchronization delay using windowed approach."""
-        print("Starting manual ...")
-        
         print("Starting manual delay correction...")
-        print("\n" + "="*60)
-        print("MANUAL DELAY CORRECTION - GUI INSTRUCTIONS")
-        print("="*60)
-        print("A window will open showing event data with projected markers.")
-        print("Use the following controls to manually adjust the delay to best synchronize the delay between events and vicon data:")
-        print("  • SPACE: Pause/resume event visualization")
-        print("  • +/-: Increase/decrease the delay by the current step size")
-        print("  • k/l: Increase/decrease step size (default 0.1 seconds)")
-        print("  • q or ESC: Finish delay adjustment")
-        print("\nGoal: Time align the projected markers with the events as closely as possible.\n")
+        print("\n" + "="*80)
+        print("MANUAL DELAY CORRECTION - DETAILED GUI INSTRUCTIONS") 
+        print("="*80)
+        print("🎯 OBJECTIVE: Synchronize VICON and DVS timestamps")
+        print("   The goal is to find the correct time delay so that VICON marker")
+        print("   movements align temporally with corresponding events in the DVS stream.")
+        print()
+        print("📋 WHAT YOU'LL SEE:")
+        print("   • Event stream playing over time")
+        print("   • Projected markers moving based on VICON data")
+        print("   • Text overlay: current delay value and step size")
+        print("   • Timestamp information for both data streams")
+        print()
+        print("🎮 CONTROLS:")
+        print("   • SPACE: Pause/resume event stream playback")
+        print("   • + or =: Increase delay (VICON events happen later)")
+        print("   • - or _: Decrease delay (VICON events happen earlier)")
+        print("   • k: Decrease step size (more precise timing)")
+        print("   • l: Increase step size (faster timing changes)")
+        print("   • r: Reset delay to zero")
+        print("   • h: Show this help again")
+        print("   • q or ESC: Finish and save current delay")
+        print()
+        print("💡 TIPS:")
+        print("   • Look for marker movements that correspond to event activity")
+        print("   • Start with large steps (0.1-0.5s) for rough sync")
+        print("   • Use smaller steps (0.01-0.05s) for fine-tuning")
+        print("   • Pause to examine timing relationships closely")
+        print("   • Positive delay: VICON data is ahead of DVS data")
+        print("   • Negative delay: DVS data is ahead of VICON data")
+        print()
+        print("🔄 WORKFLOW:")
+        print("   1. Watch both event activity and marker movements")
+        print("   2. Identify if markers lead or lag behind events")
+        print("   3. Adjust delay in appropriate direction")
+        print("   4. Look for moments with clear motion correlation")
+        print("   5. Fine-tune until movements are synchronized")
+        print("   6. Press 'q' when timing looks correct")
+        print("="*80)
+        
+        # Wait for user confirmation  
+        input("\n📖 Press ENTER when you've read the instructions and are ready to begin...")
+        print("🚀 Starting delay correction GUI...")
+        print("   (Remember: press 'h' in the GUI window to see controls again)")
+        print()
         
         if not self.markers_names:
             self.markers_names = self.get_markers_names()
@@ -539,13 +688,25 @@ class ViconDVSPipeline:
                 window_end = window_start + window_size
                 window_center = (window_start + window_end) / 2
 
-                # Load events for this window
-                e_data = self.imp.get_data_at_time(window_center, window_size)
+                # Load events for this window with proper waiting
+                print(f"Loading events for window [{window_start:.3f}, {window_end:.3f}]...")
+                e_data = self._load_events_with_wait(window_center, window_size, max_retries=3)
+                
+                if e_data is None:
+                    print(f"Failed to load events for window [{window_start:.3f}, {window_end:.3f}] after retries")
+                    window_start += window_size
+                    continue
+                
                 e_ts = np.array(e_data['ts'])
                 e_us = np.array(e_data['x'])
                 e_vs = np.array(e_data['y'])
 
-                print(f"Processing {len(e_ts)} events between {e_ts[0]:.3f}s and {e_ts[-1]:.3f}s")
+                if len(e_ts) == 0:
+                    print(f"No events in window [{window_start:.3f}, {window_end:.3f}]")
+                    window_start += window_size
+                    continue
+
+                print(f"✅ Successfully loaded {len(e_ts)} events between {e_ts[0]:.3f}s and {e_ts[-1]:.3f}s")
 
                 # Call projector delay adjustment
                 self.delay = projector.fix_delay(
@@ -573,32 +734,85 @@ class ViconDVSPipeline:
         print("Starting interactive labeling...")
         
         if use_projections:
-            print("\n" + "="*60)
-            print("INTERACTIVE PROJECTION-BASED LABELING - GUI INSTRUCTIONS")
-            print("="*60)
-            print("A window will open showing event data frames.")
-            print("After clicking a point on the screen, all the projections of the markers will appear.")
-            print("You can label the marker by clicking on the projected points.")
-            print("  • Left click: Select position / assign projected marker")
-            print("  • SPACE: Skip current frame")
-            print("  • S: Save labels for current frame and continue")
-            print("  • BACKSPACE: Delete last labeled marker")
-            print("  • q or ESC: Finish labeling process, save the results and exit")
-            print("\nGoal: Label the marker using projections to have a faster interaction. These labels will then be used to construct 2D-3D correspondences")
+            print("\n" + "="*80)
+            print("INTERACTIVE PROJECTION-BASED LABELING - DETAILED GUI INSTRUCTIONS")
+            print("="*80)
+            print("🎯 OBJECTIVE: Create 2D-3D correspondences using projected markers")
+            print("   You'll click on event locations and match them with projected VICON markers")
+            print("   to build training data for calibration optimization.")
+            print()
+            print("📋 WHAT YOU'LL SEE:")
+            print("   • Event data frames (white events on black background)")
+            print("   • After clicking: colored circles showing all projected markers")
+            print("   • Marker names and numbers for identification")
+            print("   • Frame counter and progress information")
+            print()
+            print("🎮 CONTROLS:")
+            print("   • LEFT CLICK: Click on an event location you want to label")
+            print("   • LEFT CLICK (on projection): Assign that projected marker to clicked location")
+            print("   • SPACE: Skip current frame (move to next)")
+            print("   • S: Save labels for current frame and continue to next")
+            print("   • BACKSPACE: Delete the last labeled marker")
+            print("   • R: Restart labeling for current frame")
+            print("   • H: Show this help again")
+            print("   • Q or ESC: Finish labeling process and save results")
+            print()
+            print("💡 TIPS:")
+            print("   • Look for clear, isolated event clusters")
+            print("   • Click near the center of event clusters")
+            print("   • Use projections to guide your selections")
+            print("   • Skip frames with unclear or missing markers")
+            print("   • Label at least 4 different markers per frame when possible")
+            print("   • Quality over quantity - accurate labels are more important")
+            print()
+            print("🔄 WORKFLOW:")
+            print("   1. Examine the event frame for clear marker patterns")
+            print("   2. Click on a clear event cluster")
+            print("   3. Projected markers appear - find the matching one")
+            print("   4. Click on the correct projected marker")
+            print("   5. Repeat for other visible markers")
+            print("   6. Press 'S' to save and move to next frame")
+            print("   7. Continue until you have sufficient training data")
         else:
-            print("\n" + "="*60)
-            print("INTERACTIVE MANUAL LABELING - GUI INSTRUCTIONS")
-            print("="*60)
-            print("A window will open showing event data frames.")
-            print("After clicking a point on the screen, a list of markers will appear.")
-            print("You will manually label marker positions in each frame by selecting the correct marker by inputting the relative number.")
-            print("  • Left click: Select a point on the screen")
-            print("  • Input the number corresponding to the marker to assign it")
-            print("  • SPACE: Skip current frame")
-            print("  • S: Save labels for current frame and continue")
-            print("  • BACKSPACE: Delete last labeled marker")
-            print("  • q or ESC: Finish labeling process, save the results and exit")
-            print("\nGoal: Label the marker using a list containing the possible labels. These labels will then be used to construct 2D-3D correspondences")
+            print("\n" + "="*80)
+            print("INTERACTIVE MANUAL LABELING - DETAILED GUI INSTRUCTIONS") 
+            print("="*80)
+            print("🎯 OBJECTIVE: Manually label marker positions in event data")
+            print("   You'll click on event locations and manually select which marker")
+            print("   each location represents from a list of available markers.")
+            print()
+            print("📋 WHAT YOU'LL SEE:")
+            print("   • Event data frames (white events on black background)")
+            print("   • After clicking: numbered list of available markers")
+            print("   • Frame counter and progress information")
+            print("   • Previously labeled points marked with colors")
+            print()
+            print("🎮 CONTROLS:")
+            print("   • LEFT CLICK: Click on an event location you want to label")
+            print("   • NUMBER KEYS: Type number of marker from the displayed list")
+            print("   • SPACE: Skip current frame (move to next)")
+            print("   • S: Save labels for current frame and continue to next")
+            print("   • BACKSPACE: Delete the last labeled marker")
+            print("   • R: Restart labeling for current frame")
+            print("   • H: Show this help again")
+            print("   • Q or ESC: Finish labeling process and save results")
+            print()
+            print("💡 TIPS:")
+            print("   • Look for clear, isolated event clusters")
+            print("   • Click near the center of event clusters")
+            print("   • Memorize marker positions to speed up labeling")
+            print("   • Use the marker list file to know which markers to expect")
+            print("   • Skip frames where markers are unclear or occluded")
+            print("   • Label multiple different markers per frame when possible")
+            print()
+            print("🔄 WORKFLOW:")
+            print("   1. Examine the event frame for clear marker patterns")
+            print("   2. Click on a clear event cluster")
+            print("   3. Read the numbered marker list that appears")
+            print("   4. Type the number of the correct marker")
+            print("   5. Repeat for other visible markers") 
+            print("   6. Press 'S' to save and move to next frame")
+            print("   7. Continue until you have sufficient training data")
         
         print("="*60)
         print()
@@ -623,18 +837,28 @@ class ViconDVSPipeline:
                 window_end = window_start + window_size
                 window_center = (window_start + window_end) / 2
 
-                # Load events for this window
-                e_data = self.imp.get_data_at_time(window_center, window_size)
+                # Load events for this window with proper waiting
+                print(f"Loading events for window [{window_start:.3f}, {window_end:.3f}]...")
+                e_data = self._load_events_with_wait(window_center, window_size, max_retries=3)
+                
+                if e_data is None:
+                    print(f"Failed to load events for window [{window_start:.3f}, {window_end:.3f}] after retries")
+                    window_start += window_size
+                    continue
+                
                 e_ts = np.array(e_data['ts'])
                 e_us = np.array(e_data['x'])
                 e_vs = np.array(e_data['y'])
 
-                print(f"Processing {len(e_ts)} events between {e_ts[0]:.3f}s and {e_ts[-1]:.3f}s")
+                if len(e_ts) == 0:
+                    print(f"No events in window [{window_start:.3f}, {window_end:.3f}]")
+                    window_start += window_size
+                    continue
                 
                 if use_projections:
                     labeler.correct_data(
                         e_ts, e_us, e_vs, self.period,
-                        self.markers_names, self.c3d_data, self.points_3d, self.marker_t,
+                        self.markers_names, self.c3d_data, self.points_3D, self.marker_t,
                         self.T_syst_to_camera_opt, self.Ts_world_to_system,
                         self.K, self.cam_res, self.delay, D=self.D,
                         marker_time_offset=window_start
@@ -703,17 +927,25 @@ class ViconDVSPipeline:
                 window_end = window_start + window_size
                 window_center = (window_start + window_end) / 2
 
-                # Load events for this window
-                e_data = self.imp.get_data_at_time(window_center, window_size)
+                # Load events for this window with proper waiting
+                print(f"Loading events for window [{window_start:.3f}, {window_end:.3f}]...")
+                e_data = self._load_events_with_wait(window_center, window_size, max_retries=3)
+                
+                if e_data is None:
+                    print(f"Failed to load events for window [{window_start:.3f}, {window_end:.3f}] after retries")
+                    window_start += window_size
+                    continue
+                
                 e_ts = np.array(e_data['ts'])
                 e_us = np.array(e_data['x'])
                 e_vs = np.array(e_data['y'])
 
                 if len(e_ts) == 0:
+                    print(f"No events in window [{window_start:.3f}, {window_end:.3f}]")
                     window_start += window_size
                     continue
 
-                print(f"Processing {len(e_ts)} events between {e_ts[0]:.3f}s and {e_ts[-1]:.3f}s")
+                print(f"✅ Successfully loaded {len(e_ts)} events between {e_ts[0]:.3f}s and {e_ts[-1]:.3f}s")
 
                 # Call projector
                 image_points, video_segment = projector.project_vicon_to_event_plane_dynamic(
@@ -1204,9 +1436,38 @@ class ViconDVSPipeline:
         init_file_path: str = None, labels_path: str = None, chosen_marker: str = None):
         
         """Run the complete pipeline."""
+        print("\n" + "🚀" + "="*78 + "🚀")
+        print("                    VICON-DVS CALIBRATION PIPELINE")
+        print("🚀" + "="*78 + "🚀")
+        print("📋 PIPELINE OVERVIEW:")
+        print("   This pipeline will guide you through calibrating a DVS camera using VICON markers.")
+        print("   The process involves several interactive GUI steps where you'll:")
+        print("   1️⃣  Load and inspect your data")
+        print("   2️⃣  Estimate camera rotation (if needed)")
+        print("   3️⃣  Correct timing synchronization (if needed)")
+        print("   4️⃣  Label training data (if needed)")
+        print("   5️⃣  Optimize calibration parameters")
+        print("   6️⃣  Generate and review results")
+        print()
+        print("💡 TIPS FOR SUCCESS:")
+        print("   • Take your time with each step - accuracy is more important than speed")
+        print("   • Read all instructions carefully before starting each GUI")
+        print("   • Use keyboard shortcuts to work efficiently")
+        print("   • Don't hesitate to restart a step if you make mistakes")
+        print("🚀" + "="*78 + "🚀")
+        
+        # Show general tips
+        show_tips = input("\n🤔 Would you like to see general usage tips before starting? (y/n): ").lower().strip()
+        if show_tips in ['y', 'yes']:
+            self._show_general_tips()
+        
+        if not self._wait_for_user_ready("Press ENTER to begin pipeline execution..."):
+            return
+        
         print("Starting VICON-DVS pipeline...")
         
         # 1. Load all data
+        print("\n📥 STEP 1: Loading data files...")
         self.load_event_data()
         self.load_vicon_data()
         self.load_calibration_data()
@@ -1223,9 +1484,12 @@ class ViconDVSPipeline:
         self.compute_world_to_system_transforms()
         
         if not calibration_exists and manual_calibration:
-            print("No existing calibration found. Starting manual calibration...")
+            print("\n🎯 No existing calibration found. Starting interactive calibration process...")
+            print("   The following steps will guide you through camera calibration:")
             
             # 4. Manual rotation estimation with marker filter
+            print("\n📐 STEP 4: Manual rotation estimation")
+            print("   You'll adjust camera rotation until projected markers align with events.")
             tvec_init = np.array([0.0, 0.0, 0.0])       # TODO: make it user-input
             rvec_init = self.manual_rotation_estimation(
                 chosen_marker=chosen_marker
@@ -1234,22 +1498,36 @@ class ViconDVSPipeline:
             # Update transformation matrix
             self.T_syst_to_camera_opt[:3, :3] = cv2.Rodrigues(rvec_init)[0]
             self.T_syst_to_camera_opt[:3, 3] = tvec_init
+            print("✅ Rotation estimation completed!")
             
             # 5. Manual delay correction
+            print("\n⏰ STEP 5: Manual delay correction")
+            print("   You'll synchronize the timing between VICON and DVS data.")
             self.delay = self.manual_delay_correction()
+            print(f"✅ Delay correction completed! Final delay: {self.delay:.3f}s")
             
             # 6. Interactive labeling or use existing labels
+            print("\n🏷️  STEP 6: Training data collection")
             if labels_path and os.path.exists(labels_path):
+                print(f"   Using existing labeled data from: {labels_path}")
                 final_labels_path = labels_path
             else:
-                print("Starting interactive labeling...")
+                print("   You'll create training data by labeling marker positions in event frames.")
                 final_labels_path = self.label_data_interactive(use_projections=use_projections)
+            print("✅ Training data ready!")
             
             # 7. Optimize calibration
+            print("\n🔧 STEP 7: Calibration optimization")
+            print("   Computing optimal calibration parameters using your labeled data...")
             self.optimize_calibration(final_labels_path)
+            print("✅ Calibration optimization completed!")
             
             # 8. Save calibration
+            print("\n💾 STEP 8: Saving calibration")
             self.save_calibration(init_file)
+            print("✅ Calibration parameters saved!")
+        else:
+            print("\n✅ Using existing calibration parameters.")
             
         # 9. Save transformation matrices
         # transforms_file = os.path.join(os.path.dirname(self.vicon_path), "transformation_matrices.txt")
@@ -1261,25 +1539,49 @@ class ViconDVSPipeline:
             self.create_projection_video(video_file)
             
             # 11. Ask user for confirmation
-            print("\n" + "="*60)
-            print("CALIBRATION RESULTS REVIEW")
-            print("="*60)
-            print(f"Projection video has been created: {video_file}")
-            print("Please review the video to check the quality of marker projections.")
-            
-            # Projected points are automatically saved during video creation
+            print("\n" + "🎬" + "="*78 + "🎬")
+            print("                        CALIBRATION RESULTS REVIEW")
+            print("🎬" + "="*78 + "🎬")
+            print("✅ CALIBRATION COMPLETE!")
+            print()
+            print("📊 GENERATED FILES:")
+            print(f"   🎥 Projection video: {video_file}")
+            print("      → Shows how well markers align with events over time")
             projected_points_file = os.path.join(os.path.dirname(self.vicon_path), "projected_points.txt")
-            print(f"Projected points saved to: {projected_points_file}")
+            print(f"   📍 Projected points: {projected_points_file}")
+            print("      → Numerical marker positions for further analysis")
+            print()
+            print("🔍 WHAT TO LOOK FOR IN THE VIDEO:")
+            print("   • Projected markers (colored circles) should align with event clusters")
+            print("   • Alignment should be consistent throughout the video")
+            print("   • Markers should move smoothly and follow event patterns")
+            print("   • No systematic drift or offset between markers and events")
+            print()
+            print("📈 QUALITY INDICATORS:")
+            print("   ✅ GOOD: Tight alignment, minimal drift, smooth motion")
+            print("   ⚠️  OK: Slight misalignment, occasional drift")
+            print("   ❌ BAD: Large offsets, significant drift, jerky motion")
+            print()
+            print("🎬" + "="*78 + "🎬")
                 
             while True:
-                response = input("\nAre you satisfied with the calibration results? (y/n): ").lower().strip()
+                print("\n🤔 Please review the projection video and assess the calibration quality.")
+                response = input("Are you satisfied with the calibration results? (y/n/h for help): ").lower().strip()
                 
                 if response in ['y', 'yes']:
-                    print("Pipeline completed successfully!")                    
+                    print("\n🎉 Excellent! Calibration completed successfully!")
+                    print("   You can now use the calibration parameters for your DVS applications.")                   
                     return
                 elif response in ['n', 'no']:
-                    print("\nRestarting calibration process...")
-                    print("Previous calibration will be ignored.")
+                    print("\n🔄 No problem - let's improve the calibration!")
+                    print("   The pipeline will restart with your current data.")
+                    print("   Consider:")
+                    print("   • Adjusting rotation/delay settings more carefully")
+                    print("   • Providing more or better training labels")
+                    print("   • Checking data quality and marker visibility")
+                    
+                    if not self._wait_for_user_ready("Press ENTER to restart calibration..."):
+                        return
                     
                     # Reset calibration parameters
                     self.T_syst_to_camera_opt = np.eye(4)
@@ -1294,16 +1596,51 @@ class ViconDVSPipeline:
                         labels_path=labels_path,  # Keep the same labels path for restart
                         chosen_marker=chosen_marker
                     )
+                elif response in ['h', 'help']:
+                    print("\n📖 CALIBRATION ASSESSMENT HELP:")
+                    print("   1. Open and play the projection video")
+                    print("   2. Watch for alignment between colored circles and event clusters")
+                    print("   3. Check multiple time points throughout the video")
+                    print("   4. Look for consistent alignment (no drift over time)")
+                    print("   5. Verify that marker motion matches event patterns")
+                    print("   6. Answer 'y' if alignment looks good, 'n' to retry")
                 else:
-                    print("Please enter 'y' for yes or 'n' for no.")
+                    print("❓ Please enter 'y' for yes, 'n' for no, or 'h' for help.")
         else:
             # If no video creation, just complete the pipeline
             print("Pipeline completed successfully!")
             return
         
-    # TODO: step 11: calibration error and report of accuracy, check notebook for 2d-2d error check
-    # TODO: if depth is provided, get 2d projections put them in 3d and check with vicon data as to have a more accurate analysis
-    
+    def _show_general_tips(self):
+        """Show general tips for using the calibration pipeline."""
+        print("\n" + "💡" + "="*78 + "💡")
+        print("                      GENERAL USAGE TIPS")
+        print("💡" + "="*78 + "💡")
+        print("🎯 DATA PREPARATION:")
+        print("   • Ensure good marker visibility throughout recordings")
+        print("   • Verify time synchronization between VICON and DVS systems")
+        print("   • Check that marker names in C3D file match your expectations")
+        print()
+        print("🖱️  GUI INTERACTION:")
+        print("   • All GUIs are keyboard-controlled - learn the shortcuts!")
+        print("   • Press 'h' in any GUI window to see help")
+        print("   • Take breaks between steps if needed")
+        print("   • Don't rush - quality over speed")
+        print()
+        print("🔄 WORKFLOW STRATEGY:")
+        print("   • Start with rough adjustments, then fine-tune")
+        print("   • Save intermediate results frequently")
+        print("   • Review each step before proceeding")
+        print("   • Use the restart option if results aren't satisfactory")
+        print()
+        print("⚠️  COMMON PITFALLS:")
+        print("   • Markers outside camera field of view")
+        print("   • Poor event data quality or excessive noise")
+        print("   • Insufficient lighting or marker occlusion")
+        print("   • Incorrect time synchronization")
+        print("💡" + "="*78 + "💡")
+
+    # ...existing code...
 def main():
     parser = argparse.ArgumentParser(
         prog='VICON markers projection',
