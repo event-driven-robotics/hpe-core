@@ -1,9 +1,11 @@
 import sys
 import os
 import yaml
+import csv
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import bisect
 import c3d
 import importlib
 from typing import List, Optional
@@ -44,11 +46,11 @@ class ViconDVSPipeline:
         self.dvs_path = dvs_path
         self.vicon_path = vicon_path
         self.intrinsic_path = intrinsic_path
-        self.subject = subject
-        self.output_path = output_path
-        self.camera_setup = camera_setup  # "single", "multi", or "auto"
+        self.subject = subject                  # actually changed to remove this parameter, TODO: check usage
+        self.output_path = output_path          # path for yaml file, will be removed after method works
+        self.camera_setup = camera_setup        # either single or multiple markers for camera
         self.marker_list_path = marker_list_path
-        self.period = 1.0 / 100  # VICON frequency: 100Hz
+        self.period = 1.0 / 100                 # VICON frequency: 100Hz
         
         # Initialize data containers
         self.imp = None
@@ -58,7 +60,9 @@ class ViconDVSPipeline:
         self.points_3d = {}
         self.marker_t = None
         self.marker_names = []
-        self.markers_names = []  # Subset of markers to work with
+        self.markers_names = []                 # Markers list from yaml file
+        self.camera_markers = []                # Camera markers identified by user
+        self.camera_marker_patterns = []        # User input patterns for camera markers
         self.K = None
         self.D = None
         self.cam_res = None
@@ -92,28 +96,147 @@ class ViconDVSPipeline:
         
         return None
 
-    # TODO: make it so that i don't use list of known markers but look for 'cam', 'camera', 'dvs', etc...
-    def prompt_camera_setup(self) -> str:
-        """Ask user how many markers are attached to the camera to understand setup."""
-        print("\nCamera setup configuration (manual input)")
-        print("Enter the number of markers attached to the camera.")
-        # print("  1 -> Single marker (only translation known, rotation = identity initially)")
-        # print("  3 or more -> Multi-marker rigid body (full pose)")
+    # ???
+    def _find_matching_markers(self, pattern: str) -> list:
+        """Find markers that match a given pattern (exact name or prefix)."""
+        matches = []
+        pattern_upper = pattern.upper()
         
+        for marker in self.marker_names:
+            marker_upper = marker.upper()
+            
+            # Exact match
+            if marker_upper == pattern_upper:
+                matches.append(marker)
+            # Prefix match (if pattern ends with ':' or is a substring)
+            elif (pattern.endswith(':') and marker_upper.startswith(pattern_upper)) or \
+                 (not pattern.endswith(':') and pattern_upper in marker_upper):
+                matches.append(marker)
+        
+        return matches
+
+    def prompt_camera_setup(self) -> tuple:
+        """Ask user how many markers are attached to the camera and their names/prefixes."""
+        print("\nCamera setup configuration (manual input)")
+        print("Configure your camera marker setup:")
+        print("  • Single marker: Only translation known, rotation = identity initially")
+        print("  • Multi-marker (2+): Full pose estimation with rigid body")
+        
+        # Get number of markers
         while True:
             try:
-                n = int(input("Number of camera markers: "))
+                n = int(input("\nNumber of markers attached to the camera: "))
                 if n < 1:
                     print("Please enter a positive integer.")
                     continue
-                setup = "multi" if n >= 3 else "single"
+                setup = "multi" if n >= 2 else "single"
                 print(f"Selected camera setup: {setup} (from {n} markers)")
-                return setup
+                break
             except ValueError:
-                print("Invalid input. Please enter an integer (e.g. 1 or 3).")
+                print("Invalid input. Please enter an integer equal to the amount of markers attached to the camera in question.")
+        
+        # Show available markers for reference
+        print(f"\nAvailable markers in C3D file ({len(self.marker_names)} total):")
+        for i, marker in enumerate(self.marker_names):
+            print(f"  {i+1:2d}. {marker}")
+            
+        # # ???
+        # # Provide helpful examples based on actual marker names
+        # print("\n Pattern matching examples:")
+        # example_patterns = []
+        # for marker in self.marker_names[:5]:  # Show examples from first few markers
+        #     if ':' in marker:
+        #         prefix = marker.split(':')[0] + ':'
+        #         example_patterns.append(f"'{prefix}' (matches all markers starting with '{prefix}')")
+        #     if any(word in marker.lower() for word in ['cam', 'camera', 'dvs']):
+        #         for word in ['cam', 'camera', 'dvs']:
+        #             if word in marker.lower():
+        #                 example_patterns.append(f"'{word}' (matches markers containing '{word}')")
+        #                 break
+        
+        # if example_patterns:
+        #     for example in example_patterns[:3]:  # Show max 3 examples
+        #         print(f"  • {example}")
+        # else:
+        #     print("  • 'cam' (matches markers containing 'cam')")
+        #     print("  • 'camera:' (matches markers starting with 'camera:')")
+        #     print("  • 'marker1' (exact match for 'marker1')")
+        
+        # Get camera marker identification
+        print(f"\nNow specify how to identify your {n} camera markers:")
+        print("You can provide:")
+        print("  • Exact marker names (e.g., 'cam1', 'camera_front')")
+        print("  • Prefixes to match multiple markers (e.g., 'cam:', 'camera')")
+        print("  • Partial names that appear in marker names (e.g., 'cam' matches 'cam1', 'mycam')")
+        print("\nTip: Use ':' at the end for exact prefix matching (e.g., 'cam:' only matches markers starting with 'cam:')")
+        
+        camera_markers = []
+        identified_markers = []
+        
+        # ???
+        i = 0
+        while i < n:
+            print(f"\n--- Camera marker {i+1} of {n} ---")
+            while True:
+                marker_input = input(f"Enter name/pattern: ").strip()
+                if not marker_input:
+                    print("Please enter a marker name or prefix.")
+                    continue
+                
+                # Find matching markers
+                matches = self._find_matching_markers(marker_input)
+                
+                if not matches:
+                    print(f" No markers found matching '{marker_input}'")
+                    remaining = [m for m in self.marker_names if m not in identified_markers]
+                    if remaining:
+                        print(f"Available markers: {remaining[:10]}{'...' if len(remaining) > 10 else ''}")
+                    continue
+                
+                # ???
+                # Show matches and let user confirm
+                if len(matches) == 1:
+                    print(f" Found: {matches[0]}")
+                    identified_markers.extend(matches)
+                    camera_markers.append(marker_input)
+                    i += 1
+                    break
+                else:
+                    print(f" Found {len(matches)} matches: {matches}")
+                    if len(matches) <= 10:  # Show all if reasonable number
+                        confirm = input("Use all these markers? (y/n): ").lower().strip()
+                        if confirm in ['y', 'yes']:
+                            markers_to_take = min(len(matches), n - i)
+                            selected_matches = matches[:markers_to_take]
+                            identified_markers.extend(selected_matches)
+                            camera_markers.append(marker_input)
+                            
+                            if markers_to_take > 1:
+                                print(f"Using {markers_to_take} markers:")
+                                for j, match in enumerate(selected_matches):
+                                    print(f"  Camera marker {i+j+1}: {match}")
+                            
+                            i += markers_to_take
+                            break
+                        else:
+                            print("Please provide a more specific name or prefix.")
+                    else:
+                        print("Too many matches! Please be more specific.")
+                        confirm = input("Show all matches? (y/n): ").lower().strip()
+                        if confirm in ['y', 'yes']:
+                            for match in matches:
+                                print(f"  - {match}")
+        
+        print(f"\n Camera setup summary:")
+        print(f"   Setup type: {setup}")
+        print(f"   Identified markers: {identified_markers}")
+        print(f"   Search patterns used: {camera_markers}")
+        
+        return setup, camera_markers
     
-    
+    # ???
     # TODO: check this function and fix it
+    # function generated to read labels from specified file, will be changed
     def get_markers_names(self) -> List[str]:
         """Return list of markers to use based on optional user label file"""
         
@@ -252,7 +375,7 @@ class ViconDVSPipeline:
 ###
         
     def load_event_data(self):
-        """Load event data efficiently using importAe, with interactive camera stream selection."""
+        """Load event data efficiently using importAe, with interactive stream selection as sometimes there are multiple saved inside??."""
         print("Loading event data...")
 
         importers = importAe(self.dvs_path)
@@ -297,13 +420,13 @@ class ViconDVSPipeline:
         # Load event stream
         self.imp = importers['data'][middle_key]['dvs']
 
-        self.start_time = self.imp.get_first_ts()
+        self.start_time = 0.0 # self.imp.get_first_ts()
         self.end_time = self.imp.get_last_ts()
 
-        print(f"\n✅ Loaded event stream: '{middle_key}'")
+        print(f"\n Loaded event stream: '{middle_key}'")
         print(f"Events from {self.start_time:.3f}s to {self.end_time:.3f}s")
 
-    
+    # Check camera stuff
     def load_vicon_data(self):
         """Load VICON C3D data."""
         print("Loading VICON data...")
@@ -326,16 +449,33 @@ class ViconDVSPipeline:
             else:
                 print("No subject pattern detected in C3D marker names")
         
-        # # Detect camera setup if auto
-        # if self.camera_setup == "auto":
-        #     self.camera_setup = self.detect_marker_setup()
+        # Configure camera setup and identify camera markers
+        self.camera_setup, self.camera_marker_patterns = self.prompt_camera_setup()
         
-        self.camera_setup = self.prompt_camera_setup()
+        # Extract all camera markers based on user patterns
+        self.camera_markers = []
+        for pattern in self.camera_marker_patterns:
+            matches = self._find_matching_markers(pattern)
+            self.camera_markers.extend(matches)
         
-        print(f"Camera setup specified: {self.camera_setup}")
+        # Remove duplicates while preserving order
+        seen = set()
+        self.camera_markers = [x for x in self.camera_markers if not (x in seen or seen.add(x))]
+        
+        print(f"Camera setup: {self.camera_setup}")
+        print(f"Camera markers: {self.camera_markers}")
+        print(f"Total camera markers found: {len(self.camera_markers)}")
+        
+        # Validate camera marker count
+        if len(self.camera_markers) == 0:
+            print(" Warning: No camera markers identified! This may cause issues with transformation computation.")
+        elif self.camera_setup == "multi" and len(self.camera_markers) < 3:
+            print(f" Warning: Multi-marker setup specified but only {len(self.camera_markers)} markers found.")
+            print(" This may affect pose estimation accuracy.")
         
     def load_calibration_data(self):
         """Load camera calibration parameters."""
+
         print("Loading calibration data...")
         calib = np.genfromtxt(self.intrinsic_path, delimiter=" ", skip_header=1, dtype=object)
         
@@ -353,6 +493,7 @@ class ViconDVSPipeline:
         
     def load_existing_calibration(self, init_file_path: str) -> bool:
         """Load existing transformation and delay if available."""
+
         if init_file_path is None or not os.path.exists(init_file_path):
             return False
             
@@ -384,20 +525,24 @@ class ViconDVSPipeline:
         return True
     
     def compute_world_to_system_transforms(self):
-        """Compute world to system transformation matrices."""
+        """Compute world to system transformation matrices using user-specified camera markers."""
+
         print("Computing world to system transformations...")
         from helpers import ViconHelper
         
         # Use the camera setup specification
         enable_camera_markers = (self.camera_setup in ["multi", "single"])
         
+        # Create ViconHelper with user-specified camera markers
         vicon_helper = ViconHelper(
             self.marker_t, self.points_3d, self.delay, 
             self.c3d_data.frame_count, self.c3d_data.point_rate, 
-            self.c3d_data.point_labels, enable_camera_markers, True
+            self.c3d_data.point_labels, enable_camera_markers, True,
+            user_camera_markers=self.camera_markers  # Pass user-specified camera markers
         )
         
         self.Ts_world_to_system = vicon_helper.compute_camera_marker_transforms()
+        print(f"Computed transformations using camera setup: {self.camera_setup}")
         
     def visualize_events(self):
         """Visualize event data for a specified duration."""
@@ -604,9 +749,58 @@ class ViconDVSPipeline:
             print(f"Updated delay: {self.delay:.3f}s")
             return self.delay
 
+    # Check the added stuff with the reading of the existing file
     def label_data_interactive(self, use_projections: bool = False) -> str:
         """Interactive data labeling using windowed approach."""
+
         print("Starting interactive labeling...")
+        
+        # Check if labels already exist
+        user_choice = None
+        existing_labels = None
+        
+        if os.path.exists(self.output_path):
+            print(f"\n✓ Found existing label file: {self.output_path}")
+            try:
+                # Try to load existing labels
+                existing_labels = helpers.read_points_labels(self.output_path)
+                
+                # Check if the file contains actual labels
+                has_labels = (
+                    existing_labels and 
+                    'points' in existing_labels and 
+                    'times' in existing_labels and
+                    len(existing_labels['points']) > 0 and
+                    any(len(point_dict) > 0 for point_dict in existing_labels['points'])
+                )
+                
+                if has_labels:
+                    print(f"Found {len(existing_labels['points'])} labeled frames with {sum(len(p) for p in existing_labels['points'])} total labels")
+                    
+                    while True:
+                        user_choice = input("\nExisting labels found. Choose action:\n"
+                                          "  [u] Use existing labels (skip labeling)\n"
+                                          "  [r] Re-label from scratch (overwrite existing)\n"
+                                          "  [c] Continue/append to existing labels\n"
+                                          "Enter choice (u/r/c): ").strip().lower()
+                        
+                        if user_choice == 'u':
+                            print("✓ Using existing labels, skipping labeling process")
+                            return self.output_path
+                        elif user_choice == 'r':
+                            print("Re-labeling from scratch...")
+                            break  # Continue with normal labeling process
+                        elif user_choice == 'c':
+                            print("Continuing with existing labels (append mode)")
+                            print("📝 You can add new labels to supplement the existing ones")
+                            # We'll initialize the labeler with existing data
+                            break
+                        else:
+                            print("Invalid choice. Please enter 'u', 'r', or 'c'.")
+                else:
+                    print("Label file exists but contains no valid labels. Starting fresh labeling process.")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not read existing label file ({e}). Starting fresh labeling process.")
         
         if use_projections:
             print("\n" + "="*60)
@@ -644,17 +838,25 @@ class ViconDVSPipeline:
         if not self.markers_names:
             self.markers_names = self.get_markers_names()
         
-        # labels_path = os.path.join(os.path.dirname(self.output_path), 'labeled_points.yml')
-        
-        
-        
         window_size = 1000 * self.period
         window_start = self.start_time
         
         # Create labeler instance
         labeler = DvsLabeler(img_shape=(self.cam_res[0], self.cam_res[1], 3), subject=self.subject)
         
-        labeler.points_dict = {'points': [], 'times': []}
+        # Initialize with existing labels if continuing, or empty if starting fresh
+        if user_choice == 'c' and existing_labels:
+            try:
+                if existing_labels and 'points' in existing_labels and 'times' in existing_labels:
+                    labeler.points_dict = existing_labels
+                    print(f"✓ Initialized with {len(existing_labels['points'])} existing labels")
+                else:
+                    labeler.points_dict = {'points': [], 'times': []}
+            except Exception as e:
+                print(f"⚠️  Could not load existing labels for continuation: {e}")
+                labeler.points_dict = {'points': [], 'times': []}
+        else:
+            labeler.points_dict = {'points': [], 'times': []}
         
         try:
             while window_start < float("%.1f" % self.end_time):
@@ -716,7 +918,17 @@ class ViconDVSPipeline:
                     # labels_path = self.output_path
 
                     labeler.save_labeled_points(self.output_path)
-                    print(f"Saved labeled points to: {self.output_path}")
+                    
+                    # Provide feedback on what was saved
+                    total_labels = sum(len(p) for p in labeler.labeled_dict['points'])
+                    total_frames = len(labeler.labeled_dict['points'])
+                    
+                    if user_choice == 'c':
+                        print(f" Updated labeled points file: {self.output_path}")
+                        print(f" Total: {total_frames} frames with {total_labels} labels")
+                    else:
+                        print(f" Saved labeled points to: {self.output_path}")
+                        print(f" Created: {total_frames} frames with {total_labels} labels")
                 else:
                     print("No labeled points found — nothing saved.")
             else:
@@ -724,14 +936,14 @@ class ViconDVSPipeline:
 
 
         return self.output_path
-
+    
     def create_projection_video(self, output_video: str = 'projection_video.mp4'):
-        """Create video with projected markers using windowed approach and collect all image points."""
-        print("Creating projection video...")
-        
+        """Create video and continuously store projected marker points with timestamps."""
+        print("Creating projection video with live point collection...")
+
         if not self.markers_names:
             self.markers_names = self.get_markers_names()
-            
+
         print("Using markers:", self.markers_names)
 
         # Create projector
@@ -740,20 +952,25 @@ class ViconDVSPipeline:
             self.T_syst_to_camera_opt, self.Ts_world_to_system,
             self.K, self.cam_res, D=self.D, subject=self.subject
         )
-        
+
         collected_video_segments = []
-        all_projected_points = {}  # Dictionary to collect all projected points
+        all_projected_points = []  # list of dicts: {'timestamp': t, 'x': x, 'y': y, 'marker': name}
         window_size = 1000 * self.period
         window_start = self.start_time
-        
-        # Initialize projected points dictionary for each marker
-        for marker_name in self.markers_names:
-            all_projected_points[marker_name] = []
-        
+
+        print(f"Processing time range: {self.start_time:.3f}s to {self.end_time:.3f}s")
+        print(f"Window size: {window_size/1000:.1f}s, Period: {self.period:.3f}s")
+
+        window_count = 0
+
         try:
-            while window_start < float("%.1f" % self.end_time): # TODO: properly fix this, as it is pretty bad like this
+            while window_start < self.end_time:
                 window_end = window_start + window_size
                 window_center = (window_start + window_end) / 2
+                window_count += 1
+
+                print(f"\n--- Processing window {window_count} ---")
+                print(f"Window range: {window_start:.3f}s to {window_end:.3f}s")
 
                 # Load events for this window
                 e_data = self.imp.get_data_at_time(window_center, window_size)
@@ -761,48 +978,77 @@ class ViconDVSPipeline:
                 e_us = np.array(e_data['x'])
                 e_vs = np.array(e_data['y'])
 
-                if len(e_ts) == 0:
-                    window_start += window_size
-                    continue
-
-                print(f"Processing {len(e_ts)} events between {e_ts[0]:.3f}s and {e_ts[-1]:.3f}s")
+                print(f"Loaded {len(e_ts)} events from {e_ts[0]:.3f}s to {e_ts[-1]:.3f}s")
 
                 # Call projector
-                image_points, video_segment = projector.project_vicon_to_event_plane_dynamic(
+                synced_image_points, video_segment = projector.project_vicon_to_event_plane_dynamic(
                     self.marker_t, self.delay,
                     e_ts, e_us, e_vs, self.period,
                     visualize=True, video_record=True,
                     marker_time_offset=window_start
                 )
-                
+
+                # Collect frames for video
                 if video_segment is not None:
                     collected_video_segments.append(video_segment)
 
-                # Collect projected points from this window
-                if image_points is not None:
-                    self._collect_projected_points_from_window(
-                        image_points, all_projected_points, window_start
-                    )
+                # Collect all projected points with event timestamps using synced data
+                if synced_image_points:
+                    print(f" Window {window_count}: synced_image_points keys = {list(synced_image_points.keys())}")
+                    for marker_name, marker_data in synced_image_points.items():
+                        if marker_data and "points" in marker_data and "timestamps" in marker_data:
+                            points = marker_data["points"]
+                            timestamps = marker_data["timestamps"]
+                            
+                            print(f" {marker_name}: {len(points)} points, {len(timestamps)} timestamps")
+                            
+                            # Ensure we have matching points and timestamps
+                            n = min(len(points), len(timestamps))
+                            points_added = 0
+                            for i in range(n):
+                                if len(points[i]) >= 2:  # Ensure we have x, y coordinates
+                                    x, y = map(float, points[i][:2])
+                                    all_projected_points.append({
+                                        "timestamp": float(timestamps[i]),
+                                        "x": x,
+                                        "y": y,
+                                        "marker": marker_name
+                                    })
+                                    points_added += 1
+                        else:
+                            print(f" {marker_name}: Invalid marker_data structure")
+                else:
+                    print(f" Window {window_count}: No synced_image_points returned")
 
-                window_start = window_end
-                
-                print(e_ts[-1], "window_start updated to:", window_start)
+                window_start = window_center*2
 
         except KeyboardInterrupt:
-            print("Video creation stopped by user")
+            print("⚠️ Projection stopped early by user.")
 
         finally:
             cv2.destroyAllWindows()
-            
-            # Save all collected projected points
-            if all_projected_points and any(len(points) > 0 for points in all_projected_points.values()):
-                points_file = os.path.join(os.path.dirname(output_video), "projected_points.txt")
-                self._save_projected_points_to_file(all_projected_points, points_file)
-            
-            # Merge video segments (existing code)
+
+            # ---- ANALYZE PROJECTED POINTS ----
+            if all_projected_points:
+                # Count by marker
+                marker_counts = {}
+                for entry in all_projected_points:
+                    marker_name = entry.get('marker', 'UNKNOWN')
+                    marker_counts[marker_name] = marker_counts.get(marker_name, 0) + 1
+                
+                print(f" Projected points analysis:")
+                print(f"   Total points: {len(all_projected_points)}")
+                for marker, count in marker_counts.items():
+                    print(f"   {marker}: {count} points")
+                
+                self._save_projected_points_txt(all_projected_points, output_video)
+                self._save_projected_points_csv(all_projected_points, output_video)
+            else:
+                print("⚠️ No projected points collected to save.")
+
+            # ---- MERGE VIDEO SEGMENTS ----
             if collected_video_segments:
                 print(f"Merging {len(collected_video_segments)} video segments...")
-                
                 try:
                     fps = int(1 / self.period)
                     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
@@ -810,119 +1056,253 @@ class ViconDVSPipeline:
                         output_video, fourcc, fps,
                         (self.cam_res[1], self.cam_res[0]), isColor=False
                     )
-                    
-                    if video_writer.isOpened():
-                        total_frames = 0
-                        
-                        for i, segment_frames in enumerate(collected_video_segments):
-                            if segment_frames:
-                                print(f"Merging segment {i+1}/{len(collected_video_segments)} with {len(segment_frames)} frames")
-                                
-                                for frame in segment_frames:
-                                    if len(frame.shape) == 3:
-                                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                                    video_writer.write(frame)
-                                    total_frames += 1
-                        
-                        video_writer.release()
-                        
-                        if total_frames > 0:
-                            print(f"Successfully created video: {output_video}")
-                            print(f"Total frames: {total_frames}")
-                            
+
+                    total_frames = 0
+                    for segment_frames in collected_video_segments:
+                        for frame in segment_frames:
+                            if len(frame.shape) == 3:
+                                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                            video_writer.write(frame)
+                            total_frames += 1
+
+                    video_writer.release()
+                    print(f" Projection video created: {output_video} ({total_frames} frames)")
+
                 except Exception as e:
-                    print(f"Error creating video: {e}")
+                    print(f" Error merging video: {e}")
             else:
-                print("No video segments were created")
+                print(" No video segments were created.")
 
-###
-    # TODO: check and fix
-    def _collect_projected_points_from_window(self, image_points, all_projected_points, window_start):
-        """Collect projected points from a processing window."""
-        
-        # Calculate the starting frame index for this window
-        tic_markers = self.marker_t[0] + window_start - self.delay
-        
-        # Find the starting marker frame index
-        start_frame_idx = 0
-        while start_frame_idx < len(self.marker_t) and self.marker_t[start_frame_idx] < tic_markers:
-            start_frame_idx += 1
-        
-        # Process each marker's projected points
-        for marker_name in self.markers_names:
-            if marker_name in image_points:
-                marker_data = image_points[marker_name]
-                
-                if isinstance(marker_data, np.ndarray) and len(marker_data) > 0:
-                    # Each point in marker_data corresponds to a frame starting from start_frame_idx
-                    for i, coords in enumerate(marker_data):
-                        frame_idx = start_frame_idx + i
-                        
-                        # Make sure we don't exceed the marker timeline
-                        if frame_idx >= len(self.marker_t):
-                            break
-                        
-                        marker_timestamp = self.marker_t[frame_idx]
-                        
-                        # Store the point with its timestamp
-                        point_data = {
-                            'timestamp': marker_timestamp,
-                            'frame_idx': frame_idx,
-                            'coords': coords.copy() if hasattr(coords, 'copy') else list(coords)
-                        }
-                        
-                        all_projected_points[marker_name].append(point_data)
+###        
+    def _save_projected_points_txt(self, all_projected_points, output_video):
+        """
+        Save projected points to TXT in format:
+        event_timestamp, x, y, marker_name
+        """
+        txt_path = os.path.join(os.path.dirname(output_video), "projected_points.txt")
 
-    # TODO: do this so that the user can choose the format, i.e.: .csv, .txt, .h5, etc...
-    def _save_projected_points_to_file(self, all_projected_points, output_file):
-        """Save all collected projected points to a text file in the requested format."""
-        
-        points_written = 0
-        total_markers = len([marker for marker in all_projected_points.keys() if len(all_projected_points[marker]) > 0])
-        
-        print(f"Saving projected points for {total_markers} markers...")
-        
-        with open(output_file, 'w') as f:
-            f.write("# Projected VICON Marker Points\n")
-            f.write("# Generated by VICON-DVS Pipeline\n")
-            f.write(f"# Camera resolution: {self.cam_res[1]}x{self.cam_res[0]}\n")
-            f.write(f"# Delay: {self.delay:.6f}s\n")
-            f.write(f"# Period: {self.period:.6f}s\n")
+        if not all_projected_points:
+            print(" No projected points to save in TXT.")
+            return
+
+        # Sort by timestamp for consistency
+        all_projected_points.sort(key=lambda d: d['timestamp'])
+
+        with open(txt_path, "w") as f:
+            f.write("# Projected marker points\n")
+            f.write("# Format: event_timestamp, x, y, marker_name\n")
             f.write("#\n")
-            f.write("# Format: marker_timestamp: x, y # marker_name\n")
-            f.write("#\n")
-            
-            # Collect all points with timestamps and sort them
-            all_timestamped_points = []
-                        
-            # TODO: use event timestamps or marker timestamps?
+            for entry in all_projected_points:
+                f.write(f"{entry['timestamp']:.6f}, {entry['x']:.2f}, {entry['y']:.2f}, {entry['marker']}\n")
 
-            for marker_name, points_list in all_projected_points.items():
-                for point_data in points_list:
-                    coords = point_data['coords']
-                    timestamp = point_data['timestamp']
-                    
-                    # Check if coordinates are valid (not NaN or inf)
-                    if (len(coords) >= 2 and 
-                        np.isfinite(coords[0]) and np.isfinite(coords[1])):
-                        
-                        all_timestamped_points.append({
-                            'timestamp': timestamp,
-                            'marker_name': marker_name,
-                            'x': coords[0],
-                            'y': coords[1]
-                        })
-            
-            all_timestamped_points.sort(key=lambda x: x['timestamp'])
-            
-            # Write all points
-            for point in all_timestamped_points:
-                f.write(f"{point['timestamp']:.6f}: {point['x']:.2f}, {point['y']:.2f} # {point['marker_name']}\n")
-                points_written += 1
-        
-        print(f"Saved {points_written} projected points to: {output_file}")
+        print(f" Saved projected points TXT: {txt_path} ({len(all_projected_points)} points)")    
+
+    def _save_projected_points_csv(self, all_projected_points, output_video):
+        """
+        Save projected points to CSV in format:
+        event_timestamp, marker1_x, marker1_y, marker2_x, marker2_y, ...
+        """
+        csv_path = os.path.join(os.path.dirname(output_video), "projected_points.csv")
+
+        if not all_projected_points:
+            print(" No projected points to save in CSV.")
+            return
+
+        # Sort by timestamp for consistent order
+        all_projected_points.sort(key=lambda d: d['timestamp'])
+
+        # Collect all unique markers and timestamps
+        all_markers = sorted(set(p['marker'] for p in all_projected_points))
+        timestamps = sorted(set(p['timestamp'] for p in all_projected_points))
+
+        # Build {timestamp: {marker: (x, y)}}
+        frame_dict = {t: {} for t in timestamps}
+        for p in all_projected_points:
+            frame_dict[p['timestamp']][p['marker']] = (p['x'], p['y'])
+
+        with open(csv_path, "w", newline="") as f:
+            writer = csv.writer(f)
+            header = ["event_timestamp"]
+            for m in all_markers:
+                header.extend([f"{m}_x", f"{m}_y"])
+            writer.writerow(header)
+
+            for t in timestamps:
+                row = [f"{t:.6f}"]
+                for m in all_markers:
+                    if m in frame_dict[t]:
+                        x, y = frame_dict[t][m]
+                        row.extend([f"{x:.2f}", f"{y:.2f}"])
+                    else:
+                        row.extend(["", ""])
+                writer.writerow(row)
+
+        print(f" Saved projected points CSV: {csv_path} ({len(timestamps)} timestamps, {len(all_markers)} markers)")
 ###
 
+###
+    def plot_per_marker_error_boxplot(self, marker_errors: dict, save_path: str = None):
+        """Display per-marker error distribution with stats (mean, std, min, max).
+        
+        Args:
+            marker_errors: Dictionary mapping marker names to error lists
+            save_path: Optional path to save the plot image (e.g., 'error_analysis.png')
+        """
+        valid_markers = [m for m, errs in marker_errors.items() if len(errs) > 0]
+        if not valid_markers:
+            print(" No valid markers with errors to plot.")
+            return
+
+        errors = [marker_errors[m] for m in valid_markers]
+        stats = {
+            m: {
+                "mean": np.mean(errs),
+                "std": np.std(errs),
+                "min": np.min(errs),
+                "max": np.max(errs)
+            }
+            for m, errs in zip(valid_markers, errors)
+        }
+
+        # Sort markers by mean error for clarity
+        valid_markers = sorted(valid_markers, key=lambda m: stats[m]["mean"])
+        errors = [marker_errors[m] for m in valid_markers]
+
+        plt.figure(figsize=(12, 6))
+        box = plt.boxplot(errors, patch_artist=True, labels=valid_markers, showmeans=True)
+
+        # Styling
+        for patch in box['boxes']:
+            patch.set(facecolor='#b3cde3', alpha=0.8, edgecolor='black')
+        for median in box['medians']:
+            median.set(color='orange', linewidth=2)
+        for mean in box['means']:
+            mean.set(marker='o', color='red', markersize=4)
+
+        plt.ylabel("Error (pixels)")
+        plt.title("Per-Marker Error Distribution")
+        plt.grid(axis='y', alpha=0.4)
+        plt.xticks(rotation=45, ha='right')
+        
+        # Add legend
+        import matplotlib.patches as mpatches
+        legend_elements = [
+            mpatches.Patch(facecolor='#b3cde3', alpha=0.8, edgecolor='black', label='Error Distribution'),
+            plt.Line2D([0], [0], color='orange', linewidth=2, label='Median'),
+            plt.Line2D([0], [0], marker='o', color='green', markersize=4, linestyle='None', label='Mean'),
+            plt.Line2D([0], [0], marker='o', color='black', markersize=3, linestyle='None', 
+                      markerfacecolor='white', markeredgecolor='black', label='Outliers')
+        ]
+        plt.legend(handles=legend_elements, loc='upper left', frameon=True, fancybox=True, shadow=True)
+        
+        plt.tight_layout()
+
+        # --- Print comprehensive stats ---
+        print("\n=== PER-MARKER ERROR SUMMARY ===")
+        print(f"{'Marker':15s} {'Count':>6s} {'Mean':>8s} {'Std':>8s} {'Min':>8s} {'Q1':>8s} {'Median':>8s} {'Q3':>8s} {'Max':>8s}")
+        print("-" * 85)
+        
+        for i, m in enumerate(valid_markers):
+            errs = errors[i]
+            s = stats[m]
+            q1, median, q3 = np.percentile(errs, [25, 50, 75])
+            
+            print(f"{m:15s} {len(errs):6d} {s['mean']:8.2f} {s['std']:8.2f} {s['min']:8.2f} {q1:8.2f} {median:8.2f} {q3:8.2f} {s['max']:8.2f}")
+            
+            # Check for potential outliers (beyond 1.5*IQR from quartiles)
+            iqr = q3 - q1
+            lower_fence = q1 - 1.5 * iqr
+            upper_fence = q3 + 1.5 * iqr
+            outliers = [e for e in errs if e < lower_fence or e > upper_fence]
+            
+            if outliers:
+                print(f"               Outliers (>{upper_fence:.2f} or <{lower_fence:.2f}): {len(outliers)} points, max={max(outliers):.2f}")
+
+        print("\n📊 PLOT EXPLANATION:")
+        print("• Light Blue Box = Interquartile Range (Q1 to Q3, contains middle 50% of data)")
+        print("• Orange Line = Median (50th percentile)")
+        print("• Red Dot = Mean (average)")
+        print("• Whiskers = Extend to 1.5×IQR beyond box, or to min/max if closer")
+        print("• Circles = Outliers (beyond whiskers)")
+
+        # Removed the μ and σ annotations as requested
+
+        # Save plot if path is provided
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight', 
+                       facecolor='white', edgecolor='none')
+            print(f" Error analysis plot saved to: {save_path}")
+        
+        plt.show()
+
+    def calculate_projection_error(self, labels_path: str, visualize: bool = True):
+        """Calculate 2D-2D error between manual labels and projected markers (TXT file)."""
+        
+        print("Comparing manually labeled points with projected marker positions from TXT file...")
+
+        # --- Load labeled points from YAML ---
+        labeled_points = helpers.read_points_labels(labels_path)
+        print(f"Loaded {len(labeled_points['times'])} labeled timestamps from YAML")
+        print(f"Available markers in labels: {set().union(*[frame.keys() for frame in labeled_points['points']])}")
+
+        # --- Load projected points ---
+        projected_points_txt = os.path.join(os.path.dirname(self.vicon_path), "projected_points.txt")
+        if not os.path.exists(projected_points_txt):
+            print(f"❌ Error: Projected points TXT file not found: {projected_points_txt}")
+            return None
+
+        projected_data = {}  # marker_name -> [(timestamp, x, y), ...]
+        with open(projected_points_txt, 'r') as f:
+            for line in f:
+                parts = line.strip().split(',')
+                if len(parts) != 4:
+                    continue
+                try:
+                    timestamp, x, y, marker_name = float(parts[0]), float(parts[1]), float(parts[2]), parts[3].strip()
+                    projected_data.setdefault(marker_name, []).append((timestamp, x, y))
+                except ValueError:
+                    continue
+
+        print(f"Loaded projected data for {len(projected_data)} markers.")
+
+        # --- Compute errors ---
+        comparison_results = {'marker_errors': {}}
+        print(f"\nAnalyzing {len(labeled_points['times'])} labeled frames...")
+
+        for event_timestamp, labeled_frame in zip(labeled_points['times'], labeled_points['points']):
+            for marker, label in labeled_frame.items():
+                label_x, label_y = int(label['x']), int(label['y'])
+                if marker not in projected_data:
+                    continue
+
+                proj_list = sorted(projected_data[marker], key=lambda x: x[0])
+                timestamps = [p[0] for p in proj_list]
+                insert_pos = bisect.bisect_left(timestamps, event_timestamp)
+
+                # Find closest projection by timestamp
+                candidates = []
+                for idx in [insert_pos - 1, insert_pos]:
+                    if 0 <= idx < len(proj_list):
+                        proj_timestamp, proj_x, proj_y = proj_list[idx]
+                        time_diff = abs(proj_timestamp - event_timestamp)
+                        candidates.append((time_diff, proj_x, proj_y))
+                if not candidates:
+                    continue
+
+                _, proj_x, proj_y = min(candidates)
+                error = np.linalg.norm(np.array([label_x, label_y]) - np.array([proj_x, proj_y]))
+                comparison_results['marker_errors'].setdefault(marker, []).append(error)
+
+        # --- Plot per-marker error distribution ---
+        # Generate save path for the error plot
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        plot_save_path = os.path.join(os.path.dirname(self.vicon_path), f"error_analysis.png")
+        self.plot_per_marker_error_boxplot(comparison_results['marker_errors'], save_path=plot_save_path)
+
+        return comparison_results
+
+###
     def estimate_transformation(self, system_points: np.ndarray, image_points: np.ndarray, init_params: np.ndarray) -> np.ndarray:
         """
         Estimate system-to-camera transformation using optimization.
@@ -943,8 +1323,7 @@ class ViconDVSPipeline:
         print(f"Optimized transformation matrix:\n{T_optimized}")
         
         return T_optimized
-
-###        
+       
     # TODO: check this and fix it
     def optimize_calibration(self, labels_path: str):
         """Optimize calibration using dynamic multi-frame PnP + robust averaging + global refinement."""
@@ -955,10 +1334,12 @@ class ViconDVSPipeline:
         labeled_points = helpers.read_points_labels(labels_path)
 
         # 2. Prepare VICON helper & interpolated 3D points at label times
+        # Try to pass camera_markers parameter (if supported by ViconHelper)
         vicon_helper = ViconHelper(
             self.marker_t, self.points_3d, self.delay,
             self.c3d_data.frame_count, self.c3d_data.point_rate,
-            self.c3d_data.point_labels, True, True
+            self.c3d_data.point_labels, True, True,
+            user_camera_markers=self.camera_markers  # Pass user-specified camera markers
         )
         vicon_points = vicon_helper.get_vicon_points_interpolated(labeled_points)
 
@@ -1252,7 +1633,7 @@ class ViconDVSPipeline:
     #     print(f"Saved transformation matrices to {output_file}")
         
     def run_full_pipeline(self, use_projections: bool = False, create_video: bool = True,
-        init_file_path: str = None, chosen_marker: str = None):
+        init_file_path: str = None, chosen_marker: str = None, perform_error_analysis: bool = False):
         
         """Run the complete pipeline."""
         print("Starting VICON-DVS pipeline...")
@@ -1322,6 +1703,16 @@ class ViconDVSPipeline:
                 response = input("\nAre you satisfied with the calibration results? (y/n): ").lower().strip()
                 
                 if response in ['y', 'yes']:
+
+                    # Step 11: Perform error analysis if requested
+                    if perform_error_analysis:
+                        labels_path = self.output_path
+                        try:
+                            self.calculate_projection_error(labels_path, visualize=True)
+                        except Exception as e:
+                            print(f"Error during projection error analysis: {e}")
+                            print("Pipeline completed with calibration but error analysis failed.")
+                    
                     print("Pipeline completed successfully!")                    
                     return
                 elif response in ['n', 'no']:
@@ -1337,16 +1728,26 @@ class ViconDVSPipeline:
                         use_projections=use_projections,
                         create_video=create_video,
                         init_file_path=None,  # Force no init file on restart
-                        chosen_marker=chosen_marker
+                        chosen_marker=chosen_marker,
+                        perform_error_analysis=perform_error_analysis
                     )
                 else:
                     print("Please enter 'y' for yes or 'n' for no.")
         else:
             # If no video creation, just complete the pipeline
+            # Step 11: Perform error analysis if requested
+            if perform_error_analysis:
+                labels_path = self.output_path
+                try:
+                    self.calculate_projection_error(labels_path, visualize=True)
+                except Exception as e:
+                    print(f"Error during projection error analysis: {e}")
+                    print("Pipeline completed with calibration but error analysis failed.")
+            
             print("Pipeline completed successfully!")
             return
         
-    # TODO: step 11: calibration error and report of accuracy, check notebook for 2d-2d error check
+    # Step 11 implemented: 2D-2D projection error analysis available via --error flag
     # TODO: if depth is provided, get 2d projections put them in 3d and check with vicon data as to have a more accurate analysis
     
 def main():
@@ -1381,6 +1782,8 @@ def main():
                        help='Skip video creation')
     parser.add_argument('--visualize_events', action='store_true',
                        help='Visualize events')
+    parser.add_argument('--error', action='store_true',
+                       help='Perform 2D-2D error analysis between manual labels and projected markers (Step 11)')
     
     # TODO: add argument to let the user choose the size of the time windows????
     
@@ -1419,7 +1822,8 @@ def main():
         use_projections=args.projections,
         create_video=not args.no_video,
         init_file_path=args.init_file,
-        chosen_marker=args.chosen_marker
+        chosen_marker=args.chosen_marker,
+        perform_error_analysis=args.error
     )
     
 
