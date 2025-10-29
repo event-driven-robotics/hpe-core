@@ -180,6 +180,14 @@ class ViconProjector:
         # Calculate projections once during initialization
         self._calculate_projections()
     
+    def _clean_marker_name(self, marker_name):
+        """Remove common prefixes from marker names for display purposes."""
+        if ':' in marker_name:
+            prefix, suffix = marker_name.split(':', 1)
+            # Remove common prefixes like 'skeleton', 'wand', etc.
+            return suffix.strip()
+        return marker_name.strip()
+    
     def _calculate_projections(self):
         """Calculate all marker projections once"""
         self.image_points = {}
@@ -226,110 +234,139 @@ class ViconProjector:
 
         video_segment = []
 
-        if visualize or video_record:
-            delay_step = 0.01
-            current_delay = delay
+        # Initialize dictionary to store synchronized projections
+        synced_image_points = {
+            name: {
+                "points": [],
+                "timestamps": []
+            }
+            for name in self.marker_names
+        }
 
-            i_markers = 0
-            i_events = 0
-                        
-            # Adjust timing based on offset
-            tic_markers = marker_t[0] + marker_time_offset - current_delay # + period
-            tic_events = e_ts[0] # + period
+        # if visualize or video_record:
+        delay_step = 0.01
+        current_delay = delay
+
+        i_markers = 0
+        i_events = 0
+                    
+        # Adjust timing based on offset
+        tic_markers = marker_t[0] + marker_time_offset - current_delay # + period
+        tic_events = e_ts[0] # + period
+        
+        # Create image once outside the loop
+        img = np.ones(self.cam_res, dtype=np.uint8) * 255
+                    
+        if video_record:
+            fps = int(1 / period)
+            fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+            video_writer = cv2.VideoWriter('tmp.mp4', fourcc, fps, (self.cam_res[1], self.cam_res[0]), isColor=False)
+
+        while tic_markers < marker_t[-1] and tic_events < e_ts[-1]:
             
-            # Create image once outside the loop
-            img = np.ones(self.cam_res, dtype=np.uint8) * 255
-                        
-            if video_record:
-                fps = int(1 / period)
-                fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-                video_writer = cv2.VideoWriter('tmp.mp4', fourcc, fps, (self.cam_res[1], self.cam_res[0]), isColor=False)
+            # Store valid markers and their coordinates for this frame
+            current_frame_markers = {}
 
-            while tic_markers < marker_t[-1] and tic_events < e_ts[-1]:
-                
-                while marker_t[i_markers] < tic_markers:
-                    for mark_name in self.marker_names:
+            while i_markers < len(marker_t) and marker_t[i_markers] < tic_markers:
+
+                for mark_name in self.marker_names:
+                    if mark_name in self.image_points and i_markers < len(self.image_points[mark_name]):
                         u_coord = self.image_points[mark_name][i_markers][0]
                         v_coord = self.image_points[mark_name][i_markers][1]
-                            
+
                         if np.isfinite(u_coord) and np.isfinite(v_coord):
-                            u = int(u_coord)
-                            v = int(v_coord)
-                            
-                            if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                                cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                                cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
-                    i_markers += 1
+                            current_frame_markers[mark_name] = [u_coord, v_coord] # Store marker data for this frame
 
-                while e_ts[i_events] < tic_events:
-                    img[e_vs[i_events], e_us[i_events]] = 0
-                    i_events += 1
+                i_markers += 1
 
-                # GUI keys
-                cv2.putText(img, f"Delay: {current_delay:.3f}s (step: {delay_step:.3f}s)", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
-                cv2.putText(img, "Keys: <-/-> adjust delay, +/- adjust step, q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-                
-                # Add timestamp displays in top-right corner
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                font_scale = 0.5
-                thickness = 1
-                color = 128
-                
-                # Marker timestamp
-                marker_time_text = f"Marker: {tic_markers:.3f}s"
-                (text_width, text_height), _ = cv2.getTextSize(marker_time_text, font, font_scale, thickness)
-                x = self.cam_res[1] - text_width - 10
-                y = text_height + 10
-                cv2.putText(img, marker_time_text, (x, y), font, font_scale, color, thickness, cv2.LINE_AA)
-                
-                # Event timestamp
-                event_time_text = f"Event: {tic_events:.3f}s"
-                (text_width, text_height), _ = cv2.getTextSize(event_time_text, font, font_scale, thickness)
-                x = self.cam_res[1] - text_width - 10
-                y = text_height + 35  # Position below marker timestamp
-                cv2.putText(img, event_time_text, (x, y), font, font_scale, color, thickness, cv2.LINE_AA)
+            if current_frame_markers:
+                for mark_name, (u_coord, v_coord) in current_frame_markers.items():
+                    u = int(u_coord); v = int(v_coord)
+                    if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
+                        cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
+                        cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
 
+            # Only add one timestamp per frame for each marker (not for every event)
+            if current_frame_markers and i_events < len(e_ts):
+                # Use the current event timestamp as representative for this frame
+                frame_timestamp = e_ts[i_events] if i_events < len(e_ts) else tic_events
+                for mark_name, coords in current_frame_markers.items():
+                    synced_image_points[mark_name]["points"].append(coords)
+                    synced_image_points[mark_name]["timestamps"].append(frame_timestamp)
 
-                if visualize:
-                    cv2.imshow('Projected Points', img)
-                    c = cv2.waitKey(int(500 * period))
-                                    
-                    # delay GUI, TODO: leave only in fix_delay
-                    if c == 83:  # Right arrow -> increase by step
-                        current_delay += delay_step
-                        print(f"Delay increased to: {current_delay:.3f}s (step: {delay_step:.3f}s)")
-                        # Reset timing with new delay
-                        tic_markers = marker_t[0] + marker_time_offset - current_delay # + period
-                        tic_events = e_ts[0] # + period
-                        i_events = 0
-                        i_markers = 0
-                    elif c == 81:  # Left arrow -> decrease by step
-                        current_delay -= delay_step
-                        print(f"Delay decreased to: {current_delay:.3f}s (step: {delay_step:.3f}s)")
-                        # Reset timing with new delay
-                        tic_markers = marker_t[0] + marker_time_offset - current_delay # + period
-                        tic_events = e_ts[0] # + period
-                        i_events = 0
-                        i_markers = 0
-                    elif c == ord('+') or c == ord('='):
-                        delay_step += 0.001  # Increase step by 1ms
-                        print(f"Delay step increased to: {delay_step:.3f}s")
-                    elif c == ord('-'):
-                        delay_step = max(0.001, delay_step - 0.001)  # Decrease step by 1ms, minimum 1ms
-                        print(f"Delay step decreased to: {delay_step:.3f}s")
-                    if c == ord('q'):
-                        cv2.destroyAllWindows()
-                        raise KeyboardInterrupt
+            # Render events up to current event time
+            while i_events < len(e_ts) and e_ts[i_events] < tic_events:
+                uu = int(e_us[i_events]); vv = int(e_vs[i_events])
+                if 0 <= uu < self.cam_res[1] and 0 <= vv < self.cam_res[0]:
+                    img[vv, uu] = 0
+                i_events += 1
 
-                # Record video
-                if video_record:
-                    video_segment.append(img.copy())
+            # GUI keys
+            cv2.putText(img, f"Delay: {current_delay:.3f}s (step: {delay_step:.3f}s)", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
+            cv2.putText(img, "Keys: <-/-> adjust delay, +/- adjust step, q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+            
+            # Add timestamp displays in top-right corner
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.5
+            thickness = 1
+            color = 128
+            
+            # Marker timestamp
+            marker_time_text = f"Marker: {tic_markers:.3f}s"
+            (text_width, text_height), _ = cv2.getTextSize(marker_time_text, font, font_scale, thickness)
+            x = self.cam_res[1] - text_width - 10
+            y = text_height + 10
+            cv2.putText(img, marker_time_text, (x, y), font, font_scale, color, thickness, cv2.LINE_AA)
+            
+            # Event timestamp
+            event_time_text = f"Event: {tic_events:.3f}s"
+            (text_width, text_height), _ = cv2.getTextSize(event_time_text, font, font_scale, thickness)
+            x = self.cam_res[1] - text_width - 10
+            y = text_height + 35  # Position below marker timestamp
+            cv2.putText(img, event_time_text, (x, y), font, font_scale, color, thickness, cv2.LINE_AA)
 
-                img = np.ones(self.cam_res, dtype=np.uint8) * 255
-                tic_markers += period
-                tic_events += period
+            if visualize:
+                cv2.imshow('Projected Points', img)
+                c = cv2.waitKey(int(500 * period))
+                                
+                # delay GUI, TODO: leave only in fix_delay
+                if c == 83:  # Right arrow -> increase by step
+                    current_delay += delay_step
+                    print(f"Delay increased to: {current_delay:.3f}s (step: {delay_step:.3f}s)")
+                    # Reset timing with new delay
+                    tic_markers = marker_t[0] + marker_time_offset - current_delay # + period
+                    tic_events = e_ts[0] # + period
+                    i_events = 0
+                    i_markers = 0
+                elif c == 81:  # Left arrow -> decrease by step
+                    current_delay -= delay_step
+                    print(f"Delay decreased to: {current_delay:.3f}s (step: {delay_step:.3f}s)")
+                    # Reset timing with new delay
+                    tic_markers = marker_t[0] + marker_time_offset - current_delay # + period
+                    tic_events = e_ts[0] # + period
+                    i_events = 0
+                    i_markers = 0
+                elif c == ord('+') or c == ord('='):
+                    delay_step += 0.001  # Increase step by 1ms
+                    print(f"Delay step increased to: {delay_step:.3f}s")
+                elif c == ord('-'):
+                    delay_step = max(0.001, delay_step - 0.001)  # Decrease step by 1ms, minimum 1ms
+                    print(f"Delay step decreased to: {delay_step:.3f}s")
+                if c == ord('q'):
+                    cv2.destroyAllWindows()
+                    raise DelayExit(current_delay)
+
+            # Record video
+            if video_record:
+                video_segment.append(img.copy())
+
+            # prepare next frame
+            img = np.ones(self.cam_res, dtype=np.uint8) * 255
+            tic_markers += period
+            tic_events += period
         
-        return self.image_points, video_segment
+        # Return both the original structure, video segment, and the final delay
+        return synced_image_points, video_segment, current_delay
 
     def manual_rotation_adjustment(self, marker_t, delay, e_ts, e_us, e_vs, period,
                                    R_init=None, tvec=None, visualize=True,
@@ -381,22 +418,32 @@ class ViconProjector:
         while tic_markers < marker_t[-1] and tic_events < e_ts[-1]:
             # Draw markers and events only when not paused
             if not paused:
-                while marker_t[i_markers] < tic_markers:
+                # Store valid markers and their coordinates for this frame
+                current_frame_markers = {}
+
+                while i_markers < len(marker_t) and marker_t[i_markers] < tic_markers:
                     for mark_name in self.marker_names:
-                        u_coord = self.image_points[mark_name][i_markers][0]
-                        v_coord = self.image_points[mark_name][i_markers][1]
-                           
-                        if np.isfinite(u_coord) and np.isfinite(v_coord):
-                            u = int(u_coord)
-                            v = int(v_coord)
-                           
-                            if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                                cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                                cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                        if mark_name in self.image_points and i_markers < len(self.image_points[mark_name]):
+                            u_coord = self.image_points[mark_name][i_markers][0]
+                            v_coord = self.image_points[mark_name][i_markers][1]
+
+                            if np.isfinite(u_coord) and np.isfinite(v_coord):
+                                current_frame_markers[mark_name] = [u_coord, v_coord] # Store marker data for this frame
+
                     i_markers += 1
- 
-                while e_ts[i_events] < tic_events:
-                    img[e_vs[i_events], e_us[i_events]] = 0
+
+                if current_frame_markers:
+                    for mark_name, (u_coord, v_coord) in current_frame_markers.items():
+                        u = int(u_coord); v = int(v_coord)
+                        if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
+                            cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
+                            cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+
+                # Render events up to current event time
+                while i_events < len(e_ts) and e_ts[i_events] < tic_events:
+                    uu = int(e_us[i_events]); vv = int(e_vs[i_events])
+                    if 0 <= uu < self.cam_res[1] and 0 <= vv < self.cam_res[0]:
+                        img[vv, uu] = 0
                     i_events += 1                
            
             cv2.putText(img, f"Rot (deg) roll={Rot_deg[0]:+.2f} pitch={Rot_deg[1]:+.2f} yaw={Rot_deg[2]:+.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
@@ -640,22 +687,32 @@ class ViconProjector:
         while tic_markers < marker_t[-1] and tic_events < e_ts[-1]:
             # Create images with projected 2D points (only when not paused)
             if not paused:
-                while marker_t[i_markers] < tic_markers:
+                # Store valid markers and their coordinates for this frame
+                current_frame_markers = {}
+
+                while i_markers < len(marker_t) and marker_t[i_markers] < tic_markers:
                     for mark_name in self.marker_names:
-                        u_coord = self.image_points[mark_name][i_markers][0]
-                        v_coord = self.image_points[mark_name][i_markers][1]
-                            
-                        if np.isfinite(u_coord) and np.isfinite(v_coord):
-                            u = int(u_coord)
-                            v = int(v_coord)
-                            
-                            if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                                cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                                cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                        if mark_name in self.image_points and i_markers < len(self.image_points[mark_name]):
+                            u_coord = self.image_points[mark_name][i_markers][0]
+                            v_coord = self.image_points[mark_name][i_markers][1]
+
+                            if np.isfinite(u_coord) and np.isfinite(v_coord):
+                                current_frame_markers[mark_name] = [u_coord, v_coord] # Store marker data for this frame
+
                     i_markers += 1
 
-                while e_ts[i_events] < tic_events:
-                    img[e_vs[i_events], e_us[i_events]] = 0
+                if current_frame_markers:
+                    for mark_name, (u_coord, v_coord) in current_frame_markers.items():
+                        u = int(u_coord); v = int(v_coord)
+                        if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
+                            cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
+                            cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+
+                # Render events up to current event time
+                while i_events < len(e_ts) and e_ts[i_events] < tic_events:
+                    uu = int(e_us[i_events]); vv = int(e_vs[i_events])
+                    if 0 <= uu < self.cam_res[1] and 0 <= vv < self.cam_res[0]:
+                        img[vv, uu] = 0
                     i_events += 1           
 
             # Add GUI text
@@ -685,7 +742,7 @@ class ViconProjector:
             # Navigate frames (only when paused is True)
             elif c == 81 and paused:  # Left arrow -> go to previous frame
                 
-                tic_events = max(tic_events - period, e_ts[0])
+                tic_events = max(tic_events - delay_step, e_ts[0])
                 tic_markers = tic_events - current_delay
                     
                 i_events = max(0, i_events - 1)
@@ -727,7 +784,7 @@ class ViconProjector:
                 
             elif c == 83 and paused:  # Right arrow -> go to next frame
                 
-                tic_events += period
+                tic_events += delay_step
                 tic_markers = tic_events - current_delay
                 
                 # i_events += 1 # ????
@@ -1092,7 +1149,8 @@ class DvsLabeler:
                     marker_name = marker_labels[int(label_val)]
                 except (ValueError, IndexError):
                     marker_name = label_val
-                if self.subject is not None:
+                # Only add subject prefix if the marker name doesn't already contain one
+                if self.subject is not None and ':' not in marker_name:
                     marker_name = f"{self.subject}:{marker_name}"
                 points.append([x, y])
                 points_dict[marker_name] = {"x": int(x), "y": int(y)}
@@ -1387,7 +1445,7 @@ class DvsLabeler:
 class ViconHelper:
     # functions relative to the extraction of the vicon data from c3d files.
     
-    def __init__(self, frame_times, points_3d, delay, frame_count, point_rate, point_labels, camera_markers, filter_camera_markers):
+    def __init__(self, frame_times, points_3d, delay, frame_count, point_rate, point_labels, camera_markers, filter_camera_markers, user_camera_markers=None):
         self.frame_times = frame_times
         self.points_3d = points_3d
         self.delay = delay
@@ -1396,6 +1454,7 @@ class ViconHelper:
         self.point_labels = [l.strip() for l in point_labels]
         self.camera_markers = camera_markers
         self.filter_camera_markers = filter_camera_markers
+        self.user_specified_camera_markers = user_camera_markers  # User-specified camera markers
         
         self.calculate_frame_times()
         
@@ -1422,15 +1481,47 @@ class ViconHelper:
         
         self.frame_times = times
 
+    # atual one
+    # def get_frame_time(self, times):
+    #     # attribute each label an id based on the timestamp.
+        
+    #     frame_ids = []
+    #     for t in times:
+    #         idx = np.searchsorted(self.frame_times, t)
+    #         if idx >= len(self.frame_times):
+    #             break
+    #         frame_ids.append(idx)
+    #     return frame_ids
+
+    #new_Dataset_giorgia
     def get_frame_time(self, times):
-        # attribute each label an id based on the timestamp.
+        # Find closest frame for each timestamp using binary search + closest matching
+        # This matches the approach used in calculate_projection_error for consistency
         
         frame_ids = []
         for t in times:
-            idx = np.searchsorted(self.frame_times, t)
-            if idx >= len(self.frame_times):
-                break
-            frame_ids.append(idx)
+            # Use binary search to find insertion position
+            insert_pos = np.searchsorted(self.frame_times, t)
+            
+            # Find closest frame by comparing candidates on both sides
+            candidates = []
+            for idx in [insert_pos - 1, insert_pos]:
+                if 0 <= idx < len(self.frame_times):
+                    frame_time = self.frame_times[idx]
+                    time_diff = abs(frame_time - t)
+                    candidates.append((time_diff, idx))
+            
+            if candidates:
+                # Select frame with minimum time difference
+                _, closest_idx = min(candidates)
+                frame_ids.append(closest_idx)
+            else:
+                # Fallback if no valid candidates (shouldn't happen in normal cases)
+                if insert_pos < len(self.frame_times):
+                    frame_ids.append(insert_pos)
+                else:
+                    break
+                    
         return frame_ids
 
     def get_points_dict(self, frame_id):
@@ -1508,7 +1599,21 @@ class ViconHelper:
 
         out = {}
         out['points'] = vicon_points_frames
+
+        # actual:
         out['times'] = np.array([self.frame_times[idx] for idx in frames_id])
+        
+        # # new_dataset_giorgia:
+        # ###
+        # def get_frame_time_safe(idx):
+        #     # Convert 1-based C3D index to 0-based frame_times index
+        #     time_idx = idx - 1 if idx > 0 else 0
+        #     # Clamp to valid range to avoid IndexError
+        #     time_idx = max(0, min(time_idx, len(self.frame_times) - 1))
+        #     return self.frame_times[time_idx]
+        
+        # out['times'] = np.array([get_frame_time_safe(idx) for idx in frames_id])
+        # ###
         out['frame_ids'] = frames_id
                 
         return out
@@ -1529,8 +1634,16 @@ class ViconHelper:
         """
         Read position of markers on the camera system and calculate the corresponding reference frame.
         Now handles both single and multiple marker configurations automatically.
+        Uses user-specified camera markers when provided.
         """
         
+        # Use user-specified camera markers if provided
+        if self.user_specified_camera_markers:
+            print(f"Using user-specified camera markers: {self.user_specified_camera_markers}")
+            self._process_user_specified_markers()
+            return
+        
+        # Fallback to automatic detection
         # Define possible marker configurations
         multi_marker_labels = ['camera:cam_right', 'camera:cam_back', 'camera:cam_left']
         alt_multi_marker_labels = ['stereoatis:cam_right', 'stereoatis:cam_back', 'stereoatis:cam_left']
@@ -1570,10 +1683,48 @@ class ViconHelper:
                 print("   Using identity transforms (camera_markers=False)")
                 self.camera_markers = False
 
+    def _process_user_specified_markers(self):
+        """Process user-specified camera markers."""
+        # Validate that all user-specified markers exist in the dataset
+        available_labels = [label.strip() for label in self.point_labels]
+        missing_markers = [marker for marker in self.user_specified_camera_markers if marker not in available_labels]
+        
+        if missing_markers:
+            print(f"⚠️  Warning: Some user-specified camera markers not found: {missing_markers}")
+            print(f"   Available markers: {available_labels}")
+            # Filter out missing markers
+            valid_markers = [marker for marker in self.user_specified_camera_markers if marker in available_labels]
+            if not valid_markers:
+                print("   No valid camera markers found, disabling camera markers")
+                self.camera_markers = False
+                return
+            self.user_specified_camera_markers = valid_markers
+            print(f"   Using valid markers: {valid_markers}")
+        
+        # Determine setup type based on number of markers
+        n_markers = len(self.user_specified_camera_markers)
+        if n_markers == 1:
+            print(f"Processing as single-marker setup: {self.user_specified_camera_markers[0]}")
+            self._process_single_marker_setup(self.user_specified_camera_markers[0])
+        elif n_markers >= 3:
+            print(f"Processing as multi-marker setup: {self.user_specified_camera_markers}")
+            # Use the first 3 markers for the multi-marker setup (you may want to adjust this logic)
+            self._process_multi_marker_setup(self.user_specified_camera_markers[:3])
+        else:
+            print(f"⚠️  Warning: {n_markers} camera markers specified, but need 1 or 3+ for valid setup")
+            print("   Using single-marker approach with the first marker")
+            self._process_single_marker_setup(self.user_specified_camera_markers[0])
+
     def _process_single_marker_setup(self, marker_name):
         """Process single camera marker setup"""
         camera_labels = [marker_name]
+
+        # actual one:
         vicon_points = self.get_vicon_points(range(1, self.frame_count), camera_labels)
+
+        # # new_dataset_giorgia:
+        # available_frames = sorted(list(self.points_3d.keys()))
+        # vicon_points = self.get_vicon_points(available_frames, camera_labels)
 
         single_camera = []
         for f in vicon_points['points']:
@@ -1591,15 +1742,30 @@ class ViconHelper:
 
     def _process_multi_marker_setup(self, camera_labels):
         """Process multi-marker camera setup"""
+
+        # actual one:
         vicon_points = self.get_vicon_points(range(1, self.frame_count), camera_labels)
+
+        # # new_dataset_giorgia:
+        # available_frames = sorted(list(self.points_3d.keys()))
+        # vicon_points = self.get_vicon_points(available_frames, camera_labels)
+
+        # Handle different camera label configurations flexibly
+        if len(camera_labels) >= 3:
+            # Use the first 3 markers
+            marker_right = camera_labels[0]  # First marker as "right"
+            marker_back = camera_labels[1]   # Second marker as "back" 
+            marker_left = camera_labels[2]   # Third marker as "left"
+        else:
+            raise ValueError(f"Multi-marker setup requires at least 3 markers, got {len(camera_labels)}")
 
         camera_right = []
         camera_left = []
         camera_back = []
         for f in vicon_points['points']:
-            camera_right.append(f[camera_labels[0]][:3])  # cam_right
-            camera_left.append(f[camera_labels[2]][:3])   # cam_left  
-            camera_back.append(f[camera_labels[1]][:3])   # cam_back
+            camera_right.append(f[marker_right][:3])  
+            camera_left.append(f[marker_left][:3])   
+            camera_back.append(f[marker_back][:3])   
 
         camera_right = np.array(camera_right)
         camera_left = np.array(camera_left)
@@ -1615,6 +1781,8 @@ class ViconHelper:
             self.camera_back = camera_back
         
         self.marker_setup_type = "multi_marker"
+        print(f"Multi-marker setup configured with: right={marker_right}, back={marker_back}, left={marker_left}")
+    
     
     def compute_camera_marker_transforms(self):
         """
