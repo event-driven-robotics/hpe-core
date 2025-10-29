@@ -180,6 +180,14 @@ class ViconProjector:
         # Calculate projections once during initialization
         self._calculate_projections()
     
+    def _clean_marker_name(self, marker_name):
+        """Remove common prefixes from marker names for display purposes."""
+        if ':' in marker_name:
+            prefix, suffix = marker_name.split(':', 1)
+            # Remove common prefixes like 'skeleton', 'wand', etc.
+            return suffix.strip()
+        return marker_name.strip()
+    
     def _calculate_projections(self):
         """Calculate all marker projections once"""
         self.image_points = {}
@@ -258,36 +266,39 @@ class ViconProjector:
             
             # Store valid markers and their coordinates for this frame
             current_frame_markers = {}
-            
-            while marker_t[i_markers] < tic_markers:
-                for mark_name in self.marker_names:
-                    u_coord = self.image_points[mark_name][i_markers][0]
-                    v_coord = self.image_points[mark_name][i_markers][1]
-                        
-                    if np.isfinite(u_coord) and np.isfinite(v_coord):
-                        u = int(u_coord)
-                        v = int(v_coord)
-                        
-                        if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                            cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                            cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
 
-                            # Store marker data for this frame
-                            current_frame_markers[mark_name] = [u_coord, v_coord]
-                            
+            while i_markers < len(marker_t) and marker_t[i_markers] < tic_markers:
+
+                for mark_name in self.marker_names:
+                    if mark_name in self.image_points and i_markers < len(self.image_points[mark_name]):
+                        u_coord = self.image_points[mark_name][i_markers][0]
+                        v_coord = self.image_points[mark_name][i_markers][1]
+
+                        if np.isfinite(u_coord) and np.isfinite(v_coord):
+                            current_frame_markers[mark_name] = [u_coord, v_coord] # Store marker data for this frame
+
                 i_markers += 1
+
+            if current_frame_markers:
+                for mark_name, (u_coord, v_coord) in current_frame_markers.items():
+                    u = int(u_coord); v = int(v_coord)
+                    if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
+                        cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
+                        cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
 
             # Only add one timestamp per frame for each marker (not for every event)
             if current_frame_markers and i_events < len(e_ts):
                 # Use the current event timestamp as representative for this frame
                 frame_timestamp = e_ts[i_events] if i_events < len(e_ts) else tic_events
-                
                 for mark_name, coords in current_frame_markers.items():
                     synced_image_points[mark_name]["points"].append(coords)
                     synced_image_points[mark_name]["timestamps"].append(frame_timestamp)
 
-            while e_ts[i_events] < tic_events:
-                img[e_vs[i_events], e_us[i_events]] = 0
+            # Render events up to current event time
+            while i_events < len(e_ts) and e_ts[i_events] < tic_events:
+                uu = int(e_us[i_events]); vv = int(e_vs[i_events])
+                if 0 <= uu < self.cam_res[1] and 0 <= vv < self.cam_res[0]:
+                    img[vv, uu] = 0
                 i_events += 1
 
             # GUI keys
@@ -313,7 +324,6 @@ class ViconProjector:
             x = self.cam_res[1] - text_width - 10
             y = text_height + 35  # Position below marker timestamp
             cv2.putText(img, event_time_text, (x, y), font, font_scale, color, thickness, cv2.LINE_AA)
-
 
             if visualize:
                 cv2.imshow('Projected Points', img)
@@ -344,18 +354,19 @@ class ViconProjector:
                     print(f"Delay step decreased to: {delay_step:.3f}s")
                 if c == ord('q'):
                     cv2.destroyAllWindows()
-                    raise KeyboardInterrupt
+                    raise DelayExit(current_delay)
 
             # Record video
             if video_record:
                 video_segment.append(img.copy())
 
+            # prepare next frame
             img = np.ones(self.cam_res, dtype=np.uint8) * 255
             tic_markers += period
             tic_events += period
         
-        # Return both the original structure and the synced data
-        return synced_image_points, video_segment
+        # Return both the original structure, video segment, and the final delay
+        return synced_image_points, video_segment, current_delay
 
     def manual_rotation_adjustment(self, marker_t, delay, e_ts, e_us, e_vs, period,
                                    R_init=None, tvec=None, visualize=True,
@@ -407,22 +418,32 @@ class ViconProjector:
         while tic_markers < marker_t[-1] and tic_events < e_ts[-1]:
             # Draw markers and events only when not paused
             if not paused:
-                while marker_t[i_markers] < tic_markers:
+                # Store valid markers and their coordinates for this frame
+                current_frame_markers = {}
+
+                while i_markers < len(marker_t) and marker_t[i_markers] < tic_markers:
                     for mark_name in self.marker_names:
-                        u_coord = self.image_points[mark_name][i_markers][0]
-                        v_coord = self.image_points[mark_name][i_markers][1]
-                           
-                        if np.isfinite(u_coord) and np.isfinite(v_coord):
-                            u = int(u_coord)
-                            v = int(v_coord)
-                           
-                            if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                                cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                                cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                        if mark_name in self.image_points and i_markers < len(self.image_points[mark_name]):
+                            u_coord = self.image_points[mark_name][i_markers][0]
+                            v_coord = self.image_points[mark_name][i_markers][1]
+
+                            if np.isfinite(u_coord) and np.isfinite(v_coord):
+                                current_frame_markers[mark_name] = [u_coord, v_coord] # Store marker data for this frame
+
                     i_markers += 1
- 
-                while e_ts[i_events] < tic_events:
-                    img[e_vs[i_events], e_us[i_events]] = 0
+
+                if current_frame_markers:
+                    for mark_name, (u_coord, v_coord) in current_frame_markers.items():
+                        u = int(u_coord); v = int(v_coord)
+                        if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
+                            cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
+                            cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+
+                # Render events up to current event time
+                while i_events < len(e_ts) and e_ts[i_events] < tic_events:
+                    uu = int(e_us[i_events]); vv = int(e_vs[i_events])
+                    if 0 <= uu < self.cam_res[1] and 0 <= vv < self.cam_res[0]:
+                        img[vv, uu] = 0
                     i_events += 1                
            
             cv2.putText(img, f"Rot (deg) roll={Rot_deg[0]:+.2f} pitch={Rot_deg[1]:+.2f} yaw={Rot_deg[2]:+.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
@@ -666,22 +687,32 @@ class ViconProjector:
         while tic_markers < marker_t[-1] and tic_events < e_ts[-1]:
             # Create images with projected 2D points (only when not paused)
             if not paused:
-                while marker_t[i_markers] < tic_markers:
+                # Store valid markers and their coordinates for this frame
+                current_frame_markers = {}
+
+                while i_markers < len(marker_t) and marker_t[i_markers] < tic_markers:
                     for mark_name in self.marker_names:
-                        u_coord = self.image_points[mark_name][i_markers][0]
-                        v_coord = self.image_points[mark_name][i_markers][1]
-                            
-                        if np.isfinite(u_coord) and np.isfinite(v_coord):
-                            u = int(u_coord)
-                            v = int(v_coord)
-                            
-                            if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                                cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                                cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                        if mark_name in self.image_points and i_markers < len(self.image_points[mark_name]):
+                            u_coord = self.image_points[mark_name][i_markers][0]
+                            v_coord = self.image_points[mark_name][i_markers][1]
+
+                            if np.isfinite(u_coord) and np.isfinite(v_coord):
+                                current_frame_markers[mark_name] = [u_coord, v_coord] # Store marker data for this frame
+
                     i_markers += 1
 
-                while e_ts[i_events] < tic_events:
-                    img[e_vs[i_events], e_us[i_events]] = 0
+                if current_frame_markers:
+                    for mark_name, (u_coord, v_coord) in current_frame_markers.items():
+                        u = int(u_coord); v = int(v_coord)
+                        if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
+                            cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
+                            cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+
+                # Render events up to current event time
+                while i_events < len(e_ts) and e_ts[i_events] < tic_events:
+                    uu = int(e_us[i_events]); vv = int(e_vs[i_events])
+                    if 0 <= uu < self.cam_res[1] and 0 <= vv < self.cam_res[0]:
+                        img[vv, uu] = 0
                     i_events += 1           
 
             # Add GUI text
@@ -711,7 +742,7 @@ class ViconProjector:
             # Navigate frames (only when paused is True)
             elif c == 81 and paused:  # Left arrow -> go to previous frame
                 
-                tic_events = max(tic_events - period, e_ts[0])
+                tic_events = max(tic_events - delay_step, e_ts[0])
                 tic_markers = tic_events - current_delay
                     
                 i_events = max(0, i_events - 1)
@@ -753,7 +784,7 @@ class ViconProjector:
                 
             elif c == 83 and paused:  # Right arrow -> go to next frame
                 
-                tic_events += period
+                tic_events += delay_step
                 tic_markers = tic_events - current_delay
                 
                 # i_events += 1 # ????
@@ -1118,7 +1149,8 @@ class DvsLabeler:
                     marker_name = marker_labels[int(label_val)]
                 except (ValueError, IndexError):
                     marker_name = label_val
-                if self.subject is not None:
+                # Only add subject prefix if the marker name doesn't already contain one
+                if self.subject is not None and ':' not in marker_name:
                     marker_name = f"{self.subject}:{marker_name}"
                 points.append([x, y])
                 points_dict[marker_name] = {"x": int(x), "y": int(y)}
@@ -1582,7 +1614,7 @@ class ViconHelper:
         
         # out['times'] = np.array([get_frame_time_safe(idx) for idx in frames_id])
         # ###
-        # out['frame_ids'] = frames_id
+        out['frame_ids'] = frames_id
                 
         return out
     
@@ -1688,7 +1720,7 @@ class ViconHelper:
         camera_labels = [marker_name]
 
         # actual one:
-        #vicon_points = self.get_vicon_points(range(1, self.frame_count), camera_labels)
+        vicon_points = self.get_vicon_points(range(1, self.frame_count), camera_labels)
 
         # # new_dataset_giorgia:
         # available_frames = sorted(list(self.points_3d.keys()))

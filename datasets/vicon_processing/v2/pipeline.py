@@ -71,10 +71,12 @@ class ViconDVSPipeline:
         self.Ts_world_to_system = None    
 
 ###
-    def _detect_subject_from_c3d(self) -> Optional[str]:
+    def _detect_subject_from_c3d(self, all_markers: Optional[list] = None) -> Optional[str]:
+        # Use provided markers or fall back to self.marker_names if available
+        markers_to_check = all_markers or getattr(self, 'marker_names', [])
         subject_counts = {}
         
-        for marker_name in self.marker_names:
+        for marker_name in markers_to_check:
             marker_name = marker_name.strip()
             if ':' in marker_name:
                 # Extract the part before the colon as potential subject
@@ -327,7 +329,10 @@ class ViconDVSPipeline:
 
         # If user provided a file
         if self.marker_list_path and os.path.isfile(self.marker_list_path):
+            print(f"Loading marker list from: {self.marker_list_path}")
+            print(f"Available C3D markers: {available_markers_raw[:10]}{'...' if len(available_markers_raw) > 10 else ''}")
             requested = load_label_file(self.marker_list_path)
+            print(f"Requested markers from YAML: {requested}")
             if not requested:
                 print(f"Label file {self.marker_list_path} produced no labels. Using all markers.")
                 return available_markers_raw
@@ -361,16 +366,16 @@ class ViconDVSPipeline:
                 else:
                     missing.append(r_clean)
 
-            # print(f"Using {len(requested)} labels; matched {len(matched)}; missing {len(missing)}.")
-            # if missing:
-            #     print(f"Missing (ignored): {missing}")
+            print(f"Requested {len(requested)} labels from YAML; matched {len(matched)}; missing {len(missing)}.")
+            if missing:
+                print(f"Missing markers (ignored): {missing}")
 
             if len(matched) > 0:
-                # print(f"Using {len(matched)} markers from {os.path.basename(self.marker_list_path)}.")
+                print(f"Using {len(matched)} markers from {os.path.basename(self.marker_list_path)}: {matched}")
                 return matched
 
         # Fallback
-        # print(f"Using all {len(available_markers_raw)} available markers.")
+        print(f"Using all {len(available_markers_raw)} available markers from C3D file.")
         return available_markers_raw   
 ###
         
@@ -437,19 +442,19 @@ class ViconDVSPipeline:
         self.marker_t = np.linspace(0.0, self.c3d_data.frame_count / self.c3d_data.point_rate, 
                                    self.c3d_data.frame_count, endpoint=False)
         
-        # Get all marker names
+        # Get all marker names from C3D file - keep all markers available for now
         self.marker_names = [name.strip() for name in self.c3d_data.point_labels]
-        print(f"Loaded {len(self.marker_names)} total markers")
+        print(f"Loaded {len(self.marker_names)} total markers from C3D file")
         
         # Auto-detect subject from C3D file if not provided
         if self.subject is None:
-            self.subject = self._detect_subject_from_c3d()
+            self.subject = self._detect_subject_from_c3d(self.marker_names)
             if self.subject:
                 print(f"Auto-detected subject from C3D file: {self.subject}")
             else:
                 print("No subject pattern detected in C3D marker names")
         
-        # Configure camera setup and identify camera markers
+        # Configure camera setup and identify camera markers (using all available markers)
         self.camera_setup, self.camera_marker_patterns = self.prompt_camera_setup()
         
         # Extract all camera markers based on user patterns
@@ -472,6 +477,15 @@ class ViconDVSPipeline:
         elif self.camera_setup == "multi" and len(self.camera_markers) < 3:
             print(f" Warning: Multi-marker setup specified but only {len(self.camera_markers)} markers found.")
             print(" This may affect pose estimation accuracy.")
+        
+        # Now filter markers based on marker_list_path if provided (after camera selection)
+        if self.marker_list_path:
+            filtered_markers = self.get_markers_names()
+            print(f"Filtering to {len(filtered_markers)} markers from marker list file")
+            print(f"Filtered markers: {filtered_markers}")
+            self.marker_names = filtered_markers
+        else:
+            print(f"Using all {len(self.marker_names)} markers from C3D file")
         
     def load_calibration_data(self):
         """Load camera calibration parameters."""
@@ -981,12 +995,14 @@ class ViconDVSPipeline:
                 print(f"Loaded {len(e_ts)} events from {e_ts[0]:.3f}s to {e_ts[-1]:.3f}s")
 
                 # Call projector
-                synced_image_points, video_segment = projector.project_vicon_to_event_plane_dynamic(
+                synced_image_points, video_segment, current_delay = projector.project_vicon_to_event_plane_dynamic(
                     self.marker_t, self.delay,
                     e_ts, e_us, e_vs, self.period,
                     visualize=True, video_record=True,
                     marker_time_offset=window_start
                 )
+
+                self.delay = current_delay  # Update delay if adjusted
 
                 # Collect frames for video
                 if video_segment is not None:
@@ -1020,7 +1036,8 @@ class ViconDVSPipeline:
                 else:
                     print(f" Window {window_count}: No synced_image_points returned")
 
-                window_start = window_center*2
+                # Advance to next window
+                window_start = window_end
 
         except KeyboardInterrupt:
             print("⚠️ Projection stopped early by user.")
@@ -1101,6 +1118,9 @@ class ViconDVSPipeline:
         """
         Save projected points to CSV in format:
         event_timestamp, marker1_x, marker1_y, marker2_x, marker2_y, ...
+        
+        Note: Markers are saved in the same order as defined in the YAML file (if provided)
+        or in the order they appear in self.marker_names to maintain consistency.
         """
         csv_path = os.path.join(os.path.dirname(output_video), "projected_points.csv")
 
@@ -1111,8 +1131,10 @@ class ViconDVSPipeline:
         # Sort by timestamp for consistent order
         all_projected_points.sort(key=lambda d: d['timestamp'])
 
-        # Collect all unique markers and timestamps
-        all_markers = sorted(set(p['marker'] for p in all_projected_points))
+        # Use self.marker_names to preserve the order from YAML file (if provided)
+        # instead of sorting alphabetically
+        projected_markers = set(p['marker'] for p in all_projected_points)
+        all_markers = [m for m in self.marker_names if m in projected_markers]
         timestamps = sorted(set(p['timestamp'] for p in all_projected_points))
 
         # Build {timestamp: {marker: (x, y)}}
@@ -1138,6 +1160,7 @@ class ViconDVSPipeline:
                 writer.writerow(row)
 
         print(f" Saved projected points CSV: {csv_path} ({len(timestamps)} timestamps, {len(all_markers)} markers)")
+        print(f" Marker order matches YAML definition: {[m for m in self.marker_names[:5]]}{'...' if len(self.marker_names) > 5 else ''}")
 ###
 
 ###
