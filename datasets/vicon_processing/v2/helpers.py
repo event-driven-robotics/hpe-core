@@ -1460,7 +1460,7 @@ class ViconHelper:
         
         self.marker_T_vector = {}
         
-        if not self.camera_markers:
+        if not self.camera_markers or not self.user_specified_camera_markers:
             print("Selected the option to not use the markers on the camera, the identity transformation will be used instead")
         else:
             self.process_camera_markers()
@@ -1539,7 +1539,6 @@ class ViconHelper:
         return out_dict
     
     def interpolate_point_array(self, arr1, arr2, f):
-        # ?
         p_n = arr1 + (arr2 - arr1) * f
         return p_n
 

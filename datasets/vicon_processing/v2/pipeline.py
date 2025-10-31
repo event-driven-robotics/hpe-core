@@ -573,7 +573,7 @@ class ViconDVSPipeline:
         
         img = np.ones(self.cam_res, dtype=np.uint8) * 255
         ft = self.start_time
-        window_size = 1000 * self.period
+        window_size = 500 * self.period
         window_start = self.start_time
         
         cv2.namedWindow('Event Visualization', cv2.WINDOW_NORMAL)
@@ -719,7 +719,7 @@ class ViconDVSPipeline:
             self.markers_names = self.get_markers_names()
         
         # Use windowed approach
-        window_size = 1000 * self.period
+        window_size = 500 * self.period
         window_start = self.start_time
         
         # Create projector for delay adjustment
@@ -852,7 +852,7 @@ class ViconDVSPipeline:
         if not self.markers_names:
             self.markers_names = self.get_markers_names()
         
-        window_size = 1000 * self.period
+        window_size = 500 * self.period
         window_start = self.start_time
         
         # Create labeler instance
@@ -969,7 +969,7 @@ class ViconDVSPipeline:
 
         collected_video_segments = []
         all_projected_points = []  # list of dicts: {'timestamp': t, 'x': x, 'y': y, 'marker': name}
-        window_size = 1000 * self.period
+        window_size = 500 * self.period
         window_start = self.start_time
 
         print(f"Processing time range: {self.start_time:.3f}s to {self.end_time:.3f}s")
@@ -1326,300 +1326,154 @@ class ViconDVSPipeline:
         return comparison_results
 
 ###
-    def estimate_transformation(self, system_points: np.ndarray, image_points: np.ndarray, init_params: np.ndarray) -> np.ndarray:
+    def optimize_calibration(self, labels_path: str,
+                         ransac_reproj_err: float = 3.0,
+                         ransac_iters: int = 300,
+                         min_points: int = 6):
         """
-        Estimate system-to-camera transformation using optimization.
+        Optimize a single, fixed T_sys->cam using multi-frame labels:
+        world -> system (per frame, known) -> camera (unknown, fixed).
+        Robust to length mismatches and OpenCV PnP overload differences.
         """
-        print(f"Starting optimization with {len(system_points)} correspondences")
-        print(f"Initial parameters: {init_params}")
-        
-        # Use the existing helpers function
-        T_optimized = helpers.estimate_Tstoc(
-            system_points, 
-            image_points, 
-            self.K, 
-            self.D, 
-            init_params
-        )
-        
-        print("Optimization completed")
-        print(f"Optimized transformation matrix:\n{T_optimized}")
-        
-        return T_optimized
-       
-    # TODO: check this and fix it
-    def optimize_calibration(self, labels_path: str):
-        """Optimize calibration using dynamic multi-frame PnP + robust averaging + global refinement."""
-        print("Optimizing calibration (multi-frame robust)...")
+        import numpy as np, cv2
         from helpers import ViconHelper
 
-        # 1. Load labeled points
-        labeled_points = helpers.read_points_labels(labels_path)
+        print("Optimizing calibration with OpenCV (global multi-frame PnP + refine)...")
 
-        # 2. Prepare VICON helper & interpolated 3D points at label times
-        # Try to pass camera_markers parameter (if supported by ViconHelper)
+        # 1) Load labels + interpolate 3D
+        labeled_points = helpers.read_points_labels(labels_path)
         vicon_helper = ViconHelper(
             self.marker_t, self.points_3d, self.delay,
             self.c3d_data.frame_count, self.c3d_data.point_rate,
             self.c3d_data.point_labels, True, True,
-            user_camera_markers=self.camera_markers  # Pass user-specified camera markers
+            user_camera_markers=getattr(self, "camera_markers", None)
         )
         vicon_points = vicon_helper.get_vicon_points_interpolated(labeled_points)
 
-        # TODO: check these out, as i don't know if it really makes sense
+        # 2) Build global correspondences in SYSTEM frame
+        system_points, image_points = [], []
 
-        ### Internal functions for optimization steps
-        def collect_frame_correspondences(labeled_points, vicon_points):
-            per_frame = []
-            for idx, (dvs_frame, v_frame) in enumerate(zip(labeled_points['points'], vicon_points['points'])):
-                world_pts = []
-                image_pts = []
-                for m, xy in dvs_frame.items():
-                    if m in v_frame:
-                        w = v_frame[m]
-                        if w is None or np.any(np.isnan(w)):
-                            continue
-                        world_pts.append(w)
-                        image_pts.append([xy['x'], xy['y']])
-                if len(world_pts) >= 4:
-                    per_frame.append({
-                        "frame_idx": vicon_points['frame_ids'][idx],
-                        "world": np.asarray(world_pts, dtype=np.float64),
-                        "image": np.asarray(image_pts, dtype=np.float64),
-                        "timestamp": labeled_points['times'][idx]
-                    })
-            return per_frame
+        n_vp = len(vicon_points.get('points', []))
+        n_lp = len(labeled_points.get('points', []))
+        n_fi = len(vicon_points.get('frame_ids', []))
+        n_frames = min(n_vp, n_lp, n_fi)
 
-        def solve_pnp_candidates(per_frame, Ts_world_to_system, K, D,
-                                 use_ransac=True, refine=True,
-                                 ransac_reproj_err=3.0, ransac_iters=200):
-            candidates = []
-            for rec in per_frame:
-                wpts = rec["world"]
-                ipts = rec["image"]
-                if use_ransac:
-                    ok, rvec, tvec, inliers = cv2.solvePnPRansac(
-                        wpts, ipts, K, D,
-                        iterationsCount=ransac_iters,
-                        reprojectionError=ransac_reproj_err,
-                        flags=cv2.SOLVEPNP_EPNP
-                    )
-                    if not ok:
-                        continue
-                    if refine and inliers is not None and len(inliers) >= 4:
-                        w_in = wpts[inliers.flatten()]
-                        i_in = ipts[inliers.flatten()]
-                        ok2, rvec, tvec = cv2.solvePnP(
-                            w_in, i_in, K, D,
-                            rvec=rvec, tvec=tvec,
-                            useExtrinsicGuess=True,
-                            flags=cv2.SOLVEPNP_ITERATIVE
-                        )
-                        if not ok2:
-                            continue
-                else:
-                    ok, rvec, tvec = cv2.solvePnP(
-                        wpts, ipts, K, D, flags=cv2.SOLVEPNP_ITERATIVE
-                    )
-                    if not ok:
-                        continue
+        if n_frames == 0:
+            raise RuntimeError("No overlapping labeled frames and VICON points.")
 
-                R_wc, _ = cv2.Rodrigues(rvec)
-                T_world_to_cam = np.eye(4)
-                T_world_to_cam[:3, :3] = R_wc
-                T_world_to_cam[:3, 3] = tvec.flatten()
+        if (n_vp != n_lp) or (n_vp != n_fi):
+            print(f"[warn] Length mismatch: vicon_points.points={n_vp}, "
+                f"labeled_points.points={n_lp}, frame_ids={n_fi}. "
+                f"Using first {n_frames} aligned entries.")
 
-                frame_sys = self.Ts_world_to_system[rec["frame_idx"]]
-                T_sys_to_cam_candidate = T_world_to_cam @ np.linalg.inv(frame_sys)
+        valid_pairs = 0
+        skipped_frames = 0
 
-                proj, _ = cv2.projectPoints(wpts, rvec, tvec, K, D)
-                proj = proj.reshape(-1, 2)
-                err = np.linalg.norm(proj - ipts, axis=1)
-                mean_err = float(np.mean(err))
+        for idx in range(n_frames):
+            if idx >= len(vicon_points['frame_ids']):
+                skipped_frames += 1
+                continue
+            frame_id = int(vicon_points['frame_ids'][idx])
+            if not (0 <= frame_id < len(self.Ts_world_to_system)):
+                skipped_frames += 1
+                continue
 
-                candidates.append({
-                    "frame_idx": rec["frame_idx"],
-                    "timestamp": rec["timestamp"],
-                    "T_world_to_cam": T_world_to_cam,
-                    "T_sys_to_cam": T_sys_to_cam_candidate,
-                    "mean_err": mean_err,
-                    "n_points": len(wpts)
-                })
-            return candidates
+            w_frame = vicon_points['points'][idx] or {}
+            d_frame = labeled_points['points'][idx] or {}
+            if not w_frame or not d_frame:
+                skipped_frames += 1
+                continue
 
-        def robust_average_system_to_camera(candidates,
-                                            rot_thresh_deg=5.0,
-                                            trans_thresh=0.10,
-                                            min_inliers=5,
-                                            eps=1e-6):
-            if not candidates:
-                raise RuntimeError("No candidates to average.")
+            T_w2s = self.Ts_world_to_system[frame_id]  # 4x4
 
-            Rs = np.stack([c["T_sys_to_cam"][:3, :3] for c in candidates], axis=0)
-            ts = np.stack([c["T_sys_to_cam"][:3, 3] for c in candidates], axis=0)
-            errs = np.asarray([c["mean_err"] for c in candidates], dtype=np.float64)
-
-            w = 1.0 / (errs**2 + eps)
-            w /= np.sum(w)
-
-            quats = Rotation.from_matrix(Rs).as_quat()
-            q_mean = np.average(quats, axis=0, weights=w)
-            q_mean /= np.linalg.norm(q_mean)
-            R_mean = Rotation.from_quat(q_mean).as_matrix()
-
-            def rot_geodesic_deg(Ra, Rb):
-                dR = Ra.T @ Rb
-                angle = np.clip((np.trace(dR) - 1) / 2, -1, 1)
-                return np.degrees(np.arccos(angle))
-
-            rot_errs = np.array([rot_geodesic_deg(R_mean, Ri) for Ri in Rs])
-            trans_center = np.average(ts, axis=0, weights=w)
-            trans_dists = np.linalg.norm(ts - trans_center, axis=1)
-
-            inliers = (rot_errs <= rot_thresh_deg) & (trans_dists <= trans_thresh)
-            if np.sum(inliers) < min_inliers:
-                order = np.argsort(errs)
-                inliers = np.zeros_like(errs, dtype=bool)
-                inliers[order[:min_inliers]] = True
-
-            Rs_in = Rs[inliers]
-            ts_in = ts[inliers]
-            errs_in = errs[inliers]
-            w_in = 1.0 / (errs_in**2 + eps)
-            w_in /= np.sum(w_in)
-
-            quats_in = Rotation.from_matrix(Rs_in).as_quat()
-            q_mean2 = np.average(quats_in, axis=0, weights=w_in)
-            q_mean2 /= np.linalg.norm(q_mean2)
-
-            R_final = Rotation.from_quat(q_mean2).as_matrix()
-            t_final = np.average(ts_in, axis=0, weights=w_in)
-
-            T_avg = np.eye(4)
-            T_avg[:3, :3] = R_final
-            T_avg[:3, 3] = t_final
-
-            summary = {
-                "num_candidates": len(candidates),
-                "num_inliers": int(np.sum(inliers)),
-                "rot_outlier_thresh_deg": rot_thresh_deg,
-                "trans_outlier_thresh": trans_thresh,
-                "inlier_mean_error": float(np.mean(errs_in)),
-                "inlier_std_error": float(np.std(errs_in))
-            }
-            return T_avg, inliers, summary
-
-        # 3. Per-frame correspondences
-        print("Collecting per-frame correspondences...")
-        per_frame = collect_frame_correspondences(labeled_points, vicon_points)
-        print(f"Frames with >=4 correspondences: {len(per_frame)}")
-
-        # 4. Solve per-frame PnP
-        print("Solving per-frame PnP...")
-        candidates = solve_pnp_candidates(per_frame, self.Ts_world_to_system, self.K, self.D)
-        print(f"Valid PnP candidates: {len(candidates)}")
-        if not candidates:
-            print("No candidates produced. Falling back to legacy single-batch PnP.")
-            # (Fallback: original approach)
-            world_points = []
-            image_points_clean = []
-            for dvs_frame, v_frame in zip(labeled_points['points'], vicon_points['points']):
-                for label, xy in dvs_frame.items():
-                    if label not in v_frame:
-                        continue
-                    w_p = v_frame[label]
-                    if w_p is None or np.any(np.isnan(w_p)):
-                        continue
-                    world_points.append(w_p)
-                    image_points_clean.append([xy['x'], xy['y']])
-            world_points = np.asarray(world_points, dtype=np.float64)
-            image_points_clean = np.asarray(image_points_clean, dtype=np.float64)
-            print(f"Collected {len(world_points)} correspondences (fallback).")
-            if len(world_points) >= 4:
-                ok, rvec, tvec = cv2.solvePnP(world_points, image_points_clean, self.K, self.D)
-                if ok:
-                    R_mat, _ = cv2.Rodrigues(rvec)
-                    T_world_to_cam = np.eye(4)
-                    T_world_to_cam[:3, :3] = R_mat
-                    T_world_to_cam[:3, 3] = tvec.flatten()
-                    init_T = T_world_to_cam @ np.linalg.inv(self.Ts_world_to_system[0])
-                    r_vec = Rotation.from_matrix(init_T[:3, :3]).as_rotvec()
-                    t_vec = init_T[:3, 3]
-                    init_param = np.concatenate((r_vec, t_vec))
-                    # Build system/image lists
-                    system_points = []
-                    image_points = []
-                    for dvs_frame, v_frame, fid in zip(labeled_points['points'],
-                                                       vicon_points['points'],
-                                                       vicon_points['frame_ids']):
-                        for label, xy in dvs_frame.items():
-                            if label not in v_frame:
-                                continue
-                            w_p = v_frame[label]
-                            if w_p is None or np.any(np.isnan(w_p)):
-                                continue
-                            w_ph = np.append(w_p, 1.0)
-                            p_sys = self.Ts_world_to_system[fid] @ w_ph
-                            system_points.append(p_sys[:3])
-                            image_points.append([xy['x'], xy['y']])
-                    system_points = np.asarray(system_points, dtype=np.float64)
-                    image_points = np.asarray(image_points, dtype=np.float64)
-                    self.T_syst_to_camera_opt = self.estimate_transformation(system_points, image_points, init_param)
-                    print("Calibration optimization (fallback) completed.")
-                else:
-                    print("Fallback PnP failed.")
-            else:
-                print("Insufficient correspondences for fallback.")
-            return
-
-        # 5. Robust averaging
-        print("Robust averaging system->camera candidates...")
-        T_avg, inliers_mask, summary = robust_average_system_to_camera(candidates)
-        print("Averaging summary:", summary)
-        print("Averaged T_sys->cam:\n", T_avg)
-
-        # 6. Build global correspondences in system coordinates
-        system_points = []
-        image_points = []
-        for idx, (dvs_frame, v_frame) in enumerate(zip(labeled_points['points'], vicon_points['points'])):
-            frame_id = vicon_points['frame_ids'][idx]
-            for label, xy in dvs_frame.items():
-                if label not in v_frame:
+            for label, px in d_frame.items():
+                if label not in w_frame:
                     continue
-                w_p = v_frame[label]
-                if w_p is None or np.any(np.isnan(w_p)):
+                w = np.asarray(w_frame[label], dtype=np.float64)
+                if w is None or np.any(~np.isfinite(w)):
                     continue
-                w_ph = np.append(w_p, 1.0)
-                p_sys = self.Ts_world_to_system[frame_id] @ w_ph
-                system_points.append(p_sys[:3])
-                image_points.append([xy['x'], xy['y']])
-        system_points = np.asarray(system_points, dtype=np.float64)
-        image_points = np.asarray(image_points, dtype=np.float64)
-        print(f"Global correspondences: {len(system_points)}")
 
-        # 7. Refinement (least squares)
-        print("Refining with global least-squares...")
-        r0 = Rotation.from_matrix(T_avg[:3, :3]).as_rotvec()
-        t0 = T_avg[:3, 3]
-        init_param = np.concatenate([r0, t0])
-        self.T_syst_to_camera_opt = self.estimate_transformation(system_points, image_points, init_param)
+                p_sys = (T_w2s @ np.append(w, 1.0))[:3]
+                if np.any(~np.isfinite(p_sys)):
+                    continue
 
-        # 8. Diagnostics
-        rotations = [c["T_sys_to_cam"][:3, :3] for c in candidates]
-        translations = [c["T_sys_to_cam"][:3, 3] for c in candidates]
-        R_ref = self.T_syst_to_camera_opt[:3, :3]
-        rot_dists = []
-        for Ri in rotations:
-            dR = Ri.T @ R_ref
-            ang = np.clip((np.trace(dR) - 1) / 2, -1, 1)
-            rot_dists.append(np.degrees(np.arccos(ang)))
-        rot_dists = np.array(rot_dists)
-        trans_errs = np.linalg.norm(np.stack(translations) - self.T_syst_to_camera_opt[:3, 3], axis=1)
+                u = float(px['x']); v = float(px['y'])
+                if not (np.isfinite(u) and np.isfinite(v)):
+                    continue
 
-        print(f"Rotation dispersion (deg): mean={rot_dists.mean():.3f} std={rot_dists.std():.3f} max={rot_dists.max():.3f}")
-        print(f"Translation dispersion: mean={trans_errs.mean():.4f} std={trans_errs.std():.4f} max={trans_errs.max():.4f}")
+                system_points.append(p_sys)
+                image_points.append([u, v])
+                valid_pairs += 1
 
-        print("Calibration optimization completed (robust multi-frame).")
+        print(f"Collected correspondences: {valid_pairs} (skipped frames: {skipped_frames})")
+        if valid_pairs < max(4, min_points):
+            raise RuntimeError("Not enough valid correspondences to run PnP.")
+
+        # 3) Prepare arrays for OpenCV
+        obj_pts = np.ascontiguousarray(np.asarray(system_points), dtype=np.float32).reshape(-1, 3)
+        img_pts = np.ascontiguousarray(np.asarray(image_points),  dtype=np.float32).reshape(-1, 2)
+        K_cv    = np.ascontiguousarray(self.K, dtype=np.float32)
+
+        if self.D is None:
+            D_cv = None
+        else:
+            D_flat = np.asarray(self.D, dtype=np.float32).ravel()
+            # OpenCV accepts (k,) just fine; avoid forcing (k,1) on stricter builds
+            D_cv = None if D_flat.size == 0 else np.ascontiguousarray(D_flat)
+
+        # 4) Initial pose with RANSAC (try legacy 8-arg first)
+        rvec = None; tvec = None; inliers = None
+        try:
+            # Legacy signature (8 args): (obj, img, K, D, iterationsCount, reprojErr, confidence, flags)
+            retval, rvec, tvec, inliers = cv2.solvePnPRansac(
+                obj_pts, img_pts, K_cv, D_cv,
+                int(ransac_iters), float(ransac_reproj_err), 0.99, cv2.SOLVEPNP_EPNP
+            )
+        except cv2.error:
+            try:
+                # Newer signature with useExtrinsicGuess (9 args): add False after D
+                retval, rvec, tvec, inliers = cv2.solvePnPRansac(
+                    obj_pts, img_pts, K_cv, D_cv,
+                    False, int(ransac_iters), float(ransac_reproj_err), 0.99, cv2.SOLVEPNP_EPNP
+                )
+            except cv2.error:
+                # Last resort: keyword flags only (some builds insist on this)
+                retval, rvec, tvec, inliers = cv2.solvePnPRansac(
+                    obj_pts, img_pts, K_cv, D_cv, flags=cv2.SOLVEPNP_EPNP
+                )
+
+        if not bool(retval) or inliers is None or len(inliers) < 4:
+            print("[warn] RANSAC failed or too few inliers; trying iterative PnP...")
+            ok, rvec, tvec = cv2.solvePnP(obj_pts, img_pts, K_cv, D_cv, flags=cv2.SOLVEPNP_ITERATIVE)
+            if not bool(ok):
+                raise RuntimeError("PnP failed to produce an initial estimate.")
+            inlier_idx = np.arange(len(obj_pts))
+        else:
+            inlier_idx = inliers.ravel()
+
+        print(f"Initial inliers: {len(inlier_idx)} / {len(obj_pts)}")
+
+        # 5) Refine with LM on inliers
+        obj_in = obj_pts[inlier_idx]
+        img_in = img_pts[inlier_idx]
+        rvec, tvec = cv2.solvePnPRefineLM(obj_in, img_in, K_cv, D_cv, rvec, tvec)
+
+        # 6) Build T_sys->cam
+        R_sc, _ = cv2.Rodrigues(rvec)
+        T_sc = np.eye(4, dtype=np.float64)
+        T_sc[:3, :3] = R_sc.astype(np.float64)
+        T_sc[:3, 3]  = tvec.reshape(3).astype(np.float64)
+
+        # 7) Evaluate & store
+        proj, _ = cv2.projectPoints(obj_pts, rvec, tvec, K_cv, D_cv)
+        proj = proj.reshape(-1, 2)
+        errs = np.linalg.norm(proj - img_pts, axis=1)
+        print(f"Reproj error: mean={errs.mean():.3f}px, median={np.median(errs):.3f}px, 95%={np.percentile(errs,95):.3f}px")
+
+        self.T_syst_to_camera_opt = T_sc
+        print("Optimized T_sys->cam:\n", T_sc)
+        return T_sc
+
 ###           
             
     def save_calibration(self, output_file: str):
