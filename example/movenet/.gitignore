@@ -3,5 +3,6 @@ build/
 
 # Python virtual environments
 .venv/
+venv/
 
 data/
