@@ -1,0 +1,17 @@
+c3d==0.6.0
+cv_bridge==1.13.0.post0
+dv==1.0.12
+hickle==5.0.3
+imageio==2.37.0
+loris==0.5.3
+matplotlib==3.10.7
+numpy==2.3.3
+opencv_python==4.12.0.88
+pptk==0.1.0
+pyquaternion==0.9.9
+PyYAML==6.0.3
+scipy==1.16.2
+seaborn==0.13.2
+setuptools==80.9.0
+tqdm==4.67.1
+visualizer==0.0.10
