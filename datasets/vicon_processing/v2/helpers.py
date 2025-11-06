@@ -28,6 +28,11 @@ class DelayExit(Exception):
         super().__init__("Delay adjustment finished by user.")
         self.delay = delay
         
+class DelayReset(Exception):
+    def __init__(self, new_delay: float):
+        super().__init__(f"Reset requested with delay {new_delay}")
+        self.new_delay = new_delay
+        
 class LabelExit(Exception):
     """Raised when user quits labeling/correction early."""
     def __init__(self, labeled_dict: dict):
@@ -263,7 +268,6 @@ class ViconProjector:
             video_writer = cv2.VideoWriter('tmp.mp4', fourcc, fps, (self.cam_res[1], self.cam_res[0]), isColor=False)
 
         while tic_markers < marker_t[-1] and tic_events < e_ts[-1]:
-            
             # Store valid markers and their coordinates for this frame
             current_frame_markers = {}
 
@@ -303,7 +307,7 @@ class ViconProjector:
 
             # GUI keys
             cv2.putText(img, f"Delay: {current_delay:.3f}s (step: {delay_step:.3f}s)", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
-            cv2.putText(img, "Keys: <-/-> adjust delay, +/- adjust step, q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+            cv2.putText(img, "Keys: space bar: start/stop, <-/-> adjust delay, +/- adjust step, q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
             
             # Add timestamp displays in top-right corner
             font = cv2.FONT_HERSHEY_SIMPLEX
@@ -328,24 +332,25 @@ class ViconProjector:
             if visualize:
                 cv2.imshow('Projected Points', img)
                 c = cv2.waitKey(int(500 * period))
-                                
+                              
                 # delay GUI, TODO: leave only in fix_delay
-                if c == 83:  # Right arrow -> increase by step
+                if c == 83 or c == 39:  # Right arrow -> increase by step                                       
                     current_delay += delay_step
                     print(f"Delay increased to: {current_delay:.3f}s (step: {delay_step:.3f}s)")
-                    # Reset timing with new delay
-                    tic_markers = marker_t[0] + marker_time_offset - current_delay # + period
-                    tic_events = e_ts[0] # + period
-                    i_events = 0
-                    i_markers = 0
-                elif c == 81:  # Left arrow -> decrease by step
+                    # Clear local buffers defensively (optional)
+                    for d in synced_image_points.values():
+                        d["points"].clear()
+                        d["timestamps"].clear()
+                    video_segment.clear()
+                    raise DelayReset(current_delay)
+                elif c == 81 or c == 37:  # Left arrow -> decrease by step
                     current_delay -= delay_step
                     print(f"Delay decreased to: {current_delay:.3f}s (step: {delay_step:.3f}s)")
-                    # Reset timing with new delay
-                    tic_markers = marker_t[0] + marker_time_offset - current_delay # + period
-                    tic_events = e_ts[0] # + period
-                    i_events = 0
-                    i_markers = 0
+                    for d in synced_image_points.values():
+                        d["points"].clear()
+                        d["timestamps"].clear()
+                    video_segment.clear()
+                    raise DelayReset(current_delay)
                 elif c == ord('+') or c == ord('='):
                     delay_step += 0.001  # Increase step by 1ms
                     print(f"Delay step increased to: {delay_step:.3f}s")
@@ -414,7 +419,7 @@ class ViconProjector:
         tic_markers = marker_t[0] + marker_time_offset - current_delay # + period
         tic_events = e_ts[0] # + period
         img = np.ones(self.cam_res, dtype=np.uint8) * 255
- 
+
         while tic_markers < marker_t[-1] and tic_events < e_ts[-1]:
             # Draw markers and events only when not paused
             if not paused:
@@ -449,6 +454,7 @@ class ViconProjector:
             cv2.putText(img, f"Rot (deg) roll={Rot_deg[0]:+.2f} pitch={Rot_deg[1]:+.2f} yaw={Rot_deg[2]:+.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
             cv2.putText(img, "Keys: space=start/stop | enter = select roll/pitch/yaw | +/- = increase/decrease angle value | q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
             cv2.putText(img, "Currently modifying: " + ['roll', 'pitch', 'yaw'][selected_angle] + " by a factor of: " + str(angle_step) + " degrees", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+ 
  
             cv2.imshow('Manual Rotation', img)
             c = cv2.waitKey(int(1000 * period))
@@ -631,6 +637,13 @@ class ViconProjector:
                         if idx < len(self.image_points[chosen_one]):
                             uv = self.image_points[chosen_one][idx]
                             print(f"[recalc] marker='{chosen_one}' frame_idx={idx} image_uv={tuple(uv)}")
+                            text = f"[recalc] {chosen_one} idx={idx} uv=({uv[0]:.1f}, {uv[1]:.1f})"
+        
+                            # Draw text on OpenCV window (e.g., top-left corner)
+                            cv2.putText(
+                                img, text, (10, 120),  # position (x, y)
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2, cv2.LINE_AA
+                            )
  
                 except Exception as e:
                     print("Error recomputing projections:", e)
@@ -740,7 +753,7 @@ class ViconProjector:
                     print(f"Space pressed, visualization resumed from markers: {tic_markers:.3f}s, events: {tic_events:.3f}s")
 
             # Navigate frames (only when paused is True)
-            elif c == 81 and paused:  # Left arrow -> go to previous frame
+            elif (c == 81 or c == 37) and paused:  # Left arrow -> go to previous frame
                 
                 tic_events = max(tic_events - delay_step, e_ts[0])
                 tic_markers = tic_events - current_delay
@@ -782,7 +795,7 @@ class ViconProjector:
                 
                 print(f"Moved to previous frame: markers at {tic_markers:.3f}s, events at {event_time_end:.3f}s (delay: {current_delay:.3f}s)")
                 
-            elif c == 83 and paused:  # Right arrow -> go to next frame
+            elif (c == 83 or c == 39) and paused:  # Right arrow -> go to next frame
                 
                 tic_events += delay_step
                 tic_markers = tic_events - current_delay
@@ -911,39 +924,73 @@ class ViconProjector:
                 delay_step += 0.001  # Increase step by 1ms
                 print(f"Delay step increased to: {delay_step:.3f}s")
                 
-                # Force immediate redraw to show updated step size
-                img_temp = np.copy(img)
-                cv2.putText(img_temp, f"Delay: {current_delay:.3f}s (step: {delay_step:.3f}s)", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
-                cv2.putText(img_temp, f"Delay step: {delay_step:.3f}s", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 64, 2)
-                cv2.putText(img_temp, "Keys: +/- decrease/increase delay, k/l adjust step", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-                cv2.putText(img_temp, "Keys: <-/-> navigate frames, space bar stop/start, q=quit", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                # Immediately redraw frame with new delay
+                img = np.ones(self.cam_res, dtype=np.uint8) * 255
                 
-                # Add timestamp display
-                marker_time_text = f"Marker: {tic_markers:.3f}s"
-                event_time_text = f"Event: {tic_events:.3f}s"
-                cv2.putText(img_temp, marker_time_text, (self.cam_res[1] - 200, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-                cv2.putText(img_temp, event_time_text, (self.cam_res[1] - 200, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                # Render markers for current frame
+                current_marker_idx = max(0, min(i_markers, len(marker_t) - 1))
+                if current_marker_idx < len(marker_t):
+                    for mark_name in self.marker_names:
+                        if current_marker_idx < len(image_points[mark_name]):
+                            u_coord = image_points[mark_name][current_marker_idx][0]
+                            v_coord = image_points[mark_name][current_marker_idx][1]
+                            
+                            if np.isfinite(u_coord) and np.isfinite(v_coord):
+                                u = int(u_coord)
+                                v = int(v_coord)
+
+                                if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
+                                    cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
+                                    cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
                 
-                cv2.imshow('Fix Delay', img_temp)
+                # Calculate and render events with new delay
+                event_time_end = tic_markers + current_delay
+                event_time_start = event_time_end - period
+                
+                temp_i_events = 0
+                while temp_i_events < len(e_ts) and e_ts[temp_i_events] < event_time_start:
+                    temp_i_events += 1
+                
+                while temp_i_events < len(e_ts) and e_ts[temp_i_events] < event_time_end:
+                    if 0 <= e_vs[temp_i_events] < self.cam_res[0] and 0 <= e_us[temp_i_events] < self.cam_res[1]:
+                        img[e_vs[temp_i_events], e_us[temp_i_events]] = 0
+                    temp_i_events += 1
                 
             elif c == ord('k'):
                 delay_step = max(0.001, delay_step - 0.001)  # Decrease step by 1ms, minimum 1ms
                 print(f"Delay step decreased to: {delay_step:.3f}s")
                 
-                # Force immediate redraw to show updated step size
-                img_temp = np.copy(img)
-                cv2.putText(img_temp, f"Delay: {current_delay:.3f}s (step: {delay_step:.3f}s)", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 128, 2)
-                cv2.putText(img_temp, f"Delay step: {delay_step:.3f}s", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 64, 2)
-                cv2.putText(img_temp, "Keys: +/- decrease/increase delay, k/l adjust step", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-                cv2.putText(img_temp, "Keys: <-/-> navigate frames, space bar stop/start, q=quit", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                # Immediately redraw frame with new delay
+                img = np.ones(self.cam_res, dtype=np.uint8) * 255
                 
-                # Add timestamp display
-                marker_time_text = f"Marker: {tic_markers:.3f}s"
-                event_time_text = f"Event: {tic_events:.3f}s"
-                cv2.putText(img_temp, marker_time_text, (self.cam_res[1] - 200, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
-                cv2.putText(img_temp, event_time_text, (self.cam_res[1] - 200, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+                # Render markers for current frame
+                current_marker_idx = max(0, min(i_markers, len(marker_t) - 1))
+                if current_marker_idx < len(marker_t):
+                    for mark_name in self.marker_names:
+                        if current_marker_idx < len(image_points[mark_name]):
+                            u_coord = image_points[mark_name][current_marker_idx][0]
+                            v_coord = image_points[mark_name][current_marker_idx][1]
+                            
+                            if np.isfinite(u_coord) and np.isfinite(v_coord):
+                                u = int(u_coord)
+                                v = int(v_coord)
+
+                                if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
+                                    cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
+                                    cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
                 
-                cv2.imshow('Fix Delay', img_temp)              
+                # Calculate and render events with new delay
+                event_time_end = tic_markers + current_delay
+                event_time_start = event_time_end - period
+                
+                temp_i_events = 0
+                while temp_i_events < len(e_ts) and e_ts[temp_i_events] < event_time_start:
+                    temp_i_events += 1
+                
+                while temp_i_events < len(e_ts) and e_ts[temp_i_events] < event_time_end:
+                    if 0 <= e_vs[temp_i_events] < self.cam_res[0] and 0 <= e_us[temp_i_events] < self.cam_res[1]:
+                        img[e_vs[temp_i_events], e_us[temp_i_events]] = 0
+                    temp_i_events += 1          
                  
             elif c == ord('q') or c == 27:  # quit
                 print("Delay adjustment completed")
