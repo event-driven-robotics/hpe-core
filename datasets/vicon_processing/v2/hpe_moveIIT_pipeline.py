@@ -120,6 +120,116 @@ class ViconDVSPipeline:
         
         return matches
 
+    def _find_cleaned_marker_match(self, joint_name, all_c3d_markers):
+        """Find C3D marker that matches the joint name using cleaned label matching logic."""
+        joint_name_clean = joint_name.strip()
+        
+        # Create candidate names to search for
+        candidates = []
+        
+        # Add subject-prefixed version if subject exists
+        if self.subject:
+            candidates.append(f"{self.subject}:{joint_name_clean}")
+        
+        # Add plain joint name
+        candidates.append(joint_name_clean)
+        
+        # Search through C3D markers using case-insensitive matching
+        for marker in all_c3d_markers:
+            marker_clean = marker.strip()
+            
+            # Check against all candidate names
+            for candidate in candidates:
+                if marker_clean.upper() == candidate.upper():
+                    # print(f"  Matched '{joint_name}' -> '{marker_clean}' (exact match)")
+                    return marker_clean
+                
+                # Check if C3D marker ends with the joint name (for subject prefixes)
+                if ":" in marker_clean and marker_clean.upper().endswith(f":{joint_name_clean.upper()}"):
+                    # print(f"  Matched '{joint_name}' -> '{marker_clean}' (subject prefix)")
+                    return marker_clean
+        
+        # No match found
+        print(f"  No match found for joint: '{joint_name}'")
+        return None
+
+    def _extract_sequence_name(self):
+        """Extract sequence name from DVS or VICON path for file naming."""
+        # Try to extract from vicon_path first (C3D file)
+        if self.vicon_path:
+            vicon_basename = os.path.basename(self.vicon_path)
+            # Remove .c3d extension and use as sequence name
+            sequence_name = os.path.splitext(vicon_basename)[0]
+            if sequence_name:
+                print(f"Extracted sequence name from VICON path: {sequence_name}")
+                return sequence_name
+        
+        # Fallback to DVS path
+        if self.dvs_path:
+            dvs_basename = os.path.basename(self.dvs_path.rstrip('/'))
+            if dvs_basename:
+                print(f"Extracted sequence name from DVS path: {dvs_basename}")
+                return dvs_basename
+        
+        # Final fallback
+        return "sequence"
+
+    def _generate_unique_init_file_path(self, base_dir: str = None) -> str:
+        """Generate a unique init file path using sequence name and avoiding overwrites."""
+        if base_dir is None:
+            base_dir = os.path.dirname(self.vicon_path)
+        
+        # Get sequence name for the file
+        sequence_name = self._extract_sequence_name()
+        
+        # Base filename with sequence name
+        base_filename = f"{sequence_name}_init_file.txt"
+        init_file_path = os.path.join(base_dir, base_filename)
+        
+        # If file doesn't exist, use it as is
+        if not os.path.exists(init_file_path):
+            print(f"Generated init file path: {init_file_path}")
+            return init_file_path
+        
+        # If file exists, add iteration number
+        i = 1
+        while True:
+            filename_with_iter = f"{sequence_name}_init_file_{i}.txt"
+            init_file_path = os.path.join(base_dir, filename_with_iter)
+            if not os.path.exists(init_file_path):
+                print(f"Generated unique init file path: {init_file_path} (iteration {i})")
+                return init_file_path
+            i += 1
+
+    def _track_delay_change(self, initial_delay: float, phase: str, init_file: str) -> bool:
+        """Track and save delay changes during different pipeline phases."""
+        delay_changed = abs(self.delay - initial_delay) > 1e-6
+        if delay_changed:
+            print(f" Delay adjusted during {phase}: {initial_delay:.6f}s → {self.delay:.6f}s")
+            print(f" Updating calibration file: {os.path.basename(init_file)}")
+            self.save_calibration(init_file)
+            return True
+        return False
+
+    def _generate_unique_video_path(self, base_path: str) -> str:
+        """Generate unique video file path to avoid overwrites."""
+        if not os.path.exists(base_path):
+            return base_path
+        
+        # Extract directory, filename, and extension
+        directory = os.path.dirname(base_path)
+        filename = os.path.basename(base_path)
+        name, ext = os.path.splitext(filename)
+        
+        # Add iteration number until we find a unique name
+        i = 1
+        while True:
+            new_filename = f"{name}_{i}{ext}"
+            new_path = os.path.join(directory, new_filename)
+            if not os.path.exists(new_path):
+                return new_path
+            i += 1
+
     def prompt_camera_setup(self) -> tuple:
         """Ask user how many markers are attached to the camera and their names/prefixes."""
         # print("\nCamera setup configuration (manual input)")
@@ -1012,7 +1122,7 @@ class ViconDVSPipeline:
                     )
                 except helpers.DelayReset as e:
                     # ---- FULL RESTART FROM THE FIRST EVER EVENT TIMESTAMP ----
-                    print("↩️ Delay changed with arrow key: full reset requested.")
+                    print("↩ Delay changed with arrow key: full reset requested.")
                     # 1) adopt the new delay
                     self.delay = e.new_delay
                     # 2) clear all accumulators
@@ -1025,7 +1135,10 @@ class ViconDVSPipeline:
                     # cv2.destroyAllWindows()
                     continue
 
-                self.delay = current_delay  # Update delay if adjusted
+                # Update delay if it was adjusted during projection
+                if current_delay != self.delay:
+                    print(f"Delay updated during projection window {window_count}: {self.delay:.6f}s → {current_delay:.6f}s")
+                self.delay = current_delay
 
                 # Collect frames for video
                 if video_segment is not None:
@@ -1033,13 +1146,13 @@ class ViconDVSPipeline:
 
                 # Collect all projected points with event timestamps using synced data
                 if synced_image_points:
-                    print(f" Window {window_count}: synced_image_points keys = {list(synced_image_points.keys())}")
+                    # print(f" Window {window_count}: synced_image_points keys = {list(synced_image_points.keys())}")
                     for marker_name, marker_data in synced_image_points.items():
                         if marker_data and "points" in marker_data and "timestamps" in marker_data:
                             points = marker_data["points"]
                             timestamps = marker_data["timestamps"]
                             
-                            print(f" {marker_name}: {len(points)} points, {len(timestamps)} timestamps")
+                            # print(f" {marker_name}: {len(points)} points, {len(timestamps)} timestamps")
                             
                             # Ensure we have matching points and timestamps
                             n = min(len(points), len(timestamps))
@@ -1063,7 +1176,7 @@ class ViconDVSPipeline:
                 window_start = window_end
 
         except KeyboardInterrupt:
-            print("⚠️ Projection stopped early by user.")
+            print(" Projection stopped early by user.")
 
         finally:
             cv2.destroyAllWindows()
@@ -1165,6 +1278,232 @@ class ViconDVSPipeline:
 
         print(f" Saved projected points CSV: {csv_path} ({len(timestamps)} timestamps, {len(all_markers)} markers)")
         print(f" Marker order matches YAML definition: {[m for m in self.marker_names[:5]]}{'...' if len(self.marker_names) > 5 else ''}")
+
+    def _save_joint_projections_and_video(self):
+        """Generate projections and video specifically for joint markers defined in joint config file."""
+        import yaml
+        
+        JOINT_CONFIG_PATH = os.path.join(CURRENT_DIR, "../scripts/config/labels_joints.yml")
+ 
+        if JOINT_CONFIG_PATH not in sys.path:
+            sys.path.append(JOINT_CONFIG_PATH)
+        
+        # Load joint labels from config file
+        if not os.path.exists(JOINT_CONFIG_PATH):
+            raise FileNotFoundError(f"Joint config file not found: {JOINT_CONFIG_PATH}")
+
+        with open(JOINT_CONFIG_PATH, 'r') as f:
+            joint_labels = yaml.safe_load(f)
+            
+        if not isinstance(joint_labels, list):
+            raise ValueError(f"Expected list of joint labels in {JOINT_CONFIG_PATH}, got {type(joint_labels)}")
+
+        print(f"Loaded {len(joint_labels)} joint labels from config: {joint_labels}")
+        
+        # Get all available C3D markers with cleaned names
+        all_c3d_markers = [name.strip() for name in self.c3d_data.point_labels]
+        
+        # Filter available markers using cleaned label matching logic
+        available_joints = []
+        missing_joints = []
+        
+        for joint in joint_labels:
+            found_marker = self._find_cleaned_marker_match(joint, all_c3d_markers)
+            if found_marker:
+                available_joints.append(found_marker)
+            else:
+                missing_joints.append(joint)
+        
+        if missing_joints:
+            print(f"Warning: {len(missing_joints)} joints not found in C3D data: {missing_joints}")
+        
+        if not available_joints:
+            raise RuntimeError("No joint markers found in C3D data matching the joint config")
+            
+        print(f"Found {len(available_joints)} matching joint markers: {available_joints}")
+        
+        # Create projector specifically for joints
+        joint_projector = helpers.ViconProjector(
+            available_joints, self.c3d_data, self.points_3d,
+            self.T_syst_to_camera_opt, self.Ts_world_to_system,
+            self.K, self.cam_res, D=self.D, subject=self.subject
+        )
+        
+        # Extract sequence name for file naming
+        sequence_name = self._extract_sequence_name()
+        
+        # Generate joint projections with video
+        base_joint_video = os.path.join(os.path.dirname(self.vicon_path), f"{sequence_name}_joint_projections.mp4")
+        joint_video_file = self._generate_unique_video_path(base_joint_video)
+        
+        joint_csv_file = os.path.join(os.path.dirname(self.vicon_path), f"{sequence_name}_joint_projections.csv")
+        
+        print(f"Generating joint projections...")
+        print(f"Joint video output: {joint_video_file}")
+        print(f"Joint CSV output: {joint_csv_file}")
+        
+        # Collect joint projection data
+        collected_joint_segments = []
+        all_joint_points = []
+        window_size = 500 * self.period
+        window_start = self.start_time
+        window_count = 0
+        
+        try:
+            while window_start < self.end_time:
+                window_end = window_start + window_size
+                window_center = (window_start + window_end) / 2
+                window_count += 1
+                
+                print(f"Processing joint window {window_count}: {window_start:.3f}s to {window_end:.3f}s")
+                
+                # Load events for this window
+                e_data = self.imp.get_data_at_time(window_center, window_size)
+                e_ts = np.array(e_data['ts'])
+                e_us = np.array(e_data['x'])
+                e_vs = np.array(e_data['y'])
+                
+                if len(e_ts) == 0:
+                    print(f"No events in joint window {window_count}, skipping...")
+                    window_start = window_end
+                    continue
+                
+                # Project joints for this window
+                try:
+                    synced_joint_points, joint_video_segment, current_joint_delay = joint_projector.project_vicon_to_event_plane_dynamic(
+                        self.marker_t, self.delay,
+                        e_ts, e_us, e_vs, self.period,
+                        visualize=True, video_record=True,
+                        marker_time_offset=window_start
+                    )
+                    
+                    # Update delay if it was adjusted during projection
+                    if current_joint_delay != self.delay:
+                        print(f"Delay updated during joint projection window {window_count}: {self.delay:.6f}s → {current_joint_delay:.6f}s")
+                        self.delay = current_joint_delay
+                        
+                except helpers.DelayExit as e:
+                    print(f"Delay adjustment detected during joint projection, using delay: {e.delay}")
+                    self.delay = e.delay
+                    break  # Exit the window loop if user exits delay adjustment
+                except helpers.DelayReset as e:
+                    print("↩Delay reset requested during joint projection: restarting from beginning")
+                    self.delay = e.new_delay
+                    # Reset joint projection from the beginning
+                    collected_joint_segments.clear()
+                    all_joint_points.clear()
+                    window_start = self.start_time
+                    window_count = 0
+                    continue
+                
+                # Collect video frames
+                if joint_video_segment is not None:
+                    collected_joint_segments.append(joint_video_segment)
+                
+                # Collect point data
+                if synced_joint_points:
+                    for joint_name, joint_data in synced_joint_points.items():
+                        if joint_data and "points" in joint_data and "timestamps" in joint_data:
+                            points = joint_data["points"]
+                            timestamps = joint_data["timestamps"]
+                            
+                            n = min(len(points), len(timestamps))
+                            for i in range(n):
+                                point = points[i]
+                                timestamp = timestamps[i]
+                                if len(point) >= 2 and np.isfinite(point[0]) and np.isfinite(point[1]):
+                                    all_joint_points.append({
+                                        'timestamp': timestamp,
+                                        'x': point[0],
+                                        'y': point[1],
+                                        'marker': joint_name
+                                    })
+                
+                window_start = window_end
+                
+        except KeyboardInterrupt:
+            print("Joint projection generation interrupted by user")
+        
+        # Save joint CSV
+        if all_joint_points:
+            print(f"Saving {len(all_joint_points)} joint points to CSV...")
+            self._save_joint_points_csv(all_joint_points, joint_csv_file, available_joints)
+        else:
+            print("No joint points collected")
+        
+        # Save joint video
+        if collected_joint_segments:
+            print(f"Merging {len(collected_joint_segments)} joint video segments...")
+            try:
+                fps = int(1 / self.period)
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                joint_video_writer = cv2.VideoWriter(
+                    joint_video_file, fourcc, fps,
+                    (self.cam_res[1], self.cam_res[0]), isColor=False
+                )
+                
+                total_joint_frames = 0
+                for segment_frames in collected_joint_segments:
+                    for frame in segment_frames:
+                        if frame.ndim == 3:
+                            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                        joint_video_writer.write(frame)
+                        total_joint_frames += 1
+                
+                joint_video_writer.release()
+                print(f"Joint projection video created: {joint_video_file} ({total_joint_frames} frames)")
+            except Exception as e:
+                print(f"Error creating joint video: {e}")
+        else:
+            print("No joint video segments collected")
+        
+        print("Joint projection generation completed!")
+
+    def _save_joint_points_csv(self, all_joint_points, csv_path, joint_markers):
+        """Save joint points to CSV with consistent marker ordering."""
+        if os.path.exists(csv_path):
+            i = 0
+            while os.path.exists(csv_path):
+                base_path = csv_path.replace('.csv', '')
+                csv_path = f"{base_path}_{i}.csv"
+                i += 1
+        
+        if not all_joint_points:
+            print("No joint points to save in CSV.")
+            return
+        
+        # Sort by timestamp for consistent order
+        all_joint_points.sort(key=lambda d: d['timestamp'])
+        
+        # Use joint_markers order for consistent column ordering
+        projected_joints = set(p['marker'] for p in all_joint_points)
+        ordered_joints = [m for m in joint_markers if m in projected_joints]
+        timestamps = sorted(set(p['timestamp'] for p in all_joint_points))
+        
+        # Build {timestamp: {marker: (x, y)}}
+        frame_dict = {t: {} for t in timestamps}
+        for p in all_joint_points:
+            frame_dict[p['timestamp']][p['marker']] = (p['x'], p['y'])
+        
+        with open(csv_path, "w", newline="") as f:
+            writer = csv.writer(f)
+            header = ["event_timestamp"]
+            for m in ordered_joints:
+                header.extend([f"{m}_x", f"{m}_y"])
+            writer.writerow(header)
+            
+            for t in timestamps:
+                row = [f"{t:.6f}"]
+                for m in ordered_joints:
+                    if m in frame_dict[t]:
+                        x, y = frame_dict[t][m]
+                        row.extend([f"{x:.2f}", f"{y:.2f}"])
+                    else:
+                        row.extend(["", ""])
+                writer.writerow(row)
+        
+        print(f"Saved joint points CSV: {csv_path} ({len(timestamps)} timestamps, {len(ordered_joints)} joints)")
+        print(f"Joint order: {ordered_joints}")
 ###
 
 ###
@@ -1245,7 +1584,7 @@ class ViconDVSPipeline:
             if outliers:
                 print(f"               Outliers (>{upper_fence:.2f} or <{lower_fence:.2f}): {len(outliers)} points, max={max(outliers):.2f}")
 
-        print("\n📊 PLOT EXPLANATION:")
+        print("\n PLOT EXPLANATION:")
         print("• Light Blue Box = Interquartile Range (Q1 to Q3, contains middle 50% of data)")
         print("• Orange Line = Median (50th percentile)")
         print("• Red Dot = Mean (average)")
@@ -1272,25 +1611,57 @@ class ViconDVSPipeline:
         print(f"Loaded {len(labeled_points['times'])} labeled timestamps from YAML")
         print(f"Available markers in labels: {set().union(*[frame.keys() for frame in labeled_points['points']])}")
 
-        # --- Load projected points ---
-        projected_points_txt = os.path.join(os.path.dirname(self.vicon_path), "projected_points.txt")
-        if not os.path.exists(projected_points_txt):
-            print(f"❌ Error: Projected points TXT file not found: {projected_points_txt}")
+        # --- Load projected points from CSV ---
+        # Look for CSV files with projected points (sequence-based naming)
+        sequence_name = self._extract_sequence_name()
+        base_csv_name = f"{sequence_name}_projection_points.csv"
+        projected_points_csv = os.path.join(os.path.dirname(self.vicon_path), base_csv_name)
+        
+        # If sequence-specific CSV doesn't exist, look for generic ones
+        if not os.path.exists(projected_points_csv):
+            # Look for any projected_points*.csv files
+            import glob
+            csv_pattern = os.path.join(os.path.dirname(self.vicon_path), "projected_points*.csv")
+            csv_files = glob.glob(csv_pattern)
+            if csv_files:
+                # Use the most recent CSV file
+                projected_points_csv = max(csv_files, key=os.path.getmtime)
+                print(f"Using most recent projected points CSV: {os.path.basename(projected_points_csv)}")
+            else:
+                print(f"❌ Error: No projected points CSV files found in {os.path.dirname(self.vicon_path)}")
+                return None
+        
+        # Load CSV data
+        projected_data = {}  # marker_name -> [(timestamp, x, y), ...]
+        import csv
+        try:
+            with open(projected_points_csv, 'r') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    timestamp = float(row['event_timestamp'])
+                    
+                    # Extract marker data from CSV columns
+                    for column in reader.fieldnames:
+                        if column == 'event_timestamp':
+                            continue
+                        if column.endswith('_x'):
+                            marker_name = column[:-2]  # Remove '_x' suffix
+                            y_column = f"{marker_name}_y"
+                            
+                            # Check if both x and y values exist and are not empty
+                            if row[column] and row.get(y_column):
+                                try:
+                                    x = float(row[column])
+                                    y = float(row[y_column])
+                                    projected_data.setdefault(marker_name, []).append((timestamp, x, y))
+                                except ValueError:
+                                    continue
+                                    
+        except Exception as e:
+            print(f"❌ Error reading CSV file {projected_points_csv}: {e}")
             return None
 
-        projected_data = {}  # marker_name -> [(timestamp, x, y), ...]
-        with open(projected_points_txt, 'r') as f:
-            for line in f:
-                parts = line.strip().split(',')
-                if len(parts) != 4:
-                    continue
-                try:
-                    timestamp, x, y, marker_name = float(parts[0]), float(parts[1]), float(parts[2]), parts[3].strip()
-                    projected_data.setdefault(marker_name, []).append((timestamp, x, y))
-                except ValueError:
-                    continue
-
-        print(f"Loaded projected data for {len(projected_data)} markers.")
+        print(f"Loaded projected data for {len(projected_data)} markers from CSV.")
 
         # --- Compute errors ---
         comparison_results = {'marker_errors': {}}
@@ -1485,7 +1856,7 @@ class ViconDVSPipeline:
         def format_matrix_block(T: np.ndarray) -> str:
             rows = []
             for i, row in enumerate(T):
-                row_str = " ".join(f"{val: .5f}" for val in row).lstrip()
+                row_str = " ".join(f"{val:.6f}" for val in row).lstrip()
                 if i == 0:
                     rows.append(f"[[ {row_str}]")
                 elif i == T.shape[0] - 1:
@@ -1499,9 +1870,9 @@ class ViconDVSPipeline:
             f.write(format_matrix_block(self.T_syst_to_camera_opt) + "\n\n")
             f.write("[DELAY]\n\n")
             f.write(f"{self.delay}\n")
-            
-        print(f"Saved calibration to {output_file}")
-        
+
+        print(f"Saved calibration to {os.path.basename(output_file)} (delay: {self.delay}s)")
+
     # def save_transforms_txt(self, output_file: str):
     #     """Save all transformation matrices to a text file."""
     #     with open(output_file, 'w') as f:
@@ -1526,7 +1897,8 @@ class ViconDVSPipeline:
         
         # 2. Try to load existing calibration
         if init_file_path is None:
-            init_file = os.path.join(os.path.dirname(self.vicon_path), "init_file.txt")
+            # Generate sequence-specific init file name that avoids overwrites
+            init_file = self._generate_unique_init_file_path()
         else:
             init_file = init_file_path
             
@@ -1566,12 +1938,23 @@ class ViconDVSPipeline:
         
         # 10. Create projection video
         if create_video:
-            video_file = os.path.join(os.path.dirname(self.vicon_path), "projection_video.mp4")
+            # Extract sequence name for consistent naming
+            sequence_name = self._extract_sequence_name()
+            base_video_path = os.path.join(os.path.dirname(self.vicon_path), f"{sequence_name}_projection_video.mp4")
+            video_file = self._generate_unique_video_path(base_video_path)
+
+            # Store initial delay to check if it changed during projection
+            initial_delay = self.delay
 
             # Run the projection session but DO NOT save yet — just collect buffers
             result = self.create_projection_video(video_file)  # now returns dict with segments & points
             collected_video_segments = result["segments"]
             all_projected_points = result["points"]
+
+            # Check if delay was modified during projection
+            delay_changed = abs(self.delay - initial_delay) > 1e-6
+            if delay_changed:
+                print(f"\n Delay was adjusted during projection: {initial_delay:.6f}s → {self.delay:.6f}s")
 
             print("\n" + "="*60)
             print("CALIBRATION RESULTS REVIEW")
@@ -1588,6 +1971,10 @@ class ViconDVSPipeline:
                 response = input("\nAre you satisfied with the calibration results? (y/n): ").lower().strip()
 
                 if response in ['y', 'yes']:
+                    # Save updated calibration if delay was changed during projection
+                    if delay_changed:
+                        self._track_delay_change(initial_delay, "projection video creation", init_file)
+
                     # Save points CSV (if any)
                     if all_projected_points:
                         print("Saving projected points CSV...")
@@ -1621,6 +2008,24 @@ class ViconDVSPipeline:
                     else:
                         print("No video segments were created, so no video file will be saved.")
 
+                    # Automatically save joint locations using joint config
+                    try:
+                        print("\n" + "="*60)
+                        print("AUTOMATIC JOINT PROJECTION")
+                        print("="*60)
+                        print("Generating joint projections and video using joint configuration...")
+                        
+                        # Store delay before joint projection to check for changes
+                        joint_initial_delay = self.delay
+                        self._save_joint_projections_and_video()
+                        
+                        # Check if delay was changed during joint projection and save if needed
+                        self._track_delay_change(joint_initial_delay, "joint projection", init_file)
+                            
+                    except Exception as e:
+                        print(f"Error during joint projection generation: {e}")
+                        print("Main pipeline completed but joint projection failed.")
+
                     # Optional: error analysis after saving
                     if perform_error_analysis:
                         labels_path = self.output_path
@@ -1641,7 +2046,24 @@ class ViconDVSPipeline:
                 else:
                     print("Please answer 'y' or 'n'.")
         else:
-            # If no video creation, just complete the pipeline
+            # If no video creation, still generate joint projections and track delay changes
+            try:
+                print("\n" + "="*60)
+                print("AUTOMATIC JOINT PROJECTION")
+                print("="*60)
+                print("Generating joint projections using joint configuration...")
+                
+                # Store delay before joint projection to check for changes
+                joint_initial_delay = self.delay
+                self._save_joint_projections_and_video()
+                
+                # Check if delay was changed during joint projection and save if needed
+                self._track_delay_change(joint_initial_delay, "joint projection", init_file)
+                    
+            except Exception as e:
+                print(f"Error during joint projection generation: {e}")
+                print("Pipeline proceeding without joint projections.")
+            
             # Step 11: Perform error analysis if requested
             if perform_error_analysis:
                 labels_path = self.output_path
