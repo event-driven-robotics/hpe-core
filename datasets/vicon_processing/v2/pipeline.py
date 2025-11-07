@@ -558,10 +558,10 @@ class ViconDVSPipeline:
         self.Ts_world_to_system = vicon_helper.compute_camera_marker_transforms()
         print(f"Computed transformations using camera setup: {self.camera_setup}")
         
-    def visualize_events(self):
-        """Visualize event data for a specified duration."""
+    def visualize_events(self, output_video: str = "event_visualization.mp4"):
+        """Visualize event data for a specified duration with optional video recording."""
         
-        print(f"Visualizing events")
+        print(f"Visualizing events (recording enabled)")
         print("\n" + "="*60)
         print("EVENT VISUALIZATION - GUI INSTRUCTIONS")
         print("="*60)
@@ -571,15 +571,35 @@ class ViconDVSPipeline:
         print("  • q or ESC: Stop visualization")
         print("="*60)    
         
+        # Prepare VideoWriter for the whole session
+        H, W = self.cam_res[0], self.cam_res[1]
+        fps = max(1, int(round(1.0 / self.period)))
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        video_writer = cv2.VideoWriter(output_video, fourcc, fps, (W, H), isColor=False)
+        
+        if not video_writer.isOpened():
+            print(f"[warn] Could not open video writer at '{output_video}'. Continuing without recording.")
+            video_writer = None
+        else:
+            print(f"Recording video to: {output_video}")
+            print(f"Video settings: {W}x{H} @ {fps} FPS")
+        
         img = np.ones(self.cam_res, dtype=np.uint8) * 255
         ft = self.start_time
         window_size = 500 * self.period
         window_start = self.start_time
+        frame_count = 0
+        total_frames_expected = int((self.end_time - self.start_time) / self.period)
         
         cv2.namedWindow('Event Visualization', cv2.WINDOW_NORMAL)
         
         try:
-            while ft < float("%.1f" % self.end_time):
+            print(f"Starting visualization from {self.start_time:.3f}s to {self.end_time:.3f}s")
+            print(f"Expected total frames: {total_frames_expected}")
+            if video_writer:
+                print(f"Video will be saved to: {output_video}")
+            
+            while ft < self.end_time:
                 window_end = min(window_start + window_size, self.end_time)
                 window_center = (window_start + window_end) / 2
                 
@@ -590,17 +610,42 @@ class ViconDVSPipeline:
                 
                 for i in range(len(e_ts)):
                     if e_ts[i] >= ft:
-                        cv2.imshow('Event Visualization', img)
+                        # Create display image with enhanced information
+                        display_img = img.copy()
+                        
+                        # Add timestamp
+                        text = f"t = {ft:.6f}s"
+                        font = cv2.FONT_HERSHEY_SIMPLEX
+                        cv2.putText(display_img, text, (display_img.shape[1] - 200, 30), font, 0.7, (0, 0, 0), 2)
+                        
+                        # Add progress information
+                        progress = (ft - self.start_time) / (self.end_time - self.start_time) * 100
+                        progress_text = f"Progress: {progress:.1f}%"
+                        cv2.putText(display_img, progress_text, (10, 30), font, 0.5, (0, 0, 0), 1)
+                        
+                        # Frame counter
+                        frame_text = f"Frame: {frame_count+1}/{total_frames_expected}"
+                        cv2.putText(display_img, frame_text, (10, 50), font, 0.5, (0, 0, 0), 1)
+                        
+                        # Record frame to video if recording enabled
+                        if video_writer is not None:
+                            video_writer.write(display_img)
+                        
+                        cv2.imshow('Event Visualization', display_img)
                         k = cv2.waitKey(int(self.period * 1000))
                         
                         if k == 27 or k == ord('q'):
+                            print(f"\nStopped by user at frame {frame_count+1}")
                             raise KeyboardInterrupt
                             
                         img = np.ones(self.cam_res, dtype=np.uint8) * 255
-                        text = f"t = {ft:.6f}s"
-                        font = cv2.FONT_HERSHEY_SIMPLEX
-                        cv2.putText(img, text, (img.shape[1] - 200, 30), font, 0.7, (0, 0, 0), 2)
                         ft += self.period
+                        frame_count += 1
+                        
+                        # Progress indicator (every 5%)
+                        if frame_count % max(1, total_frames_expected // 20) == 0:
+                            total_progress = (ft - self.start_time) / (self.end_time - self.start_time) * 100
+                            print(f"Progress: {total_progress:.1f}% | Frames: {frame_count}/{total_frames_expected}")
                         
                     if e_vs[i] < self.cam_res[0] and e_us[i] < self.cam_res[1]:
                         img[e_vs[i], e_us[i]] = 0
@@ -608,102 +653,201 @@ class ViconDVSPipeline:
                 window_start = e_ts[-1] if len(e_ts) > 0 else window_start + window_size
                 
         except KeyboardInterrupt:
-            print("Visualization stopped by user")
+            print(f"\nVisualization stopped by user at frame {frame_count}")
+        
+        except Exception as e:
+            print(f"\nError during visualization: {str(e)}")
+            
         finally:
             cv2.destroyAllWindows()
+            
+            # Clean up and provide summary
+            if video_writer is not None:
+                video_writer.release()
+                
+                # Check if video file was created successfully
+                import os
+                if os.path.exists(output_video):
+                    file_size = os.path.getsize(output_video) / (1024 * 1024)  # MB
+                    print(f"\nVideo saved successfully!")
+                    print(f"File: {output_video}")
+                else:
+                    print(f"\n❌ Video file was not created: {output_video}")
+            
+            print(f"\nVisualization completed. Total frames processed: {frame_count}")
         
-    def manual_rotation_estimation(self, chosen_marker: Optional[str] = None) -> np.ndarray:
-        """Manually estimate rotation using visual feedback with windowed approach."""
-        print("Starting manual rotation estimation...")
+    # def manual_rotation_estimation(self, chosen_marker: Optional[str] = None) -> np.ndarray:
+    #     """Manually estimate rotation using visual feedback with windowed approach."""
+    #     print("Starting manual rotation estimation...")
+    #     print("\n" + "="*60)
+    #     print("MANUAL ROTATION ESTIMATION - GUI INSTRUCTIONS")
+    #     print("="*60)
+    #     print("A window will open showing event data with projected markers.")
+    #     print("Use the following controls to manually adjust the camera rotation:")
+    #     print("  • SPACE: Pause/resume event visualization")
+    #     print("  • ENTER: Select rotation axis (roll/pitch/yaw)")
+    #     print("  • +/-: Increase/decrease angle of selected axis by the current step size")
+    #     print("  • k/l: Increase/decrease angle step size (default 0.5 degrees)")
+    #     print("  • q or ESC: Finish rotation adjustment")
+    #     print("\nGoal: Align the projected markers with the events as closely as possible.")
+    #     print("Look for the feedback marker to get an idea of where on the event plane the markers are being projected:\n")
+
+    #     # TODO: ask user input for initial rotation values and translations??
+        
+    #     # TODO: user input for chosen marker to track???
+
+    #     # Get working markers
+    #     self.markers_names = self.get_markers_names()
+        
+    #     if not self.markers_names:
+    #         raise RuntimeError("No suitable markers found for calibration")
+            
+    #     # Choose marker for feedback
+    #     if chosen_marker and chosen_marker in self.markers_names:
+    #         chosen_one = chosen_marker
+    #     else:
+    #         chosen_one = self.markers_names[0]
+            
+    #     print(f"Using markers: {self.markers_names}")
+    #     print(f"Feedback marker: {chosen_one}")
+        
+    #     # Create projector for manual adjustment
+    #     projector = helpers.ViconProjector(
+    #         self.markers_names, self.c3d_data, self.points_3d, 
+    #         self.T_syst_to_camera_opt, self.Ts_world_to_system, 
+    #         self.K, self.cam_res, D=self.D, subject=self.subject
+    #     )
+        
+    #     # Use windowed approach
+    #     window_size = 1000 * self.period  # 10 seconds window
+    #     window_start = self.start_time
+    #     rvec_init = np.zeros(3)
+                        
+    #     # TODO: find better solution than .1f 
+    #     try:
+    #         while window_start < self.end_time:  # float("%.1f" % self.end_time):
+    #             window_end = window_start + window_size
+    #             window_center = (window_start + window_end) / 2
+
+    #             # Load events for this window
+    #             e_data = self.imp.get_data_at_time(window_center, window_size)
+    #             e_ts = np.array(e_data['ts'])
+    #             e_us = np.array(e_data['x'])
+    #             e_vs = np.array(e_data['y'])
+
+    #             if len(e_ts) == 0:
+    #                 print(f"No events in window [{window_start:.3f}, {window_end:.3f}]")
+    #                 window_start += window_size
+    #                 continue
+
+    #             print(f"Processing {len(e_ts)} events between {e_ts[0]:.3f}s and {e_ts[-1]:.3f}s")
+                
+    #             R_init = Rotation.from_rotvec(rvec_init).as_matrix()
+
+    #             # Call projector manual rotation adjustment
+    #             rvec_init = projector.manual_rotation_adjustment(
+    #                 self.marker_t, self.delay, e_ts, e_us, e_vs, 
+    #                 self.period, R_init=R_init, visualize=True, 
+    #                 chosen_one=chosen_one, marker_time_offset=window_start
+    #             )
+                
+    #             window_start = window_end
+
+    #             print("window_start updated to:", window_start)
+
+    #     except helpers.RotationExit as e:
+    #         print("Visualization stopped by user with final rotation.")
+    #         rvec_init = e.r_vec
+
+    #     finally:
+    #         cv2.destroyAllWindows()
+    #         print("rvec", rvec_init)
+    #         return rvec_init
+
+    def manual_rotation_estimation(self, chosen_marker: Optional[str] = None,
+                                output_video: str = "manual_rotation.mp4") -> np.ndarray:
+        """Manually estimate rotation using visual feedback with windowed approach and save a video."""
+
+        print("Starting manual rotation estimation (recording enabled)...")
         print("\n" + "="*60)
         print("MANUAL ROTATION ESTIMATION - GUI INSTRUCTIONS")
         print("="*60)
-        print("A window will open showing event data with projected markers.")
-        print("Use the following controls to manually adjust the camera rotation:")
-        print("  • SPACE: Pause/resume event visualization")
-        print("  • ENTER: Select rotation axis (roll/pitch/yaw)")
-        print("  • +/-: Increase/decrease angle of selected axis by the current step size")
-        print("  • k/l: Increase/decrease angle step size (default 0.5 degrees)")
-        print("  • q or ESC: Finish rotation adjustment")
-        print("\nGoal: Align the projected markers with the events as closely as possible.")
-        print("Look for the feedback marker to get an idea of where on the event plane the markers are being projected:\n")
-
-        # TODO: ask user input for initial rotation values and translations??
-        
-        # TODO: user input for chosen marker to track???
+        print("SPACE pause/resume  |  ENTER select axis  |  +/- change angle  |  k/l change step  |  q/ESC finish")
 
         # Get working markers
         self.markers_names = self.get_markers_names()
-        
         if not self.markers_names:
             raise RuntimeError("No suitable markers found for calibration")
-            
-        # Choose marker for feedback
-        if chosen_marker and chosen_marker in self.markers_names:
-            chosen_one = chosen_marker
-        else:
-            chosen_one = self.markers_names[0]
-            
+
+        # Choose feedback marker
+        chosen_one = chosen_marker if (chosen_marker and chosen_marker in self.markers_names) else self.markers_names[0]
         print(f"Using markers: {self.markers_names}")
         print(f"Feedback marker: {chosen_one}")
-        
-        # Create projector for manual adjustment
+
+        # Projector
         projector = helpers.ViconProjector(
-            self.markers_names, self.c3d_data, self.points_3d, 
-            self.T_syst_to_camera_opt, self.Ts_world_to_system, 
+            self.markers_names, self.c3d_data, self.points_3d,
+            self.T_syst_to_camera_opt, self.Ts_world_to_system,
             self.K, self.cam_res, D=self.D, subject=self.subject
         )
-        
-        # Use windowed approach
+
+        # Prepare one VideoWriter for the whole session
+        H, W = self.cam_res[0], self.cam_res[1]
+        fps = max(1, int(round(1.0 / self.period)))
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        vw = cv2.VideoWriter(output_video, fourcc, fps, (W, H), isColor=False)
+        if not vw.isOpened():
+            print(f"[warn] Could not open video writer at '{output_video}'. Continuing without recording.")
+            vw = None
+
         window_size = 1000 * self.period  # 10 seconds window
         window_start = self.start_time
         rvec_init = np.zeros(3)
-                        
-        # TODO: find better solution than .1f 
+
         try:
-            while window_start < self.end_time:  # float("%.1f" % self.end_time):
+            while window_start < self.end_time:
                 window_end = window_start + window_size
-                window_center = (window_start + window_end) / 2
+                window_center = 0.5 * (window_start + window_end)
 
                 # Load events for this window
                 e_data = self.imp.get_data_at_time(window_center, window_size)
-                e_ts = np.array(e_data['ts'])
-                e_us = np.array(e_data['x'])
-                e_vs = np.array(e_data['y'])
+                e_ts = np.array(e_data['ts']); e_us = np.array(e_data['x']); e_vs = np.array(e_data['y'])
 
                 if len(e_ts) == 0:
                     print(f"No events in window [{window_start:.3f}, {window_end:.3f}]")
                     window_start += window_size
                     continue
 
-                print(f"Processing {len(e_ts)} events between {e_ts[0]:.3f}s and {e_ts[-1]:.3f}s")
-                
+                print(f"Window {window_start:.3f}–{window_end:.3f}  ({len(e_ts)} events)")
                 R_init = Rotation.from_rotvec(rvec_init).as_matrix()
 
-                # Call projector manual rotation adjustment
+                # Run interactive adjuster and RECORD frames into the same writer
                 rvec_init = projector.manual_rotation_adjustment(
-                    self.marker_t, self.delay, e_ts, e_us, e_vs, 
-                    self.period, R_init=R_init, visualize=True, 
-                    chosen_one=chosen_one, marker_time_offset=window_start
+                    self.marker_t, self.delay, e_ts, e_us, e_vs, self.period,
+                    R_init=R_init, visualize=True, chosen_one=chosen_one,
+                    marker_time_offset=window_start, video_record=False, video_writer=vw
                 )
-                
-                window_start = window_end
 
+                # next window
+                window_start = window_end
                 print("window_start updated to:", window_start)
 
         except helpers.RotationExit as e:
-            print("Visualization stopped by user with final rotation.")
+            print("Visualization finished by user with final rotation.")
             rvec_init = e.r_vec
 
         finally:
             cv2.destroyAllWindows()
-            print("rvec", rvec_init)
-            return rvec_init
+            if vw is not None:
+                vw.release()
+                print(f"Saved manual-rotation video → {output_video}")
 
-    def manual_delay_correction(self) -> float:
-        """Manually correct synchronization delay using windowed approach."""
+        return rvec_init
+
+    def manual_delay_correction(self, output_video: str = "delay_correction.mp4") -> float:
+        """Manually correct synchronization delay using windowed approach and save a video."""
         
-        print("Starting manual delay correction...")
+        print("Starting manual delay correction (recording enabled)...")
         print("\n" + "="*60)
         print("MANUAL DELAY CORRECTION - GUI INSTRUCTIONS")
         print("="*60)
@@ -729,6 +873,15 @@ class ViconDVSPipeline:
             self.K, self.cam_res, D=self.D, subject=self.subject
         )
 
+        # Prepare VideoWriter for the whole session
+        H, W = self.cam_res[0], self.cam_res[1]
+        fps = max(1, int(round(1.0 / self.period)))
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        vw = cv2.VideoWriter(output_video, fourcc, fps, (W, H), isColor=False)
+        if not vw.isOpened():
+            print(f"[warn] Could not open video writer at '{output_video}'. Continuing without recording.")
+            vw = None
+
         try:
             while window_start < float("%.1f" % self.end_time):
                 window_end = window_start + window_size
@@ -742,10 +895,11 @@ class ViconDVSPipeline:
 
                 print(f"Processing {len(e_ts)} events between {e_ts[0]:.3f}s and {e_ts[-1]:.3f}s")
 
-                # Call projector delay adjustment
+                # Call projector delay adjustment with video recording
                 self.delay = projector.fix_delay(
                     self.marker_t, self.delay, e_ts, e_us, e_vs, self.period,
-                    visualize=True, marker_time_offset=window_start
+                    visualize=True, marker_time_offset=window_start,
+                    video_record=False, video_writer=vw
                 )
                 
                 print("e_ts final:", e_ts[-1], "window_start:", window_start, "window_size:", window_size)
@@ -760,6 +914,9 @@ class ViconDVSPipeline:
 
         finally:
             cv2.destroyAllWindows()
+            if vw is not None:
+                vw.release()
+                print(f"Saved delay-correction video → {output_video}")
             print(f"Updated delay: {self.delay:.3f}s")
             return self.delay
 

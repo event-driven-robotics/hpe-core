@@ -369,8 +369,15 @@ class ViconProjector:
         return synced_image_points, video_segment, current_delay
 
     def manual_rotation_adjustment(self, marker_t, delay, e_ts, e_us, e_vs, period,
-                                   R_init=None, tvec=None, visualize=True,
+                                   R_init=None, tvec=None, visualize=True, video_record=True, video_writer=None,
                                    chosen_one=None, angle_step=1.0, marker_time_offset=0.0):
+
+        own_writer = None
+        H, W = self.cam_res[0], self.cam_res[1]
+        if video_record and video_writer is None:
+            fps = max(1, int(round(1.0 / period)))
+            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+            own_writer = cv2.VideoWriter("manual_rotation_tmp.mp4", fourcc, fps, (W, H), isColor=False)
        
         # Create a copy of the current transformation for adjustment
         current_T = self.T_system_to_camera.copy()
@@ -450,6 +457,13 @@ class ViconProjector:
             cv2.putText(img, "Keys: space=start/stop | enter = select roll/pitch/yaw | +/- = increase/decrease angle value | q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
             cv2.putText(img, "Currently modifying: " + ['roll', 'pitch', 'yaw'][selected_angle] + " by a factor of: " + str(angle_step) + " degrees", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
  
+            # Record video frame if enabled
+            if video_record:
+                if video_writer is not None:
+                    video_writer.write(img)
+                elif own_writer is not None:
+                    own_writer.write(img)
+
             cv2.imshow('Manual Rotation', img)
             c = cv2.waitKey(int(1000 * period))
  
@@ -631,6 +645,10 @@ class ViconProjector:
                         if idx < len(self.image_points[chosen_one]):
                             uv = self.image_points[chosen_one][idx]
                             print(f"[recalc] marker='{chosen_one}' frame_idx={idx} image_uv={tuple(uv)}")
+
+                            clean_name = self._clean_marker_name(chosen_one)
+                            position_text = f"Chosen: {clean_name} ({uv[0]:.1f}, {uv[1]:.1f})"
+                            cv2.putText(img, position_text, (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 64, 2)
  
                 except Exception as e:
                     print("Error recomputing projections:", e)
@@ -642,6 +660,9 @@ class ViconProjector:
                 img = np.ones(self.cam_res, dtype=np.uint8) * 255
                 tic_markers += period
                 tic_events += period
+
+        if own_writer is not None:
+            own_writer.release()        
  
         #cv2.destroyAllWindows()
         r_vec = Rotation.from_euler('zyx', [Rot_deg[2], Rot_deg[1], Rot_deg[0]], degrees=True).as_rotvec()
@@ -650,9 +671,9 @@ class ViconProjector:
         # Recalculate projections with new transformation
         self._calculate_projections()
         return r_vec  
-    
+
     def fix_delay(self, marker_t, delay, e_ts, e_us, e_vs, period, 
-              visualize=True, marker_time_offset=0.0):
+              visualize=True, marker_time_offset=0.0, video_record=False, video_writer=None):
         # Project points from Vicon to event plane using a transformation matrix for each frame
         image_points = {}
 
@@ -725,6 +746,10 @@ class ViconProjector:
             event_time_text = f"Event: {tic_events:.3f}s"
             cv2.putText(img, marker_time_text, (self.cam_res[1] - 200, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
             cv2.putText(img, event_time_text, (self.cam_res[1] - 200, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
+
+            # Record video frame if enabled
+            if video_record and video_writer is not None:
+                video_writer.write(img)
 
             # Visualize
             cv2.imshow('Fix Delay', img)
@@ -958,11 +983,8 @@ class ViconProjector:
                 tic_markers += period
                 tic_events += period
                 
-        # cv2.destroyAllWindows()
         return current_delay  # Return the adjusted delay
             
-        # return delay  # Return original delay if not visualizing
-
 class DvsLabeler:
     # functions relative to the labeling of the sequences
     
@@ -1216,7 +1238,6 @@ class DvsLabeler:
 
         return True, process_continue, points_dict, img
 
-
     # TODO: improve on GUI, maybe show name of the markers only when mouse hover them or is close to them or something
     def correct_data(
         self, e_ts, e_us, e_vs, period,
@@ -1440,7 +1461,6 @@ class DvsLabeler:
 
         cv2.destroyAllWindows()
         return True, process_continue, corrected_points_dict, img
-
 
 class ViconHelper:
     # functions relative to the extraction of the vicon data from c3d files.
