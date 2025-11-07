@@ -1151,13 +1151,27 @@ class ViconDVSPipeline:
 
                 print(f"Loaded {len(e_ts)} events from {e_ts[0]:.3f}s to {e_ts[-1]:.3f}s")
 
-                # Call projector
-                synced_image_points, video_segment, current_delay = projector.project_vicon_to_event_plane_dynamic(
-                    self.marker_t, self.delay,
-                    e_ts, e_us, e_vs, self.period,
-                    visualize=True, video_record=True,
-                    marker_time_offset=window_start
-                )
+                try:
+                    synced_image_points, video_segment, current_delay = projector.project_vicon_to_event_plane_dynamic(
+                        self.marker_t, self.delay,
+                        e_ts, e_us, e_vs, self.period,
+                        visualize=True, video_record=True,
+                        marker_time_offset=window_start
+                    )
+                except helpers.DelayReset as e:
+                    # ---- FULL RESTART FROM THE FIRST EVER EVENT TIMESTAMP ----
+                    print("↩️ Delay changed with arrow key: full reset requested.")
+                    # 1) adopt the new delay
+                    self.delay = e.new_delay
+                    # 2) clear all accumulators
+                    all_projected_points.clear()
+                    collected_video_segments.clear()
+                    # 3) reset scanning window to the beginning
+                    window_start = self.start_time   # or self.imp.first_event_time if you expose it
+                    window_count = 0
+                    # 4) close any windows and restart the loop
+                    # cv2.destroyAllWindows()
+                    continue
 
                 self.delay = current_delay  # Update delay if adjusted
 
@@ -1202,74 +1216,51 @@ class ViconDVSPipeline:
         finally:
             cv2.destroyAllWindows()
 
-            # ---- ANALYZE PROJECTED POINTS ----
-            if all_projected_points:
-                # Count by marker
-                marker_counts = {}
-                for entry in all_projected_points:
-                    marker_name = entry.get('marker', 'UNKNOWN')
-                    marker_counts[marker_name] = marker_counts.get(marker_name, 0) + 1
-                
-                print(f" Projected points analysis:")
-                print(f"   Total points: {len(all_projected_points)}")
-                for marker, count in marker_counts.items():
-                    print(f"   {marker}: {count} points")
-                
-                self._save_projected_points_txt(all_projected_points, output_video)
-                self._save_projected_points_csv(all_projected_points, output_video)
-            else:
-                print("⚠️ No projected points collected to save.")
+        # DO NOT SAVE HERE — return buffers to caller
+        # Optional: quick summary for debugging
+        if all_projected_points:
+            marker_counts = {}
+            for entry in all_projected_points:
+                marker_name = entry.get('marker', 'UNKNOWN')
+                marker_counts[marker_name] = marker_counts.get(marker_name, 0) + 1
+            print(f"Projected points (preview): total={len(all_projected_points)}  breakdown={marker_counts}")
+        else:
+            print("No projected points collected in this preview session.")
 
-            # ---- MERGE VIDEO SEGMENTS ----
-            if collected_video_segments:
-                print(f"Merging {len(collected_video_segments)} video segments...")
-                try:
-                    fps = int(1 / self.period)
-                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                    video_writer = cv2.VideoWriter(
-                        output_video, fourcc, fps,
-                        (self.cam_res[1], self.cam_res[0]), isColor=False
-                    )
+        if collected_video_segments:
+            total_frames = sum(len(seg) for seg in collected_video_segments)
+            print(f"Collected video frames (preview): {total_frames} (across {len(collected_video_segments)} segments)")
+        else:
+            print("No video segments collected in this preview session.")
 
-                    total_frames = 0
-                    for segment_frames in collected_video_segments:
-                        for frame in segment_frames:
-                            if len(frame.shape) == 3:
-                                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                            video_writer.write(frame)
-                            total_frames += 1
-
-                    video_writer.release()
-                    print(f" Projection video created: {output_video} ({total_frames} frames)")
-
-                except Exception as e:
-                    print(f" Error merging video: {e}")
-            else:
-                print(" No video segments were created.")
+        return {
+            "segments": collected_video_segments,
+            "points": all_projected_points,
+        }
 
 ###        
-    def _save_projected_points_txt(self, all_projected_points, output_video):
-        """
-        Save projected points to TXT in format:
-        event_timestamp, x, y, marker_name
-        """
-        txt_path = os.path.join(os.path.dirname(output_video), "projected_points.txt")
+    # def _save_projected_points_txt(self, all_projected_points, output_video):
+    #     """
+    #     Save projected points to TXT in format:
+    #     event_timestamp, x, y, marker_name
+    #     """
+    #     txt_path = os.path.join(os.path.dirname(output_video), "projected_points.txt")
 
-        if not all_projected_points:
-            print(" No projected points to save in TXT.")
-            return
+    #     if not all_projected_points:
+    #         print(" No projected points to save in TXT.")
+    #         return
 
-        # Sort by timestamp for consistency
-        all_projected_points.sort(key=lambda d: d['timestamp'])
+    #     # Sort by timestamp for consistency
+    #     all_projected_points.sort(key=lambda d: d['timestamp'])
 
-        with open(txt_path, "w") as f:
-            f.write("# Projected marker points\n")
-            f.write("# Format: event_timestamp, x, y, marker_name\n")
-            f.write("#\n")
-            for entry in all_projected_points:
-                f.write(f"{entry['timestamp']:.6f}, {entry['x']:.2f}, {entry['y']:.2f}, {entry['marker']}\n")
+    #     with open(txt_path, "w") as f:
+    #         f.write("# Projected marker points\n")
+    #         f.write("# Format: event_timestamp, x, y, marker_name\n")
+    #         f.write("#\n")
+    #         for entry in all_projected_points:
+    #             f.write(f"{entry['timestamp']:.6f}, {entry['x']:.2f}, {entry['y']:.2f}, {entry['marker']}\n")
 
-        print(f" Saved projected points TXT: {txt_path} ({len(all_projected_points)} points)")    
+    #     print(f" Saved projected points TXT: {txt_path} ({len(all_projected_points)} points)")    
 
     def _save_projected_points_csv(self, all_projected_points, output_video):
         """
@@ -1280,6 +1271,11 @@ class ViconDVSPipeline:
         or in the order they appear in self.marker_names to maintain consistency.
         """
         csv_path = os.path.join(os.path.dirname(output_video), "projected_points.csv")
+        if os.path.exists(csv_path):
+            i = 0
+            while os.path.exists(csv_path):
+                csv_path = os.path.join(os.path.dirname(output_video), "projected_points_" + str(i) + ".csv")
+                i += 1
 
         if not all_projected_points:
             print(" No projected points to save in CSV.")
@@ -1720,25 +1716,61 @@ class ViconDVSPipeline:
         # 10. Create projection video
         if create_video:
             video_file = os.path.join(os.path.dirname(self.vicon_path), "projection_video.mp4")
-            self.create_projection_video(video_file)
-            
-            # 11. Ask user for confirmation
+
+            # Run the projection session but DO NOT save yet — just collect buffers
+            result = self.create_projection_video(video_file)  # now returns dict with segments & points
+            collected_video_segments = result["segments"]
+            all_projected_points = result["points"]
+
             print("\n" + "="*60)
             print("CALIBRATION RESULTS REVIEW")
             print("="*60)
-            print(f"Projection video has been created: {video_file}")
-            print("Please review the video to check the quality of marker projections.")
+            print("A preview session has finished.")
+            print("Please review the on-screen projection during the run you just did.")
+            print("Nothing has been saved yet; we'll only save if you confirm.")
             
-            # Projected points are automatically saved during video creation
-            projected_points_file = os.path.join(os.path.dirname(self.vicon_path), "projected_points.txt")
-            print(f"Projected points saved to: {projected_points_file}")
+            # # Projected points are automatically saved during video creation
+            # projected_points_file = os.path.join(os.path.dirname(self.vicon_path), "projected_points.txt")
+            # print(f"Projected points saved to: {projected_points_file}")
                 
             while True:
                 response = input("\nAre you satisfied with the calibration results? (y/n): ").lower().strip()
-                
-                if response in ['y', 'yes']:
 
-                    # Step 11: Perform error analysis if requested
+                if response in ['y', 'yes']:
+                    # Save points CSV (if any)
+                    if all_projected_points:
+                        print("Saving projected points CSV...")
+                        self._save_projected_points_csv(all_projected_points, video_file)
+                    else:
+                        print("No projected points to save.")
+
+                    # Merge segments into video (if any)
+                    if collected_video_segments:
+                        print("Merging video segments...")
+                        try:
+                            fps = int(1 / self.period)
+                            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                            video_writer = cv2.VideoWriter(
+                                video_file, fourcc, fps,
+                                (self.cam_res[1], self.cam_res[0]), isColor=False
+                            )
+
+                            total_frames = 0
+                            for segment_frames in collected_video_segments:
+                                for frame in segment_frames:
+                                    if frame.ndim == 3:
+                                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                                    video_writer.write(frame)
+                                    total_frames += 1
+
+                            video_writer.release()
+                            print(f"Projection video created: {video_file} ({total_frames} frames)")
+                        except Exception as e:
+                            print(f"Error merging video: {e}")
+                    else:
+                        print("No video segments were created, so no video file will be saved.")
+
+                    # Optional: error analysis after saving
                     if perform_error_analysis:
                         labels_path = self.output_path
                         try:
@@ -1746,27 +1778,17 @@ class ViconDVSPipeline:
                         except Exception as e:
                             print(f"Error during projection error analysis: {e}")
                             print("Pipeline completed with calibration but error analysis failed.")
-                    
-                    print("Pipeline completed successfully!")                    
+
+                    print("Pipeline completed successfully!")
                     return
+
                 elif response in ['n', 'no']:
-                    print("\nRestarting calibration process...")
-                    print("Previous calibration will be ignored.")
-                    
-                    # Reset calibration parameters
-                    self.T_syst_to_camera_opt = np.eye(4)
-                    self.delay = 0.0
-                    
-                    # Restart the full pipeline with no init file and forced manual calibration
-                    return self.run_full_pipeline(
-                        use_projections=use_projections,
-                        create_video=create_video,
-                        init_file_path=None,  # Force no init file on restart
-                        chosen_marker=chosen_marker,
-                        perform_error_analysis=perform_error_analysis
-                    )
+                    print("Okay — discarding this run (no video, no CSV saved).")
+                    # You can loop back or exit depending on your pipeline design
+                    return
+
                 else:
-                    print("Please enter 'y' for yes or 'n' for no.")
+                    print("Please answer 'y' or 'n'.")
         else:
             # If no video creation, just complete the pipeline
             # Step 11: Perform error analysis if requested
