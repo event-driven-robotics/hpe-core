@@ -117,6 +117,53 @@ class ViconDVSPipeline:
         
         return matches
 
+    def _extract_sequence_name(self):
+        """Extract sequence name from DVS or VICON path for file naming."""
+        # Try to extract from vicon_path first (C3D file)
+        if self.vicon_path:
+            vicon_basename = os.path.basename(self.vicon_path)
+            # Remove .c3d extension and use as sequence name
+            sequence_name = os.path.splitext(vicon_basename)[0]
+            if sequence_name:
+                print(f"Extracted sequence name from VICON path: {sequence_name}")
+                return sequence_name
+        
+        # Fallback to DVS path
+        if self.dvs_path:
+            dvs_basename = os.path.basename(self.dvs_path.rstrip('/'))
+            if dvs_basename:
+                print(f"Extracted sequence name from DVS path: {dvs_basename}")
+                return dvs_basename
+        
+        # Final fallback
+        return "sequence"
+
+    def _get_output_directory(self):
+        """Get the output directory from the output_path."""
+        output_dir = os.path.dirname(os.path.abspath(self.output_path))
+        # Ensure the directory exists
+        os.makedirs(output_dir, exist_ok=True)
+        return output_dir
+
+    def _generate_unique_video_path(self, base_path: str) -> str:
+        """Generate unique video file path to avoid overwrites."""
+        if not os.path.exists(base_path):
+            return base_path
+        
+        # Extract directory, filename, and extension
+        directory = os.path.dirname(base_path)
+        filename = os.path.basename(base_path)
+        name, ext = os.path.splitext(filename)
+        
+        # Add iteration number until we find a unique name
+        i = 1
+        while True:
+            new_filename = f"{name}_{i}{ext}"
+            new_path = os.path.join(directory, new_filename)
+            if not os.path.exists(new_path):
+                return new_path
+            i += 1
+
     def prompt_camera_setup(self) -> tuple:
         """Ask user how many markers are attached to the camera and their names/prefixes."""
         print("\nCamera setup configuration (manual input)")
@@ -777,6 +824,7 @@ class ViconDVSPipeline:
         # Use windowed approach
         window_size = 500 * self.period
         window_start = self.start_time
+        current_delay_step = 0.01  # Initialize delay step
         
         # Create projector for delay adjustment
         projector = helpers.ViconProjector(
@@ -811,7 +859,7 @@ class ViconDVSPipeline:
                 self.delay = projector.fix_delay(
                     self.marker_t, self.delay, e_ts, e_us, e_vs, self.period,
                     visualize=True, marker_time_offset=window_start,
-                    video_record=False, video_writer=vw
+                    video_record=False, video_writer=vw, delay_step=current_delay_step
                 )
                 
                 print("e_ts final:", e_ts[-1], "window_start:", window_start, "window_size:", window_size)
@@ -823,6 +871,8 @@ class ViconDVSPipeline:
         except helpers.DelayExit as e:
             print("Delay adjustment stopped by user.")
             self.delay = e.delay
+            current_delay_step = e.delay_step  # Preserve the delay step from user adjustment
+            print(f"Final delay step from manual adjustment: {current_delay_step:.3f}s")
 
         finally:
             cv2.destroyAllWindows()
@@ -1040,6 +1090,7 @@ class ViconDVSPipeline:
         all_projected_points = []  # list of dicts: {'timestamp': t, 'x': x, 'y': y, 'marker': name}
         window_size = 500 * self.period
         window_start = self.start_time
+        current_delay_step = 0.01  # Initialize delay step
 
         print(f"Processing time range: {self.start_time:.3f}s to {self.end_time:.3f}s")
         print(f"Window size: {window_size/1000:.1f}s, Period: {self.period:.3f}s")
@@ -1064,17 +1115,20 @@ class ViconDVSPipeline:
                 print(f"Loaded {len(e_ts)} events from {e_ts[0]:.3f}s to {e_ts[-1]:.3f}s")
 
                 try:
-                    synced_image_points, video_segment, current_delay = projector.project_vicon_to_event_plane_dynamic(
+                    synced_image_points, video_segment, current_delay, current_delay_step = projector.project_vicon_to_event_plane_dynamic(
                         self.marker_t, self.delay,
                         e_ts, e_us, e_vs, self.period,
                         visualize=True, video_record=True,
-                        marker_time_offset=window_start
+                        marker_time_offset=window_start,
+                        delay_step=current_delay_step
                     )
                 except helpers.DelayReset as e:
                     # ---- FULL RESTART FROM THE FIRST EVER EVENT TIMESTAMP ----
-                    print("↩️ Delay changed with arrow key: full reset requested.")
-                    # 1) adopt the new delay
+                    print("Delay changed with arrow key: full reset requested.")
+                    # 1) adopt the new delay and preserve delay_step
                     self.delay = e.new_delay
+                    current_delay_step = e.delay_step  # Preserve the delay step
+                    print(f"Preserved delay step: {current_delay_step:.3f}s")
                     # 2) clear all accumulators
                     all_projected_points.clear()
                     collected_video_segments.clear()
@@ -1085,7 +1139,14 @@ class ViconDVSPipeline:
                     # cv2.destroyAllWindows()
                     continue
 
-                self.delay = current_delay  # Update delay if adjusted
+                # Update delay if it was adjusted during projection
+                if current_delay != self.delay:
+                    print(f"Delay updated during projection window {window_count}: {self.delay:.6f}s → {current_delay:.6f}s")
+                self.delay = current_delay
+                
+                # Debug: Show delay_step is preserved between windows
+                if window_count > 0:  # Don't show for first window
+                    print(f"Window {window_count}: Using delay step {current_delay_step:.3f}s (preserved from previous window)")
 
                 # Collect frames for video
                 if video_segment is not None:
@@ -1334,7 +1395,7 @@ class ViconDVSPipeline:
         print(f"Available markers in labels: {set().union(*[frame.keys() for frame in labeled_points['points']])}")
 
         # --- Load projected points ---
-        projected_points_txt = os.path.join(os.path.dirname(self.vicon_path), "projected_points.txt")
+        projected_points_txt = os.path.join(self._get_output_directory(), "projected_points.txt")
         if not os.path.exists(projected_points_txt):
             print(f"❌ Error: Projected points TXT file not found: {projected_points_txt}")
             return None
@@ -1385,7 +1446,7 @@ class ViconDVSPipeline:
         # Generate save path for the error plot
         import datetime
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        plot_save_path = os.path.join(os.path.dirname(self.vicon_path), f"error_analysis.png")
+        plot_save_path = os.path.join(self._get_output_directory(), f"error_analysis.png")
         self.plot_per_marker_error_boxplot(comparison_results['marker_errors'], save_path=plot_save_path)
 
         return comparison_results
@@ -1587,7 +1648,7 @@ class ViconDVSPipeline:
         
         # 2. Try to load existing calibration
         if init_file_path is None:
-            init_file = os.path.join(os.path.dirname(self.vicon_path), "init_file.txt")
+            init_file = os.path.join(self._get_output_directory(), "init_file.txt")
         else:
             init_file = init_file_path
             
@@ -1601,8 +1662,12 @@ class ViconDVSPipeline:
             
             # 4. Manual rotation estimation with marker filter
             tvec_init = np.array([0.0, 0.0, 0.0])       # TODO: make it user-input
+            sequence_name = self._extract_sequence_name()
+            rotation_video_file = os.path.join(self._get_output_directory(), f"{sequence_name}_manual_rotation.mp4")
+            rotation_video_file = self._generate_unique_video_path(rotation_video_file)
             rvec_init = self.manual_rotation_estimation(
-                chosen_marker=chosen_marker
+                chosen_marker=chosen_marker,
+                output_video=rotation_video_file
             )
             
             # Update transformation matrix
@@ -1610,7 +1675,10 @@ class ViconDVSPipeline:
             self.T_syst_to_camera_opt[:3, 3] = tvec_init
             
             # 5. Manual delay correction
-            self.delay = self.manual_delay_correction()
+            sequence_name = self._extract_sequence_name()
+            delay_video_file = os.path.join(self._get_output_directory(), f"{sequence_name}_delay_correction.mp4")
+            delay_video_file = self._generate_unique_video_path(delay_video_file)
+            self.delay = self.manual_delay_correction(delay_video_file)
             
             # 6. Interactive labeling or use existing labels
             self.label_data_interactive(use_projections=use_projections)
@@ -1627,7 +1695,10 @@ class ViconDVSPipeline:
         
         # 10. Create projection video
         if create_video:
-            video_file = os.path.join(os.path.dirname(self.vicon_path), "projection_video.mp4")
+            # Extract sequence name for unique video naming
+            sequence_name = self._extract_sequence_name()
+            base_video_file = os.path.join(self._get_output_directory(), f"{sequence_name}_projection_video.mp4")
+            video_file = self._generate_unique_video_path(base_video_file)
 
             # Run the projection session but DO NOT save yet — just collect buffers
             result = self.create_projection_video(video_file)  # now returns dict with segments & points

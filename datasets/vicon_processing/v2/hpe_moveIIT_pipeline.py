@@ -177,7 +177,7 @@ class ViconDVSPipeline:
     def _generate_unique_init_file_path(self, base_dir: str = None) -> str:
         """Generate a unique init file path using sequence name and avoiding overwrites."""
         if base_dir is None:
-            base_dir = os.path.dirname(self.vicon_path)
+            base_dir = self._get_output_directory()
         
         # Get sequence name for the file
         sequence_name = self._extract_sequence_name()
@@ -730,7 +730,143 @@ class ViconDVSPipeline:
             print("Visualization stopped by user")
         finally:
             cv2.destroyAllWindows()
+
+###    
+    # def plot_marker_positions(self, plot_type: str = 'all'):
+    #     """Plot marker positions over time using helpers.marker_p function.
         
+    #     Args:
+    #         plot_type: Type of plot to generate ('markers', 'joints', 'cameras', 'all')
+    #     """
+    #     print(f"Plotting marker positions over time: {plot_type}")
+        
+    #     if not self.c3d_data:
+    #         print("❌ Error: C3D data not loaded. Run load_c3d_data() first.")
+    #         return
+        
+    #     # Use matplotlib tk backend for separate windows
+    #     plt.matplotlib.use('TkAgg')
+        
+    #     # Load joint names and marker tags from config files
+    #     joint_names = self._load_config_markers('joints')
+    #     marker_tags = self._load_config_markers('tags')
+        
+    #     # Identify different marker types
+    #     all_markers = self.marker_names
+    #     joint_markers = []
+    #     tag_markers = []
+    #     camera_markers = []
+        
+    #     # Categorize markers based on config files
+    #     for marker in all_markers:
+    #         marker_clean = marker.split(':')[-1] if ':' in marker else marker  # Remove subject prefix like P9:
+    #         marker_clean = marker_clean.strip()  # Remove any whitespace
+            
+    #         if marker_clean in joint_names:
+    #             joint_markers.append(marker)
+    #         elif marker_clean in marker_tags:
+    #             tag_markers.append(marker)
+    #         elif any(cam_word in marker.lower() for cam_word in ['cam', 'camera', 'dvs', 'lens']):
+    #             camera_markers.append(marker)
+    #         else:
+    #             # If not found in config files, treat as tag marker by default
+    #             tag_markers.append(marker)
+        
+    #     print(f"Marker categorization: {len(tag_markers)} tags, {len(joint_markers)} joints, {len(camera_markers)} cameras")
+        
+    #     # Create plots based on requested type
+    #     if plot_type in ['markers', 'all']:
+    #         if tag_markers:
+    #             self._plot_markers_window(tag_markers, "Tag Markers")
+    #         else:
+    #             print("No tag markers found to plot.")
+            
+    #     if plot_type in ['joints', 'all']:
+    #         if joint_markers:
+    #             self._plot_markers_window(joint_markers, "Joint Markers")
+    #         else:
+    #             print("No joint markers found to plot.")
+            
+    #     if plot_type in ['cameras', 'all']:
+    #         if camera_markers:
+    #             self._plot_markers_window(camera_markers, "Camera Markers")
+    #         else:
+    #             print("No camera markers found to plot.")
+        
+    #     plt.show()
+    
+    # def _plot_markers_window(self, markers, window_title):
+    #     """Plot markers in a separate window using helpers.marker_p function."""
+    #     plt.figure(figsize=(12, 8))
+        
+    #     for marker in markers:
+    #         try:
+    #             # Use helpers.marker_p to extract marker data
+    #             # Note: self.c3d_data is a c3d.Reader object, so we use dot notation
+    #             marker_points = helpers.marker_p(self.c3d_data.point_labels, list(self.points_3d.values()), marker)
+                
+    #             # Plot X, Y, Z coordinates
+    #             plt.plot(self.marker_t, marker_points[:, 0:3])
+                
+    #         except Exception as e:
+    #             print(f"Could not plot marker {marker}: {e}")
+    #             continue
+        
+    #     # Add proper labels and title
+    #     plt.xlabel('Time (seconds)')
+    #     plt.ylabel('Position (mm)')
+    #     plt.title(f'{window_title} - 3D Position Over Time')
+    #     plt.legend(['X', 'Y', 'Z'])
+    #     plt.grid(True)
+    
+    # def _get_output_directory(self):
+    #     """Get the output directory from the output_path."""
+    #     output_dir = os.path.dirname(os.path.abspath(self.output_path))
+    #     # Ensure the directory exists
+    #     os.makedirs(output_dir, exist_ok=True)
+    #     return output_dir
+    
+    # def _load_config_markers(self, config_type):
+    #     """Load marker names from config files.
+        
+    #     Args:
+    #         config_type: 'joints' or 'tags'
+        
+    #     Returns:
+    #         List of marker names from the config file
+    #     """
+    #     try:
+    #         # Get the absolute path to the config directory
+    #         current_dir = os.path.dirname(os.path.abspath(__file__))
+    #         config_dir = os.path.join(current_dir, '..', 'scripts', 'config')
+            
+    #         if config_type == 'joints':
+    #             config_path = os.path.join(config_dir, 'labels_joints.yml')
+    #         elif config_type == 'tags':
+    #             config_path = os.path.join(config_dir, 'labels_tags.yml')
+    #         else:
+    #             print(f"❌ Unknown config type: {config_type}")
+    #             return []
+            
+    #         # Load YAML file
+    #         with open(config_path, 'r') as file:
+    #             markers = yaml.safe_load(file)
+                
+    #         if markers is None:
+    #             print(f"❌ Empty config file: {config_path}")
+    #             return []
+                
+    #         print(f"✅ Loaded {len(markers)} {config_type} from {os.path.basename(config_path)}")
+    #         return markers
+            
+    #     except FileNotFoundError:
+    #         print(f"❌ Config file not found: {config_path}")
+    #         return []
+    #     except Exception as e:
+    #         print(f"❌ Error loading config file: {e}")
+    #         return []
+###
+
     def manual_rotation_estimation(self, chosen_marker: Optional[str] = None) -> np.ndarray:
         """Manually estimate rotation using visual feedback with windowed approach."""
         print("Starting manual rotation estimation...")
@@ -840,6 +976,7 @@ class ViconDVSPipeline:
         # Use windowed approach
         window_size = 500 * self.period
         window_start = self.start_time
+        current_delay_step = 0.01  # Initialize delay step
         
         # Create projector for delay adjustment
         projector = helpers.ViconProjector(
@@ -864,7 +1001,7 @@ class ViconDVSPipeline:
                 # Call projector delay adjustment
                 self.delay = projector.fix_delay(
                     self.marker_t, self.delay, e_ts, e_us, e_vs, self.period,
-                    visualize=True, marker_time_offset=window_start
+                    visualize=True, marker_time_offset=window_start, delay_step=current_delay_step
                 )
                 
                 print("e_ts final:", e_ts[-1], "window_start:", window_start, "window_size:", window_size)
@@ -876,6 +1013,8 @@ class ViconDVSPipeline:
         except helpers.DelayExit as e:
             print("Delay adjustment stopped by user.")
             self.delay = e.delay
+            current_delay_step = e.delay_step  # Preserve the delay step from user adjustment
+            print(f"Final delay step from manual adjustment: {current_delay_step:.3f}s")
 
         finally:
             cv2.destroyAllWindows()
@@ -925,7 +1064,7 @@ class ViconDVSPipeline:
                             break  # Continue with normal labeling process
                         elif user_choice == 'c':
                             print("Continuing with existing labels (append mode)")
-                            print("📝 You can add new labels to supplement the existing ones")
+                            print(" You can add new labels to supplement the existing ones")
                             # We'll initialize the labeler with existing data
                             break
                         else:
@@ -1090,6 +1229,7 @@ class ViconDVSPipeline:
         all_projected_points = []  # list of dicts: {'timestamp': t, 'x': x, 'y': y, 'marker': name}
         window_size = 500 * self.period
         window_start = self.start_time
+        current_delay_step = 0.01  # Initialize delay step
 
         print(f"Processing time range: {self.start_time:.3f}s to {self.end_time:.3f}s")
         print(f"Window size: {window_size/1000:.1f}s, Period: {self.period:.3f}s")
@@ -1114,17 +1254,20 @@ class ViconDVSPipeline:
                 print(f"Loaded {len(e_ts)} events from {e_ts[0]:.3f}s to {e_ts[-1]:.3f}s")
 
                 try:
-                    synced_image_points, video_segment, current_delay = projector.project_vicon_to_event_plane_dynamic(
+                    synced_image_points, video_segment, current_delay, current_delay_step = projector.project_vicon_to_event_plane_dynamic(
                         self.marker_t, self.delay,
                         e_ts, e_us, e_vs, self.period,
                         visualize=True, video_record=True,
-                        marker_time_offset=window_start
+                        marker_time_offset=window_start,
+                        delay_step=current_delay_step
                     )
                 except helpers.DelayReset as e:
                     # ---- FULL RESTART FROM THE FIRST EVER EVENT TIMESTAMP ----
-                    print("↩ Delay changed with arrow key: full reset requested.")
-                    # 1) adopt the new delay
+                    print("Delay changed with arrow key: full reset requested.")
+                    # 1) adopt the new delay and preserve delay_step
                     self.delay = e.new_delay
+                    current_delay_step = e.delay_step  # Preserve the delay step
+                    print(f"Preserved delay step: {current_delay_step:.3f}s")
                     # 2) clear all accumulators
                     all_projected_points.clear()
                     collected_video_segments.clear()
@@ -1333,10 +1476,10 @@ class ViconDVSPipeline:
         sequence_name = self._extract_sequence_name()
         
         # Generate joint projections with video
-        base_joint_video = os.path.join(os.path.dirname(self.vicon_path), f"{sequence_name}_joint_projections.mp4")
+        base_joint_video = os.path.join(self._get_output_directory(), f"{sequence_name}_joint_projections.mp4")
         joint_video_file = self._generate_unique_video_path(base_joint_video)
         
-        joint_csv_file = os.path.join(os.path.dirname(self.vicon_path), f"{sequence_name}_joint_projections.csv")
+        joint_csv_file = os.path.join(self._get_output_directory(), f"{sequence_name}_joint_projections.csv")
         
         print(f"Generating joint projections...")
         print(f"Joint video output: {joint_video_file}")
@@ -1348,6 +1491,7 @@ class ViconDVSPipeline:
         window_size = 500 * self.period
         window_start = self.start_time
         window_count = 0
+        current_delay_step = 0.01  # Initialize delay step
         
         try:
             while window_start < self.end_time:
@@ -1370,25 +1514,34 @@ class ViconDVSPipeline:
                 
                 # Project joints for this window
                 try:
-                    synced_joint_points, joint_video_segment, current_joint_delay = joint_projector.project_vicon_to_event_plane_dynamic(
+                    synced_joint_points, joint_video_segment, current_joint_delay, joint_delay_step = joint_projector.project_vicon_to_event_plane_dynamic(
                         self.marker_t, self.delay,
                         e_ts, e_us, e_vs, self.period,
                         visualize=True, video_record=True,
-                        marker_time_offset=window_start
+                        marker_time_offset=window_start,
+                        delay_step=joint_delay_step
                     )
                     
                     # Update delay if it was adjusted during projection
                     if current_joint_delay != self.delay:
                         print(f"Delay updated during joint projection window {window_count}: {self.delay:.6f}s → {current_joint_delay:.6f}s")
                         self.delay = current_joint_delay
+                    
+                    # Debug: Show delay_step is preserved between joint windows
+                    if window_count > 0:  # Don't show for first window
+                        print(f"Joint Window {window_count}: Using delay step {joint_delay_step:.3f}s (preserved from previous window)")
                         
                 except helpers.DelayExit as e:
                     print(f"Delay adjustment detected during joint projection, using delay: {e.delay}")
                     self.delay = e.delay
+                    joint_delay_step = e.delay_step  # Preserve the delay step from user adjustment
+                    print(f"Preserved delay step from joint projection: {joint_delay_step:.3f}s")
                     break  # Exit the window loop if user exits delay adjustment
                 except helpers.DelayReset as e:
-                    print("↩Delay reset requested during joint projection: restarting from beginning")
+                    print("Delay reset requested during joint projection: restarting from beginning")
                     self.delay = e.new_delay
+                    current_delay_step = e.delay_step  # Preserve the delay step
+                    print(f"Preserved delay step: {current_delay_step:.3f}s")
                     # Reset joint projection from the beginning
                     collected_joint_segments.clear()
                     all_joint_points.clear()
@@ -1615,20 +1768,20 @@ class ViconDVSPipeline:
         # Look for CSV files with projected points (sequence-based naming)
         sequence_name = self._extract_sequence_name()
         base_csv_name = f"{sequence_name}_projection_points.csv"
-        projected_points_csv = os.path.join(os.path.dirname(self.vicon_path), base_csv_name)
+        projected_points_csv = os.path.join(self._get_output_directory(), base_csv_name)
         
         # If sequence-specific CSV doesn't exist, look for generic ones
         if not os.path.exists(projected_points_csv):
             # Look for any projected_points*.csv files
             import glob
-            csv_pattern = os.path.join(os.path.dirname(self.vicon_path), "projected_points*.csv")
+            csv_pattern = os.path.join(self._get_output_directory(), "projected_points*.csv")
             csv_files = glob.glob(csv_pattern)
             if csv_files:
                 # Use the most recent CSV file
                 projected_points_csv = max(csv_files, key=os.path.getmtime)
                 print(f"Using most recent projected points CSV: {os.path.basename(projected_points_csv)}")
             else:
-                print(f"❌ Error: No projected points CSV files found in {os.path.dirname(self.vicon_path)}")
+                print(f"Error: No projected points CSV files found in {self._get_output_directory()}")
                 return None
         
         # Load CSV data
@@ -1658,7 +1811,7 @@ class ViconDVSPipeline:
                                     continue
                                     
         except Exception as e:
-            print(f"❌ Error reading CSV file {projected_points_csv}: {e}")
+            print(f" Error reading CSV file {projected_points_csv}: {e}")
             return None
 
         print(f"Loaded projected data for {len(projected_data)} markers from CSV.")
@@ -1695,7 +1848,7 @@ class ViconDVSPipeline:
         # Generate save path for the error plot
         import datetime
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        plot_save_path = os.path.join(os.path.dirname(self.vicon_path), f"error_analysis.png")
+        plot_save_path = os.path.join(self._get_output_directory(), f"error_analysis.png")
         self.plot_per_marker_error_boxplot(comparison_results['marker_errors'], save_path=plot_save_path)
 
         return comparison_results
@@ -1848,7 +2001,6 @@ class ViconDVSPipeline:
         self.T_syst_to_camera_opt = T_sc
         print("Optimized T_sys->cam:\n", T_sc)
         return T_sc
-
 ###           
             
     def save_calibration(self, output_file: str):
@@ -1940,7 +2092,7 @@ class ViconDVSPipeline:
         if create_video:
             # Extract sequence name for consistent naming
             sequence_name = self._extract_sequence_name()
-            base_video_path = os.path.join(os.path.dirname(self.vicon_path), f"{sequence_name}_projection_video.mp4")
+            base_video_path = os.path.join(self._get_output_directory(), f"{sequence_name}_projection_video.mp4")
             video_file = self._generate_unique_video_path(base_video_path)
 
             # Store initial delay to check if it changed during projection
@@ -2094,13 +2246,11 @@ def main():
     parser.add_argument('--init_file', default=None,
                        help='Path to initialization file containing transformation matrix and delay, or path to save new one if not existing')
     parser.add_argument('--output_path', required=True,
-                       help='REQUIRED: Output path for labeled points (YAML file)')
+                       help='REQUIRED: Output path for labeled points (YAML file). All outputs (videos, CSV files, init files) will be saved in the same directory.')
     parser.add_argument('--subject', default=None,      # TODO: needed only for hpe, maybe read the subject from the c3d file?
                        help='Subject name for labels (e.g., P1, P11), it is read from the .c3d file if not provided')
     parser.add_argument('--marker_list_path', default=None,
                        help='Path to a text or YAML file listing desired marker labels')
-    parser.add_argument('--camera_setup', choices=['single', 'multi', 'auto'], default='auto',      # TODO: remove this and try to look for known words in the c3d file
-                       help='Camera marker setup: single marker, multi-marker, or auto-detect, default auto detects the setup, however it is not generalized')
     parser.add_argument('--chosen_marker', default=None,            # TODO: not really that usefult as it is read to be the first element of array of markers, but can be useful depending on c3d structure
                        help='Specific marker to use for rotation adjustment feedback')
     parser.add_argument('--list', action='store_true',
@@ -2113,6 +2263,8 @@ def main():
                        help='Visualize events')
     parser.add_argument('--error', action='store_true',
                        help='Perform 2D-2D error analysis between manual labels and projected markers (Step 11)')
+    # parser.add_argument('--plot_markers', choices=['markers', 'joints', 'cameras', 'all'], default=None,
+    #                    help='Plot marker positions over time. Options: markers (with tags), joints (all joints), cameras (camera markers only), all (all three plots)')
     
     # TODO: add argument to let the user choose the size of the time windows????
     
@@ -2135,7 +2287,6 @@ def main():
         intrinsic_path=args.intrinsic,
         subject=args.subject,
         output_path=args.output_path,
-        camera_setup=args.camera_setup,
         marker_list_path=args.marker_list_path
     )
     
@@ -2145,6 +2296,12 @@ def main():
         pipeline.load_calibration_data()
         pipeline.visualize_events()
         return
+    
+    # # Plot marker positions if requested
+    # if args.plot_markers:
+    #     pipeline.load_vicon_data()
+    #     pipeline.plot_marker_positions(plot_type=args.plot_markers)
+    #     return
     
     # Run full pipeline
     pipeline.run_full_pipeline(

@@ -24,14 +24,16 @@ class RotationExit(Exception):
         self.r_vec = r_vec
 
 class DelayExit(Exception):
-    def __init__(self, delay):
+    def __init__(self, delay, delay_step: float = 0.01):
         super().__init__("Delay adjustment finished by user.")
         self.delay = delay
+        self.delay_step = delay_step
         
 class DelayReset(Exception):
-    def __init__(self, new_delay: float):
+    def __init__(self, new_delay: float, delay_step: float = 0.01):
         super().__init__(f"Reset requested with delay {new_delay}")
         self.new_delay = new_delay
+        self.delay_step = delay_step
         
 class LabelExit(Exception):
     """Raised when user quits labeling/correction early."""
@@ -235,7 +237,7 @@ class ViconProjector:
     #     return img_pt[0, 0]
             
     def project_vicon_to_event_plane_dynamic(self, marker_t, delay, e_ts, e_us, e_vs, period, 
-                   visualize=False, video_record=False, video_writer=None, marker_time_offset=0.0):
+                   visualize=False, video_record=False, video_writer=None, marker_time_offset=0.0, delay_step=0.01):
 
         video_segment = []
 
@@ -249,7 +251,6 @@ class ViconProjector:
         }
 
         # if visualize or video_record:
-        delay_step = 0.01
         current_delay = delay
 
         i_markers = 0
@@ -359,7 +360,7 @@ class ViconProjector:
                     print(f"Delay step decreased to: {delay_step:.3f}s")
                 if c == ord('q'):
                     cv2.destroyAllWindows()
-                    raise DelayExit(current_delay)
+                    raise DelayExit(current_delay, delay_step)
 
             # Record video
             if video_record:
@@ -370,8 +371,8 @@ class ViconProjector:
             tic_markers += period
             tic_events += period
         
-        # Return both the original structure, video segment, and the final delay
-        return synced_image_points, video_segment, current_delay
+        # Return both the original structure, video segment, final delay, and delay step
+        return synced_image_points, video_segment, current_delay, delay_step
 
     def manual_rotation_adjustment(self, marker_t, delay, e_ts, e_us, e_vs, period,
                                    R_init=None, tvec=None, visualize=True, video_record=True, video_writer=None,
@@ -679,7 +680,7 @@ class ViconProjector:
         return r_vec  
 
     def fix_delay(self, marker_t, delay, e_ts, e_us, e_vs, period, 
-              visualize=True, marker_time_offset=0.0, video_record=False, video_writer=None):
+              visualize=True, marker_time_offset=0.0, video_record=False, video_writer=None, delay_step=0.01):
         # Project points from Vicon to event plane using a transformation matrix for each frame
         image_points = {}
 
@@ -698,7 +699,6 @@ class ViconProjector:
             image_points[mark_name] = img_pts
 
         # if visualize:
-        delay_step = 0.01
         current_delay = delay
         paused = False
 
@@ -1012,7 +1012,7 @@ class ViconProjector:
                  
             elif c == ord('q') or c == 27:  # quit
                 print("Delay adjustment completed")
-                raise DelayExit(current_delay)
+                raise DelayExit(current_delay, delay_step)
             
                 # cv2.destroyAllWindows()
                 # return current_delay  # Return the adjusted delay
