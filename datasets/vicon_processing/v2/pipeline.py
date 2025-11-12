@@ -68,6 +68,7 @@ class ViconDVSPipeline:
         self.cam_res = None
         self.T_syst_to_camera_opt = np.eye(4)
         self.delay = 0.0
+        self.current_delay_step = 0.01          # Default delay step for manual adjustments
         self.Ts_world_to_system = None    
 
 ###
@@ -824,7 +825,6 @@ class ViconDVSPipeline:
         # Use windowed approach
         window_size = 500 * self.period
         window_start = self.start_time
-        current_delay_step = 0.01  # Initialize delay step
         
         # Create projector for delay adjustment
         projector = helpers.ViconProjector(
@@ -859,7 +859,7 @@ class ViconDVSPipeline:
                 self.delay = projector.fix_delay(
                     self.marker_t, self.delay, e_ts, e_us, e_vs, self.period,
                     visualize=True, marker_time_offset=window_start,
-                    video_record=False, video_writer=vw, delay_step=current_delay_step
+                    video_record=False, video_writer=vw, delay_step=self.current_delay_step
                 )
                 
                 print("e_ts final:", e_ts[-1], "window_start:", window_start, "window_size:", window_size)
@@ -871,8 +871,8 @@ class ViconDVSPipeline:
         except helpers.DelayExit as e:
             print("Delay adjustment stopped by user.")
             self.delay = e.delay
-            current_delay_step = e.delay_step  # Preserve the delay step from user adjustment
-            print(f"Final delay step from manual adjustment: {current_delay_step:.3f}s")
+            self.current_delay_step = e.delay_step  # Preserve the delay step from user adjustment
+            print(f"Final delay step from manual adjustment: {self.current_delay_step:.3f}s")
 
         finally:
             cv2.destroyAllWindows()
@@ -1090,7 +1090,6 @@ class ViconDVSPipeline:
         all_projected_points = []  # list of dicts: {'timestamp': t, 'x': x, 'y': y, 'marker': name}
         window_size = 500 * self.period
         window_start = self.start_time
-        current_delay_step = 0.01  # Initialize delay step
 
         print(f"Processing time range: {self.start_time:.3f}s to {self.end_time:.3f}s")
         print(f"Window size: {window_size/1000:.1f}s, Period: {self.period:.3f}s")
@@ -1120,15 +1119,15 @@ class ViconDVSPipeline:
                         e_ts, e_us, e_vs, self.period,
                         visualize=True, video_record=True,
                         marker_time_offset=window_start,
-                        delay_step=current_delay_step
+                        delay_step=self.current_delay_step
                     )
                 except helpers.DelayReset as e:
                     # ---- FULL RESTART FROM THE FIRST EVER EVENT TIMESTAMP ----
                     print("Delay changed with arrow key: full reset requested.")
                     # 1) adopt the new delay and preserve delay_step
                     self.delay = e.new_delay
-                    current_delay_step = e.delay_step  # Preserve the delay step
-                    print(f"Preserved delay step: {current_delay_step:.3f}s")
+                    self.current_delay_step = e.delay_step  # Preserve the delay step
+                    print(f"Preserved delay step: {self.current_delay_step:.3f}s")
                     # 2) clear all accumulators
                     all_projected_points.clear()
                     collected_video_segments.clear()
@@ -1143,10 +1142,11 @@ class ViconDVSPipeline:
                 if current_delay != self.delay:
                     print(f"Delay updated during projection window {window_count}: {self.delay:.6f}s → {current_delay:.6f}s")
                 self.delay = current_delay
+                self.current_delay_step = current_delay_step  # Update instance variable
                 
                 # Debug: Show delay_step is preserved between windows
                 if window_count > 0:  # Don't show for first window
-                    print(f"Window {window_count}: Using delay step {current_delay_step:.3f}s (preserved from previous window)")
+                    print(f"Window {window_count}: Using delay step {self.current_delay_step:.3f}s (preserved from previous window)")
 
                 # Collect frames for video
                 if video_segment is not None:
@@ -1804,7 +1804,7 @@ def main():
     parser.add_argument('--init_file', default=None,
                        help='Path to initialization file containing transformation matrix and delay, or path to save new one if not existing')
     parser.add_argument('--output_path', required=True,
-                       help='REQUIRED: Output path for labeled points (YAML file)')
+                       help='REQUIRED: Output path for labeled points (YAML file). All outputs (videos, CSV files, init files) will be saved in the same directory.')
     parser.add_argument('--subject', default=None,      # TODO: needed only for hpe, maybe read the subject from the c3d file?
                        help='Subject name for labels (e.g., P1, P11), it is read from the .c3d file if not provided')
     parser.add_argument('--marker_list_path', default=None,

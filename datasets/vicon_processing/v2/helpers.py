@@ -343,7 +343,7 @@ class ViconProjector:
                         d["points"].clear()
                         d["timestamps"].clear()
                     video_segment.clear()
-                    raise DelayReset(current_delay)
+                    raise DelayReset(current_delay, delay_step)
                 elif c == 81 or c == 37:  # Left arrow -> decrease by step
                     current_delay -= delay_step
                     print(f"Delay decreased to: {current_delay:.3f}s (step: {delay_step:.3f}s)")
@@ -351,7 +351,7 @@ class ViconProjector:
                         d["points"].clear()
                         d["timestamps"].clear()
                     video_segment.clear()
-                    raise DelayReset(current_delay)
+                    raise DelayReset(current_delay, delay_step)
                 elif c == ord('+') or c == ord('='):
                     delay_step += 0.001  # Increase step by 1ms
                     print(f"Delay step increased to: {delay_step:.3f}s")

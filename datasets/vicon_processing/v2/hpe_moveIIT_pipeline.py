@@ -71,6 +71,7 @@ class ViconDVSPipeline:
         self.cam_res = None
         self.T_syst_to_camera_opt = np.eye(4)
         self.delay = 0.0
+        self.current_delay_step = 0.01          # Default delay step for manual adjustments
         self.Ts_world_to_system = None    
 
 ###
@@ -152,6 +153,13 @@ class ViconDVSPipeline:
         # No match found
         print(f"  No match found for joint: '{joint_name}'")
         return None
+
+    def _get_output_directory(self):
+        """Get the output directory from the output_path."""
+        output_dir = os.path.dirname(os.path.abspath(self.output_path))
+        # Ensure the directory exists
+        os.makedirs(output_dir, exist_ok=True)
+        return output_dir
 
     def _extract_sequence_name(self):
         """Extract sequence name from DVS or VICON path for file naming."""
@@ -819,13 +827,6 @@ class ViconDVSPipeline:
     #     plt.legend(['X', 'Y', 'Z'])
     #     plt.grid(True)
     
-    # def _get_output_directory(self):
-    #     """Get the output directory from the output_path."""
-    #     output_dir = os.path.dirname(os.path.abspath(self.output_path))
-    #     # Ensure the directory exists
-    #     os.makedirs(output_dir, exist_ok=True)
-    #     return output_dir
-    
     # def _load_config_markers(self, config_type):
     #     """Load marker names from config files.
         
@@ -912,7 +913,13 @@ class ViconDVSPipeline:
         # Use windowed approach
         window_size = 1000 * self.period  # 10 seconds window
         window_start = self.start_time
-        rvec_init = np.zeros(3)
+        # rvec_init = np.zeros(3) 
+
+        # Define known initial rotation (in degrees)
+        roll, pitch, yaw = -85.0, 180.0, -80.0
+
+        # Convert to rotation vector (Rodrigues form)
+        rvec_init = Rotation.from_euler('zyx', [yaw, pitch, roll], degrees=True).as_rotvec()
                         
         # TODO: find better solution than .1f 
         try:
@@ -976,7 +983,6 @@ class ViconDVSPipeline:
         # Use windowed approach
         window_size = 500 * self.period
         window_start = self.start_time
-        current_delay_step = 0.01  # Initialize delay step
         
         # Create projector for delay adjustment
         projector = helpers.ViconProjector(
@@ -1001,7 +1007,7 @@ class ViconDVSPipeline:
                 # Call projector delay adjustment
                 self.delay = projector.fix_delay(
                     self.marker_t, self.delay, e_ts, e_us, e_vs, self.period,
-                    visualize=True, marker_time_offset=window_start, delay_step=current_delay_step
+                    visualize=True, marker_time_offset=window_start, delay_step=self.current_delay_step
                 )
                 
                 print("e_ts final:", e_ts[-1], "window_start:", window_start, "window_size:", window_size)
@@ -1013,8 +1019,8 @@ class ViconDVSPipeline:
         except helpers.DelayExit as e:
             print("Delay adjustment stopped by user.")
             self.delay = e.delay
-            current_delay_step = e.delay_step  # Preserve the delay step from user adjustment
-            print(f"Final delay step from manual adjustment: {current_delay_step:.3f}s")
+            self.current_delay_step = e.delay_step  # Preserve the delay step from user adjustment
+            print(f"Final delay step from manual adjustment: {self.current_delay_step:.3f}s")
 
         finally:
             cv2.destroyAllWindows()
@@ -1229,7 +1235,6 @@ class ViconDVSPipeline:
         all_projected_points = []  # list of dicts: {'timestamp': t, 'x': x, 'y': y, 'marker': name}
         window_size = 500 * self.period
         window_start = self.start_time
-        current_delay_step = 0.01  # Initialize delay step
 
         print(f"Processing time range: {self.start_time:.3f}s to {self.end_time:.3f}s")
         print(f"Window size: {window_size/1000:.1f}s, Period: {self.period:.3f}s")
@@ -1257,17 +1262,17 @@ class ViconDVSPipeline:
                     synced_image_points, video_segment, current_delay, current_delay_step = projector.project_vicon_to_event_plane_dynamic(
                         self.marker_t, self.delay,
                         e_ts, e_us, e_vs, self.period,
-                        visualize=True, video_record=True,
+                        visualize=True, video_record=False,
                         marker_time_offset=window_start,
-                        delay_step=current_delay_step
+                        delay_step=self.current_delay_step
                     )
                 except helpers.DelayReset as e:
                     # ---- FULL RESTART FROM THE FIRST EVER EVENT TIMESTAMP ----
                     print("Delay changed with arrow key: full reset requested.")
                     # 1) adopt the new delay and preserve delay_step
                     self.delay = e.new_delay
-                    current_delay_step = e.delay_step  # Preserve the delay step
-                    print(f"Preserved delay step: {current_delay_step:.3f}s")
+                    self.current_delay_step = e.delay_step  # Preserve the delay step
+                    print(f"Preserved delay step: {self.current_delay_step:.3f}s")
                     # 2) clear all accumulators
                     all_projected_points.clear()
                     collected_video_segments.clear()
@@ -1282,6 +1287,7 @@ class ViconDVSPipeline:
                 if current_delay != self.delay:
                     print(f"Delay updated during projection window {window_count}: {self.delay:.6f}s → {current_delay:.6f}s")
                 self.delay = current_delay
+                self.current_delay_step = current_delay_step
 
                 # Collect frames for video
                 if video_segment is not None:
@@ -1491,7 +1497,6 @@ class ViconDVSPipeline:
         window_size = 500 * self.period
         window_start = self.start_time
         window_count = 0
-        current_delay_step = 0.01  # Initialize delay step
         
         try:
             while window_start < self.end_time:
@@ -1514,34 +1519,35 @@ class ViconDVSPipeline:
                 
                 # Project joints for this window
                 try:
-                    synced_joint_points, joint_video_segment, current_joint_delay, joint_delay_step = joint_projector.project_vicon_to_event_plane_dynamic(
+                    synced_joint_points, joint_video_segment, current_delay, current_delay_step = joint_projector.project_vicon_to_event_plane_dynamic(
                         self.marker_t, self.delay,
                         e_ts, e_us, e_vs, self.period,
-                        visualize=True, video_record=True,
+                        visualize=False, video_record=True,
                         marker_time_offset=window_start,
-                        delay_step=joint_delay_step
+                        delay_step=self.current_delay_step
                     )
                     
                     # Update delay if it was adjusted during projection
-                    if current_joint_delay != self.delay:
-                        print(f"Delay updated during joint projection window {window_count}: {self.delay:.6f}s → {current_joint_delay:.6f}s")
-                        self.delay = current_joint_delay
+                    if current_delay != self.delay:
+                        print(f"Delay updated during joint projection window {window_count}: {self.delay:.6f}s → {current_delay:.6f}s")
+                        self.delay = current_delay
+                        self.current_delay_step = current_delay_step  # Update instance variable
                     
                     # Debug: Show delay_step is preserved between joint windows
                     if window_count > 0:  # Don't show for first window
-                        print(f"Joint Window {window_count}: Using delay step {joint_delay_step:.3f}s (preserved from previous window)")
+                        print(f"Joint Window {window_count}: Using delay step {self.current_delay_step:.3f}s (preserved from previous window)")
                         
                 except helpers.DelayExit as e:
                     print(f"Delay adjustment detected during joint projection, using delay: {e.delay}")
                     self.delay = e.delay
-                    joint_delay_step = e.delay_step  # Preserve the delay step from user adjustment
-                    print(f"Preserved delay step from joint projection: {joint_delay_step:.3f}s")
+                    self.current_delay_step = e.delay_step  # Preserve the delay step from user adjustment
+                    print(f"Preserved delay step from joint projection: {self.current_delay_step:.3f}s")
                     break  # Exit the window loop if user exits delay adjustment
                 except helpers.DelayReset as e:
                     print("Delay reset requested during joint projection: restarting from beginning")
                     self.delay = e.new_delay
-                    current_delay_step = e.delay_step  # Preserve the delay step
-                    print(f"Preserved delay step: {current_delay_step:.3f}s")
+                    self.current_delay_step = e.delay_step  # Preserve the delay step
+                    print(f"Preserved delay step: {self.current_delay_step:.3f}s")
                     # Reset joint projection from the beginning
                     collected_joint_segments.clear()
                     all_joint_points.clear()
@@ -1640,10 +1646,10 @@ class ViconDVSPipeline:
         
         with open(csv_path, "w", newline="") as f:
             writer = csv.writer(f)
-            header = ["event_timestamp"]
-            for m in ordered_joints:
-                header.extend([f"{m}_x", f"{m}_y"])
-            writer.writerow(header)
+            # header = ["event_timestamp"]
+            # for m in ordered_joints:
+            #     header.extend([f"{m}_x", f"{m}_y"])
+            # writer.writerow(header)
             
             for t in timestamps:
                 row = [f"{t:.6f}"]
