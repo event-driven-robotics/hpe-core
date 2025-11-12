@@ -250,6 +250,101 @@ class ViconDVSPipeline:
                 return new_path
             i += 1
 
+    def _visualize_marker_trajectory(self, marker_name: str):
+        """Visualize the 3D trajectory of a specific marker over time."""
+        try:
+            import matplotlib.pyplot as plt
+            from mpl_toolkits.mplot3d import Axes3D
+            
+            print(f"Visualizing trajectory for marker: {marker_name}")
+            
+            # Extract marker data using helpers functionality
+            from helpers import marker_p
+            marker_points = marker_p(self.c3d_data.point_labels, list(self.points_3d.values()), marker_name)
+            
+            if marker_points is None or len(marker_points) == 0:
+                print(f"❌ No data found for marker '{marker_name}'")
+                return
+            
+            # Create figure with subplots
+            fig = plt.figure(figsize=(15, 10))
+            fig.suptitle(f"Marker Trajectory: {marker_name}", fontsize=16)
+            
+            # 3D trajectory plot
+            ax1 = fig.add_subplot(2, 2, 1, projection='3d')
+            ax1.plot(marker_points[:, 0], marker_points[:, 1], marker_points[:, 2], 'b-', linewidth=1)
+            ax1.scatter(marker_points[0, 0], marker_points[0, 1], marker_points[0, 2], 
+                       c='g', s=50, label='Start')
+            ax1.scatter(marker_points[-1, 0], marker_points[-1, 1], marker_points[-1, 2], 
+                       c='r', s=50, label='End')
+            ax1.set_xlabel('X (mm)')
+            ax1.set_ylabel('Y (mm)')
+            ax1.set_zlabel('Z (mm)')
+            ax1.set_title('3D Trajectory')
+            ax1.legend()
+            
+            # X, Y, Z vs Time plots
+            ax2 = fig.add_subplot(2, 2, 2)
+            ax2.plot(self.marker_t, marker_points[:, 0], 'r-', label='X', linewidth=1)
+            ax2.plot(self.marker_t, marker_points[:, 1], 'g-', label='Y', linewidth=1)
+            ax2.plot(self.marker_t, marker_points[:, 2], 'b-', label='Z', linewidth=1)
+            ax2.set_xlabel('Time (s)')
+            ax2.set_ylabel('Position (mm)')
+            ax2.set_title('Position vs Time')
+            ax2.legend()
+            ax2.grid(True, alpha=0.3)
+            
+            # XY projection
+            ax3 = fig.add_subplot(2, 2, 3)
+            ax3.plot(marker_points[:, 0], marker_points[:, 1], 'b-', linewidth=1)
+            ax3.scatter(marker_points[0, 0], marker_points[0, 1], c='g', s=50, label='Start')
+            ax3.scatter(marker_points[-1, 0], marker_points[-1, 1], c='r', s=50, label='End')
+            ax3.set_xlabel('X (mm)')
+            ax3.set_ylabel('Y (mm)')
+            ax3.set_title('XY Projection')
+            ax3.legend()
+            ax3.grid(True, alpha=0.3)
+            ax3.axis('equal')
+            
+            # Movement statistics
+            ax4 = fig.add_subplot(2, 2, 4)
+            distances = np.sqrt(np.sum(np.diff(marker_points, axis=0)**2, axis=1))
+            velocities = distances / self.period
+            
+            ax4.plot(self.marker_t[1:], velocities, 'purple', linewidth=1)
+            ax4.set_xlabel('Time (s)')
+            ax4.set_ylabel('Velocity (mm/s)')
+            ax4.set_title('Movement Velocity')
+            ax4.grid(True, alpha=0.3)
+            
+            # Add statistics text
+            stats_text = f"""Marker Statistics:
+Total frames: {len(marker_points)}
+Duration: {self.marker_t[-1]:.2f}s
+Mean position: ({np.mean(marker_points[:, 0]):.1f}, {np.mean(marker_points[:, 1]):.1f}, {np.mean(marker_points[:, 2]):.1f})
+Position range: X±{np.std(marker_points[:, 0]):.1f}, Y±{np.std(marker_points[:, 1]):.1f}, Z±{np.std(marker_points[:, 2]):.1f}
+Max velocity: {np.max(velocities):.1f} mm/s
+Mean velocity: {np.mean(velocities):.1f} mm/s"""
+            
+            fig.text(0.02, 0.02, stats_text, fontsize=10, verticalalignment='bottom',
+                    bbox=dict(boxstyle='round', facecolor='lightgray', alpha=0.8))
+            
+            plt.tight_layout()
+            plt.show()
+            
+            print(f"✓ Visualization complete for '{marker_name}'")
+            print(f"  - Movement range: X±{np.std(marker_points[:, 0]):.1f}mm, Y±{np.std(marker_points[:, 1]):.1f}mm, Z±{np.std(marker_points[:, 2]):.1f}mm")
+            print(f"  - Average velocity: {np.mean(velocities):.1f}mm/s")
+            if np.std(marker_points.flatten()) < 5:
+                print(f"  💡 This marker appears to be relatively static (good for camera marker)")
+            else:
+                print(f"  ⚠️  This marker shows significant movement (may not be ideal for camera marker)")
+                
+        except ImportError:
+            print("❌ Matplotlib not available for visualization")
+        except Exception as e:
+            print(f"❌ Error visualizing marker '{marker_name}': {e}")
+
     def save_sequence_specific_calibration(self) -> str:
         """Save transformation matrix and delay to a sequence-specific file.
         
@@ -363,13 +458,97 @@ class ViconDVSPipeline:
                 # Find matching markers
                 matches = self._find_matching_markers(marker_input)
                
+                ###
                 if not matches:
                     print(f" No markers found matching '{marker_input}'")
-                    remaining = [m for m in self.marker_names if m not in identified_markers]
-                    if remaining:
-                        print(f"Available markers: {remaining[:10]}{'...' if len(remaining) > 10 else ''}")
-                    continue
-               
+                    print(f" Expected marker '*118' not found in dataset. Switching to interactive mode.")
+                    print(f"\nAll available markers in C3D file:")
+                    for idx, marker in enumerate(self.marker_names):
+                        print(f"  {idx+1:3d}. {marker}")
+                    
+                    print(f"\nPlease select the camera marker:")
+                    while True:
+                        try:
+                            user_input = input("Enter marker number or exact marker name: ").strip()
+                            
+                            # Check if it's a number (index)
+                            if user_input.isdigit():
+                                marker_idx = int(user_input) - 1  # Convert to 0-based index
+                                if 0 <= marker_idx < len(self.marker_names):
+                                    selected_marker = self.marker_names[marker_idx]
+                                    print(f" Selected: {selected_marker}")
+                                    
+                                    # Offer to visualize the marker trajectory
+                                    while True:
+                                        viz_choice = input(f"Visualize '{selected_marker}' trajectory? (y/n): ").strip().lower()
+                                        if viz_choice in ['y', 'yes']:
+                                            self._visualize_marker_trajectory(selected_marker)
+                                            break
+                                        elif viz_choice in ['n', 'no']:
+                                            break
+                                        else:
+                                            print("Please enter 'y' or 'n'")
+                                    
+                                    # Confirm selection after optional visualization
+                                    while True:
+                                        confirm_choice = input(f"Confirm '{selected_marker}' as camera marker? (y/n): ").strip().lower()
+                                        if confirm_choice in ['y', 'yes']:
+                                            identified_markers.append(selected_marker)
+                                            camera_markers.append(selected_marker)  # Use actual marker name instead of pattern
+                                            i += 1
+                                            break
+                                        elif confirm_choice in ['n', 'no']:
+                                            print("Please select a different marker.")
+                                            break
+                                        else:
+                                            print("Please enter 'y' or 'n'")
+                                    
+                                    if confirm_choice in ['y', 'yes']:
+                                        break  # Exit marker selection loop
+                                else:
+                                    print(f" Invalid index. Please enter a number between 1 and {len(self.marker_names)}")
+                            else:
+                                # Check if it's an exact marker name
+                                if user_input in self.marker_names:
+                                    print(f" Selected: {user_input}")
+                                    
+                                    # Offer to visualize the marker trajectory
+                                    while True:
+                                        viz_choice = input(f"Visualize '{user_input}' trajectory? (y/n): ").strip().lower()
+                                        if viz_choice in ['y', 'yes']:
+                                            self._visualize_marker_trajectory(user_input)
+                                            break
+                                        elif viz_choice in ['n', 'no']:
+                                            break
+                                        else:
+                                            print("Please enter 'y' or 'n'")
+                                    
+                                    # Confirm selection after optional visualization
+                                    while True:
+                                        confirm_choice = input(f"Confirm '{user_input}' as camera marker? (y/n): ").strip().lower()
+                                        if confirm_choice in ['y', 'yes']:
+                                            identified_markers.append(user_input)
+                                            camera_markers.append(user_input)  # Use actual marker name
+                                            i += 1
+                                            break
+                                        elif confirm_choice in ['n', 'no']:
+                                            print("Please select a different marker.")
+                                            break
+                                        else:
+                                            print("Please enter 'y' or 'n'")
+                                    
+                                    if confirm_choice in ['y', 'yes']:
+                                        break  # Exit marker selection loop
+                                else:
+                                    print(f" Marker '{user_input}' not found. Please try again.")
+                        except KeyboardInterrupt:
+                            print("\n User interrupted camera marker selection.")
+                            raise  # Re-raise to exit properly
+                        except ValueError:
+                            print(" Invalid input. Please enter a number or exact marker name.")
+                    break  # Exit the inner while loop after successful selection
+                ###
+
                 # ???
                 # Show matches and let user confirm
                 if len(matches) == 1:
@@ -1080,11 +1259,25 @@ class ViconDVSPipeline:
 
                 print(f"Processing {len(e_ts)} events between {e_ts[0]:.3f}s and {e_ts[-1]:.3f}s")
 
-                # Call projector delay adjustment
-                self.delay = projector.fix_delay(
-                    self.marker_t, self.delay, e_ts, e_us, e_vs, self.period,
-                    visualize=True, marker_time_offset=window_start, delay_step=self.current_delay_step
-                )
+                
+
+                try:
+                    # Call projector delay adjustment
+                    self.delay = projector.fix_delay(
+                        self.marker_t, self.delay, e_ts, e_us, e_vs, self.period,
+                        visualize=True, marker_time_offset=window_start, delay_step=self.current_delay_step
+                    )
+                except helpers.DelayReset as e:
+                    # ---- FULL RESTART FROM THE FIRST EVER EVENT TIMESTAMP ----
+                    print("Delay changed with arrow key: full reset requested.")
+                    # 1) adopt the new delay and preserve delay_step
+                    self.delay = e.new_delay
+                    self.current_delay_step = e.delay_step  # Preserve the delay step
+                    print(f"Preserved delay step: {self.current_delay_step:.3f}s")
+                    # 2) reset scanning window to the beginning
+                    window_start = self.start_time   # or self.imp.first_event_time if you expose it
+                    # cv2.destroyAllWindows()
+                    continue
                 
                 print("e_ts final:", e_ts[-1], "window_start:", window_start, "window_size:", window_size)
 

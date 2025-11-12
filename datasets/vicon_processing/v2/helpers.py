@@ -261,7 +261,6 @@ class ViconProjector:
         # Create image once outside the loop
         img = np.ones(self.cam_res, dtype=np.uint8) * 255
         
-        # Initialize video segment list regardless of video_record setting
         video_segment = []
                     
         if video_record:
@@ -336,7 +335,7 @@ class ViconProjector:
                 c = cv2.waitKey(int(500 * period))
                               
                 # delay GUI, TODO: leave only in fix_delay
-                if c == 83 or c == 39:  # Right arrow -> increase by step                                       
+                if c == ord('=') or c == ord('+'):  # Right arrow -> increase by step                                       
                     current_delay += delay_step
                     print(f"Delay increased to: {current_delay:.3f}s (step: {delay_step:.3f}s)")
                     # Clear local buffers defensively (optional)
@@ -345,7 +344,7 @@ class ViconProjector:
                         d["timestamps"].clear()
                     video_segment.clear()
                     raise DelayReset(current_delay, delay_step)
-                elif c == 81 or c == 37:  # Left arrow -> decrease by step
+                elif c == ord('-'):  # Left arrow -> decrease by step
                     current_delay -= delay_step
                     print(f"Delay decreased to: {current_delay:.3f}s (step: {delay_step:.3f}s)")
                     for d in synced_image_points.values():
@@ -353,10 +352,10 @@ class ViconProjector:
                         d["timestamps"].clear()
                     video_segment.clear()
                     raise DelayReset(current_delay, delay_step)
-                elif c == ord('+') or c == ord('='):
+                elif c == ord('l'):
                     delay_step += 0.001  # Increase step by 1ms
                     print(f"Delay step increased to: {delay_step:.3f}s")
-                elif c == ord('-'):
+                elif c == ord('k'):
                     delay_step = max(0.001, delay_step - 0.001)  # Decrease step by 1ms, minimum 1ms
                     print(f"Delay step decreased to: {delay_step:.3f}s")
                 if c == ord('q'):
@@ -1009,7 +1008,11 @@ class ViconProjector:
                 while temp_i_events < len(e_ts) and e_ts[temp_i_events] < event_time_end:
                     if 0 <= e_vs[temp_i_events] < self.cam_res[0] and 0 <= e_us[temp_i_events] < self.cam_res[1]:
                         img[e_vs[temp_i_events], e_us[temp_i_events]] = 0
-                    temp_i_events += 1          
+                    temp_i_events += 1 
+
+            elif c == ord('r'):         
+                print("Resetting the sequence from the beginning...")
+                raise DelayReset(current_delay, delay_step)
                  
             elif c == ord('q') or c == 27:  # quit
                 print("Delay adjustment completed")
