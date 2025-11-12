@@ -209,15 +209,27 @@ class ViconDVSPipeline:
                 return init_file_path
             i += 1
 
-    def _track_delay_change(self, initial_delay: float, phase: str, init_file: str) -> bool:
-        """Track and save delay changes during different pipeline phases."""
+    def _track_delay_change(self, initial_delay: float, phase: str, init_file: str) -> tuple[bool, str]:
+        """Track and save delay changes during different pipeline phases.
+        
+        Args:
+            initial_delay: The delay value at the start of the phase
+            phase: Description of the current pipeline phase
+            init_file: Original init file path (for reference)
+            
+        Returns:
+            tuple: (delay_changed: bool, updated_file_path: str)
+        """
         delay_changed = abs(self.delay - initial_delay) > 1e-6
+        updated_file_path = init_file  # Default to original file
+        
         if delay_changed:
             print(f" Delay adjusted during {phase}: {initial_delay:.6f}s → {self.delay:.6f}s")
-            print(f" Updating calibration file: {os.path.basename(init_file)}")
-            self.save_calibration(init_file)
-            return True
-        return False
+            # Save to sequence-specific file instead of overwriting original
+            updated_file_path = self.save_sequence_specific_calibration()
+            print(f" Created sequence-specific calibration (preserving original: {os.path.basename(init_file)})")
+            return True, updated_file_path
+        return False, updated_file_path
 
     def _generate_unique_video_path(self, base_path: str) -> str:
         """Generate unique video file path to avoid overwrites."""
@@ -237,6 +249,42 @@ class ViconDVSPipeline:
             if not os.path.exists(new_path):
                 return new_path
             i += 1
+
+    def save_sequence_specific_calibration(self) -> str:
+        """Save transformation matrix and delay to a sequence-specific file.
+        
+        Returns:
+            str: Path to the saved calibration file
+        """
+        # Generate sequence-specific calibration file path
+        calibration_file = self._generate_unique_init_file_path()
+        
+        # Use existing save_calibration method
+        self.save_calibration(calibration_file)
+        
+        print(f"✓ Saved sequence-specific calibration: {os.path.basename(calibration_file)}")
+        return calibration_file
+    
+    def save_calibration_for_sequence(self, sequence_name: str = None) -> str:
+        """Convenient method to save calibration with a custom sequence name.
+        
+        Args:
+            sequence_name: Optional custom sequence name. If None, uses auto-detected sequence name.
+            
+        Returns:
+            str: Path to the saved calibration file
+        """
+        if sequence_name:
+            # Temporarily override the sequence name extraction
+            original_extract_method = self._extract_sequence_name
+            self._extract_sequence_name = lambda: sequence_name
+            
+        try:
+            return self.save_sequence_specific_calibration()
+        finally:
+            if sequence_name:
+                # Restore original method
+                self._extract_sequence_name = original_extract_method
 
     def prompt_camera_setup(self) -> tuple:
         """Ask user how many markers are attached to the camera and their names/prefixes."""
@@ -683,6 +731,34 @@ class ViconDVSPipeline:
         )
         
         self.Ts_world_to_system = vicon_helper.compute_camera_marker_transforms()
+        
+        # Print only unique transformations with their timestamps
+        unique_transforms = []
+        unique_timestamps = []  # Store first occurrence timestamp for each unique transform
+        tolerance = 1e-6
+        
+        for i, T in enumerate(self.Ts_world_to_system):
+            is_unique = True
+            for unique_T in unique_transforms:
+                if np.allclose(T, unique_T, atol=tolerance):
+                    is_unique = False
+                    break
+            if is_unique:
+                unique_transforms.append(T)
+                # Get timestamp for this frame (frame i corresponds to marker_t[i])
+                timestamp = self.marker_t[i] if i < len(self.marker_t) else i * self.period
+                unique_timestamps.append(timestamp)
+        
+        if len(unique_transforms) == 1:
+            print(f"Transformation (constant across all frames):")
+            print(f"  First occurrence at t={unique_timestamps[0]:.3f}s")
+            print(unique_transforms[0])
+        else:
+            print(f"Unique transformations ({len(unique_transforms)} different matrices found):")
+            for i, (T, timestamp) in enumerate(zip(unique_transforms, unique_timestamps)):
+                print(f"  Transformation {i+1} (first occurrence at t={timestamp:.3f}s):")
+                print(T)
+        
         print(f"Computed transformations using camera setup: {self.camera_setup}")
         
     def visualize_events(self):
@@ -1290,7 +1366,7 @@ class ViconDVSPipeline:
                 self.current_delay_step = current_delay_step
 
                 # Collect frames for video
-                if video_segment is not None:
+                if video_segment is not None and video_segment != []:
                     collected_video_segments.append(video_segment)
 
                 # Collect all projected points with event timestamps using synced data
@@ -2131,14 +2207,16 @@ class ViconDVSPipeline:
                 if response in ['y', 'yes']:
                     # Save updated calibration if delay was changed during projection
                     if delay_changed:
-                        self._track_delay_change(initial_delay, "projection video creation", init_file)
+                        delay_was_changed, new_init_file = self._track_delay_change(initial_delay, "projection video creation", init_file)
+                        if delay_was_changed:
+                            print(f"ℹ️  Future operations can use the new calibration file: {os.path.basename(new_init_file)}")
 
-                    # Save points CSV (if any)
-                    if all_projected_points:
-                        print("Saving projected points CSV...")
-                        self._save_projected_points_csv(all_projected_points, video_file)
-                    else:
-                        print("No projected points to save.")
+                    # # Save points CSV (if any)
+                    # if all_projected_points:
+                    #     print("Saving projected points CSV...")
+                    #     self._save_projected_points_csv(all_projected_points, video_file)
+                    # else:
+                    #     print("No projected points to save.")
 
                     # Merge segments into video (if any)
                     if collected_video_segments:
@@ -2178,7 +2256,9 @@ class ViconDVSPipeline:
                         self._save_joint_projections_and_video()
                         
                         # Check if delay was changed during joint projection and save if needed
-                        self._track_delay_change(joint_initial_delay, "joint projection", init_file)
+                        delay_was_changed, new_init_file = self._track_delay_change(joint_initial_delay, "joint projection", init_file)
+                        if delay_was_changed:
+                            print(f"ℹ️  Future operations can use the new calibration file: {os.path.basename(new_init_file)}")
                             
                     except Exception as e:
                         print(f"Error during joint projection generation: {e}")
@@ -2216,7 +2296,9 @@ class ViconDVSPipeline:
                 self._save_joint_projections_and_video()
                 
                 # Check if delay was changed during joint projection and save if needed
-                self._track_delay_change(joint_initial_delay, "joint projection", init_file)
+                delay_was_changed, new_init_file = self._track_delay_change(joint_initial_delay, "joint projection", init_file)
+                if delay_was_changed:
+                    print(f"ℹ️  Future operations can use the new calibration file: {os.path.basename(new_init_file)}")
                     
             except Exception as e:
                 print(f"Error during joint projection generation: {e}")

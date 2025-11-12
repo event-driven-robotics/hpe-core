@@ -239,8 +239,6 @@ class ViconProjector:
     def project_vicon_to_event_plane_dynamic(self, marker_t, delay, e_ts, e_us, e_vs, period, 
                    visualize=False, video_record=False, video_writer=None, marker_time_offset=0.0, delay_step=0.01):
 
-        video_segment = []
-
         # Initialize dictionary to store synchronized projections
         synced_image_points = {
             name: {
@@ -262,6 +260,9 @@ class ViconProjector:
         
         # Create image once outside the loop
         img = np.ones(self.cam_res, dtype=np.uint8) * 255
+        
+        # Initialize video segment list regardless of video_record setting
+        video_segment = []
                     
         if video_record:
             fps = int(1 / period)
