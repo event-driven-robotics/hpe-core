@@ -3,6 +3,7 @@ import sys
 import yarp
 import numpy as np
 import cv2
+import time
 
 class OverlayViewerModule(yarp.RFModule):
     def __init__(self):
@@ -19,6 +20,9 @@ class OverlayViewerModule(yarp.RFModule):
         self.latest_joints = None  # (13, 2)
         self.latest_conf = None    # (13,)
         self.conf_thr = 0.3        # confidence threshold
+
+        self._fps_t0 = time.time()
+        self._fps_counter = 0
 
     def configure(self, rf):
         # Initialise YARP
@@ -47,7 +51,7 @@ class OverlayViewerModule(yarp.RFModule):
 
     def getPeriod(self):
         # 50 Hz viewer
-        return 0.02
+        return 0.01
 
     def interruptModule(self):
         self.img_port.interrupt()
@@ -192,6 +196,14 @@ class OverlayViewerModule(yarp.RFModule):
         out_img.setExternal(vis.data, w, h)
         self.out_port.setEnvelope(self.stamp)
         self.out_port.write()
+
+        self._fps_counter += 1
+        now = time.time()
+        if now - self._fps_t0 >= 1.0:
+            hz = self._fps_counter / (now - self._fps_t0)
+            print(f"[{self.getName()}] Running at {hz:.1f} Hz")
+            self._fps_counter = 0
+            self._fps_t0 = now
 
         return True
 
