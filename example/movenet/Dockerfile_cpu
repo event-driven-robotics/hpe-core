@@ -71,22 +71,22 @@ RUN echo "$ssh_prv_key" > /root/.ssh/id_ed25519 && \
 # ATIS BRIDGE #
 ###############
 
-RUN if [ $hvga -eq 1 ]; then \
-		echo "Installing older 1.4 version for HVGA"; \
-		echo "deb [arch=amd64 trusted=yes] https://prophesee:DbnLdKL5YXnMndWg@apt.prophesee.ai/dists/ubuntu focal main" >> /etc/apt/sources.list; \
-    apt update; \
-    apt install -y prophesee-* ; \
-	else \
-    	echo "deb [arch=amd64 trusted=yes] https://apt.prophesee.ai/dists/public/7l58osgr/ubuntu focal essentials" >> /etc/apt/sources.list; \
-      apt update; \
-      apt install -y metavision-*; \
-    fi
+# RUN if [ $hvga -eq 1 ]; then \
+# 		echo "Installing older 1.4 version for HVGA"; \
+# 		echo "deb [arch=amd64 trusted=yes] https://prophesee:DbnLdKL5YXnMndWg@apt.prophesee.ai/dists/ubuntu focal main" >> /etc/apt/sources.list; \
+#     apt update; \
+#     apt install -y prophesee-* ; \
+# 	else \
+#     	echo "deb [arch=amd64 trusted=yes] https://apt.prophesee.ai/dists/public/7l58osgr/ubuntu focal essentials" >> /etc/apt/sources.list; \
+#       apt update; \
+#       apt install -y metavision-*; \
+#     fi
 
 RUN python3 -m pip install scikit-build matplotlib jupyter pandas
 
 RUN apt install -y \
   libcanberra-gtk-module \
-  python3.7 \
+#   python3.7 \
   python3-pip \
   python3-tk \
   cmake \
@@ -106,9 +106,9 @@ RUN pip3 install \
 #   YARP   #
 ############
 
-ARG EVENT_DRIVEN_VERSION=v1.5
+ARG EVENT_DRIVEN_VERSION=main
 ARG YARP_VERSION=3.6.0
-ARG YCM_VERSION=0.14.0
+ARG YCM_VERSION=master
 # mustard first release
 ARG BUILD_TYPE=Release
 ARG SOURCE_FOLDER=/usr/local
@@ -147,7 +147,7 @@ RUN apt install -y \
 RUN cd $SOURCE_FOLDER && \
     git clone https://github.com/robotology/ycm.git && \
     cd ycm && \
-    git checkout v$YCM_VERSION && \
+    git checkout $YCM_VERSION && \
     mkdir build && cd build && \
     cmake .. && \
     make -j `nproc` install
@@ -184,7 +184,7 @@ RUN cd $SOURCE_FOLDER && \
     cmake -DVLIB_CLOCK_PERIOD_NS=1000 \
           -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
           -DBUILD_HARDWAREIO=ON\
-          -DENABLE_atis3=ON\
+        #   -DENABLE_atis3=ON\
           .. && \
     make install -j$(nproc)
 
@@ -218,7 +218,9 @@ RUN cd $SOURCE_FOLDER/hpe-core/core && \
 # install movenet dependencies
 RUN cd $SOURCE_FOLDER/hpe-core/example/movenet && \
     python3 -m pip install --upgrade pip && \
-    python3 -m pip install -r requirements.txt && \
+    python3 -m pip install -r requirements.txt
+
+RUN cd $SOURCE_FOLDER/hpe-core/example/movenet && \
     mkdir build && cd build && \
     cmake .. && make install -j$(nproc)
 
