@@ -1,6 +1,6 @@
 #functions for use with vicon processing
 
-from matplotlib import pyplot as plt
+from matplotlib import pyplot
 import numpy as np
 import math
 import cv2
@@ -10,7 +10,7 @@ import c3d
 from typing import Tuple, Optional
 
 from scipy.spatial.transform import Rotation
-from scipy.signal import butter, lfilter, freqz, filtfilt
+from scipy.signal import butter, filtfilt
 from scipy.optimize import least_squares
 
 # dropdown menu for labeling points
@@ -112,13 +112,111 @@ def calc_indices(e_ts, period):
         index_tags[j] = i
     return time_tags, index_tags  
 
+###
+
+def resolve_file_path(path: str, default_filename: str = None, file_extensions: list = None, 
+                     operation: str = "read") -> str:
+    """
+    Resolve file path handling both file and directory inputs.
+    
+    Args:
+        path: Input path (can be file or directory)
+        default_filename: Default filename to use if path is a directory
+        file_extensions: List of extensions to search for (e.g., ['.yml', '.yaml'])
+        operation: "read" or "write" - affects behavior when path is directory
+    
+    Returns:
+        Resolved file path
+        
+    Raises:
+        FileNotFoundError: If file doesn't exist (for read operations)
+        ValueError: If directory is provided without proper default handling
+    """
+    if not os.path.exists(path):
+        if operation == "read":
+            raise FileNotFoundError(f"Path does not exist: {path}")
+        else:
+            # For write operations, assume it's a file path and create directory if needed
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            return path
+    
+    if os.path.isfile(path):
+        return path
+    
+    if os.path.isdir(path):
+        if operation == "read":
+            # For reading, try to find existing files
+            if file_extensions:
+                for ext in file_extensions:
+                    if default_filename:
+                        # Try with provided default filename
+                        base_name = default_filename.replace('.yml', '').replace('.yaml', '')
+                        candidate = os.path.join(path, base_name + ext)
+                        if os.path.isfile(candidate):
+                            return candidate
+                    
+                    # Search for any file with the extension
+                    for file in os.listdir(path):
+                        if file.endswith(ext):
+                            return os.path.join(path, file)
+                
+                # List available files for better error message
+                available_files = [f for f in os.listdir(path) 
+                                 if any(f.endswith(ext) for ext in file_extensions)]
+                if available_files:
+                    raise FileNotFoundError(f"Directory provided but no suitable file found. "
+                                          f"Available files: {available_files}")
+                else:
+                    raise FileNotFoundError(f"Directory provided but no files with extensions "
+                                          f"{file_extensions} found in {path}")
+            else:
+                raise ValueError(f"Directory provided but no file extensions specified for search in {path}")
+        
+        else:  # operation == "write"
+            if default_filename:
+                return os.path.join(path, default_filename)
+            else:
+                raise ValueError(f"Directory provided for write operation but no default filename specified: {path}")
+    
+    return path
+
 def read_points_labels(file_path):
     # read labeled points from YAML file.
+    
+    # Handle case where file_path is a directory
+    if os.path.isdir(file_path):
+        # Look for a default labeled points file in the directory
+        potential_files = [
+            "labeled_points.yml",
+            "labeled_points.yaml", 
+            "labels_for_optimization.yml",
+            "labels_for_optimization.yaml"
+        ]
+        
+        found_file = None
+        for filename in potential_files:
+            candidate_path = os.path.join(file_path, filename)
+            if os.path.isfile(candidate_path):
+                found_file = candidate_path
+                break
+        
+        if found_file is None:
+            # If no default file found, list available YAML files
+            yaml_files = [f for f in os.listdir(file_path) if f.endswith(('.yml', '.yaml'))]
+            if yaml_files:
+                raise FileNotFoundError(f"Directory provided but no default labeled points file found. Available YAML files in {file_path}: {yaml_files}")
+            else:
+                raise FileNotFoundError(f"Directory provided but no YAML files found in {file_path}")
+        
+        file_path = found_file
+        print(f"Directory provided, loading labeled points from: {file_path}")
     
     with open(file_path, 'r') as stream:
         data_loaded = yaml.load(stream, Loader=yaml.Loader)
 
     return data_loaded 
+
+###
 
 def reprojection_error(params, Ps, pc, K, dist):
     """
@@ -195,23 +293,282 @@ class ViconProjector:
             return suffix.strip()
         return marker_name.strip()
     
+    def undistort_image_points(self, image_points=None) -> np.ndarray:
+        """
+        Apply undistortion to image points. The function returns the undistorted points.
+        
+        Args:
+            image_points: Optional array of image points to undistort. 
+                         If None, uses all projected marker points.
+        
+        Returns:
+            undistorted: Array of undistorted image points with homogeneous coordinates [x, y, 1]
+        """
+        if self.D is None or len(self.D) == 0:
+            print("No distortion coefficients available, returning original points")
+            if image_points is not None:
+                return np.hstack((image_points, np.ones((image_points.shape[0], 1))))
+            else:
+                # Return all marker points as-is
+                all_points = []
+                for marker_name in self.marker_names:
+                    if marker_name in self.image_points:
+                        points_2d = self.image_points[marker_name]
+                        all_points.extend(points_2d)
+                if all_points:
+                    all_points = np.array(all_points)
+                    return np.hstack((all_points, np.ones((all_points.shape[0], 1))))
+                return np.array([])
+        
+        try:
+            print(f"Undistorting points using coeffs: {self.D}")
+            
+            # Determine which points to undistort
+            if image_points is not None:
+                points_to_undistort = image_points[:, :2].astype(np.float64)
+            else:
+                # Collect all projected marker points
+                all_points = []
+                for marker_name in self.marker_names:
+                    if marker_name in self.image_points:
+                        points_2d = self.image_points[marker_name]
+                        all_points.extend(points_2d)
+                
+                if not all_points:
+                    print("No image points available for undistortion")
+                    return np.array([])
+                    
+                points_to_undistort = np.array(all_points, dtype=np.float64)
+                if points_to_undistort.ndim == 1:
+                    points_to_undistort = points_to_undistort.reshape(-1, 2)
+            
+            # Apply undistortion
+            undistorted = cv2.undistortPoints(
+                points_to_undistort, 
+                self.K.astype(np.float64), 
+                self.D.astype(np.float64), 
+                P=self.K.astype(np.float64)
+            )
+            
+            # Reshape and add homogeneous coordinate
+            undistorted = undistorted[:, 0, :]  # Remove extra dimension from OpenCV
+            undistorted = np.hstack((undistorted, np.ones((undistorted.shape[0], 1))))
+            
+            print(f"Successfully undistorted {undistorted.shape[0]} points")
+            return undistorted
+            
+        except Exception as e:
+            print(f"Error during undistortion: {e}")
+            # Return original points with homogeneous coordinates as fallback
+            if image_points is not None:
+                return np.hstack((image_points[:, :2], np.ones((image_points.shape[0], 1))))
+            else:
+                all_points = []
+                for marker_name in self.marker_names:
+                    if marker_name in self.image_points:
+                        points_2d = self.image_points[marker_name]
+                        all_points.extend(points_2d)
+                if all_points:
+                    all_points = np.array(all_points)
+                    return np.hstack((all_points, np.ones((all_points.shape[0], 1))))
+                return np.array([])
+
+    def undistort_marker_projections(self) -> dict:
+        """
+        Apply undistortion to all marker projections and return a dictionary
+        with undistorted points for each marker.
+        
+        Returns:
+            dict: Dictionary with marker names as keys and undistorted points as values
+        """
+        undistorted_markers = {}
+        
+        if self.D is None or len(self.D) == 0:
+            print("No distortion coefficients available, returning original projections")
+            return {marker: points.copy() for marker, points in self.image_points.items()}
+        
+        try:
+            print(f"Undistorting projections for {len(self.image_points)} markers")
+            
+            for marker_name, points_2d in self.image_points.items():
+                if len(points_2d) == 0:
+                    undistorted_markers[marker_name] = points_2d.copy()
+                    continue
+                    
+                # Ensure points are in correct format
+                points_array = np.array(points_2d, dtype=np.float64)
+                if points_array.ndim == 1:
+                    points_array = points_array.reshape(-1, 2)
+                
+                # Apply undistortion for this marker
+                undistorted = cv2.undistortPoints(
+                    points_array, 
+                    self.K.astype(np.float64), 
+                    self.D.astype(np.float64), 
+                    P=self.K.astype(np.float64)
+                )
+                
+                # Reshape to remove extra dimension
+                undistorted = undistorted[:, 0, :]
+                undistorted_markers[marker_name] = undistorted
+            
+            print(f"Successfully undistorted projections for all markers")
+            return undistorted_markers
+            
+        except Exception as e:
+            print(f"Error during marker projection undistortion: {e}")
+            # Return original points as fallback
+            return {marker: points.copy() for marker, points in self.image_points.items()}
+    
     def _calculate_projections(self):
-        """Calculate all marker projections once"""
+        """
+        Calculate marker projections using the correct pipeline:
+        
+        For MOVING camera system:
+        p_camera = T_world_to_camera[i] @ p_world
+        where T_world_to_camera[i] = T_system_to_camera @ T_world_to_system[i]
+        
+        But since T_system_to_camera should be constant, this is equivalent to:
+        p_camera = T_system_to_camera @ (T_world_to_system[i] @ p_world)
+        """
         self.image_points = {}
         
+        print(f"🔧 Calculating projections for {len(self.marker_names)} markers over {len(self.T_world_to_system)} frames")
+        print(f"   T_system_to_camera (constant): {self.T_system_to_camera.shape}")
+        print(f"   T_world_to_system (per-frame): {len(self.T_world_to_system)} transforms")
+        
+        # Apply scale correction if needed (same logic as in pipeline)
+        scale_corrected_transforms = self.T_world_to_system
+        
+        # Sample a few points to detect scale issues
+        if len(self.marker_names) > 0 and len(self.T_world_to_system) > 10:
+            # Get first marker to test scale
+            first_marker = self.marker_names[0]
+            ps = marker_p(self.c3d_data.point_labels, self.points_3d.values(), first_marker, subject=self.subject)
+            
+            scale_factors = []
+            sample_frames = min(10, len(self.T_world_to_system))
+            
+            for i in range(sample_frames):
+                p_vicon = ps[i][:3]  # Remove homogeneous coordinate for magnitude calc
+                T_w2s = self.T_world_to_system[i]
+                p_sys = (T_w2s @ ps[i])[:3]
+                
+                vicon_mag = np.linalg.norm(p_vicon)
+                sys_mag = np.linalg.norm(p_sys)
+                
+                if vicon_mag > 100:  # Only consider points far from origin
+                    scale_factors.append(sys_mag / vicon_mag)
+            
+            if len(scale_factors) > 0:
+                avg_scale_factor = np.mean(scale_factors)
+                
+                if abs(avg_scale_factor - 1.0) > 0.3:  # Significant scale difference
+                    print(f"   🎯 Detected scale factor: {avg_scale_factor:.3f}, applying correction")
+                    
+                    # Apply scale correction
+                    inv_scale = 1.0 / avg_scale_factor
+                    scale_correction = np.eye(4)
+                    scale_correction[:3, :3] *= inv_scale
+                    
+                    scale_corrected_transforms = []
+                    for T_w2s in self.T_world_to_system:
+                        T_corrected = scale_correction @ T_w2s
+                        scale_corrected_transforms.append(T_corrected)
+                    
+                    print(f"   ✅ Scale correction applied to {len(scale_corrected_transforms)} transforms")
+                else:
+                    print(f"   ✓ Scale factor {avg_scale_factor:.3f} is acceptable, no correction needed")
+        
         for mark_name in self.marker_names:
+            # Get 3D marker positions in VICON world coordinates (homogeneous)
             ps = marker_p(self.c3d_data.point_labels, self.points_3d.values(), mark_name, subject=self.subject)
-            ps_trans: np.ndarray = np.empty_like(ps)
-            for i in range(len(self.T_world_to_system)):    
-                ps_trans[i] = (self.T_system_to_camera @ self.T_world_to_system[i] @ ps[i].transpose()).transpose()
-                ps_trans[i] = ps_trans[i] / ps_trans[i, [3]]
-            ps_trans = ps_trans[:, :3]
-
-            # Project to image plane
-            ps_trans = ps_trans.astype(np.float64).reshape(-1, 1, 3)
-            img_pts, _ = cv2.projectPoints(ps_trans, np.zeros(3), np.zeros(3), self.K, distCoeffs=self.D)
-            img_pts = img_pts.reshape(-1, 2)
-            self.image_points[mark_name] = img_pts
+            
+            # Project each frame
+            img_pts_all_frames = []
+            
+            for i in range(len(scale_corrected_transforms)):
+                # Current pipeline: VICON world -> moving system -> fixed camera
+                # p_camera = T_system_to_camera @ T_world_to_system[i] @ p_world
+                
+                # ps[i] is homogeneous coordinates [x, y, z, 1] in VICON world frame
+                p_world_homogeneous = ps[i]  # [4x1] 
+                
+                # Transform: World -> System (this varies per frame as camera moves)
+                # Use scale-corrected transform
+                p_system_homogeneous = scale_corrected_transforms[i] @ p_world_homogeneous  # [4x1]
+                
+                # Transform: System -> Camera (this is constant - what we're optimizing!)
+                p_camera_homogeneous = self.T_system_to_camera @ p_system_homogeneous  # [4x1]
+                
+                # Convert from homogeneous to 3D coordinates
+                if abs(p_camera_homogeneous[3]) > 1e-8:
+                    p_camera_3d = p_camera_homogeneous[:3] / p_camera_homogeneous[3]
+                else:
+                    # Handle edge case of points at infinity
+                    p_camera_3d = p_camera_homogeneous[:3]
+                    print(f"⚠️  Warning: Point at infinity for {mark_name} frame {i}")
+                
+                img_pts_all_frames.append(p_camera_3d)
+            
+            # Convert to numpy array for cv2.projectPoints
+            camera_points = np.array(img_pts_all_frames, dtype=np.float64)
+            
+            # Project 3D camera coordinates to 2D image coordinates
+            # Since we've already done the full 3D transformation, use zero extrinsics
+            img_pts, _ = cv2.projectPoints(
+                camera_points.reshape(-1, 1, 3),  # Nx1x3 format required by OpenCV
+                np.zeros(3, dtype=np.float64),    # No additional rotation
+                np.zeros(3, dtype=np.float64),    # No additional translation
+                self.K.astype(np.float64),        # Camera intrinsics
+                self.D.astype(np.float64) if self.D is not None else None  # Distortion
+            )
+            
+            self.image_points[mark_name] = img_pts.reshape(-1, 2)
+            
+        print(f"✅ Projection calculation completed for {len(self.image_points)} markers")
+    
+    def _calculate_projections_undistorted(self):
+        """
+        Calculate undistorted marker projections. This calls the regular projection
+        calculation and then applies undistortion to all projected points.
+        """
+        # First calculate regular projections
+        self._calculate_projections()
+        
+        # Apply undistortion to all calculated projections
+        if self.D is not None and len(self.D) > 0:
+            print(f"🔧 Computing undistorted projections for {len(self.image_points)} markers...")
+            self.image_points = self.undistort_marker_projections()
+            print(f"✅ Undistorted projection calculation completed")
+        else:
+            print("ℹ️ No distortion coefficients, undistorted projections same as regular projections")
+    
+    #TODO: check
+    def project_markers_at_time(self, timestamp):
+        """Get marker projections for a specific timestamp by finding the closest VICON frame."""
+        # Calculate VICON frame times based on frame rate
+        vicon_frame_period = 1.0 / self.c3d_data.point_rate
+        vicon_start_time = 0.0  # Assuming VICON starts at t=0
+        
+        # Find the closest VICON frame index for the given timestamp
+        frame_idx = int((timestamp - vicon_start_time) / vicon_frame_period)
+        frame_idx = max(0, min(frame_idx, len(next(iter(self.image_points.values()))) - 1))
+        
+        projections = {}
+        valid_markers = []
+        
+        for marker_name in self.marker_names:
+            if marker_name in self.image_points and frame_idx < len(self.image_points[marker_name]):
+                x, y = self.image_points[marker_name][frame_idx]
+                
+                # Check if projection is within camera bounds and valid
+                if (0 <= x < self.cam_res[1] and 0 <= y < self.cam_res[0] and 
+                    not np.isnan(x) and not np.isnan(y)):
+                    projections[marker_name] = (x, y)
+                    valid_markers.append(marker_name)
+        
+        return projections, valid_markers
             
     # def project_marker_at_time(self, marker_name, timestamp, vicon_helper):
     #     """
@@ -237,7 +594,7 @@ class ViconProjector:
     #     return img_pt[0, 0]
             
     def project_vicon_to_event_plane_dynamic(self, marker_t, delay, e_ts, e_us, e_vs, period, 
-                   visualize=False, video_record=False, video_writer=None, marker_time_offset=0.0, delay_step=0.01):
+                   visualize=False, video_record=False, marker_time_offset=0.0, delay_step=0.01):
 
         # Initialize dictionary to store synchronized projections
         synced_image_points = {
@@ -260,13 +617,15 @@ class ViconProjector:
         
         # Create image once outside the loop
         img = np.ones(self.cam_res, dtype=np.uint8) * 255
+        if img.ndim == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
         
         video_segment = []
                     
         if video_record:
             fps = int(1 / period)
             fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-            video_writer = cv2.VideoWriter('tmp.mp4', fourcc, fps, (self.cam_res[1], self.cam_res[0]), isColor=False)
+            # video_writer = cv2.VideoWriter('tmp.mp4', fourcc, fps, (self.cam_res[1], self.cam_res[0]), isColor=False)
 
         while tic_markers < marker_t[-1] and tic_events < e_ts[-1]:
             # Store valid markers and their coordinates for this frame
@@ -288,8 +647,8 @@ class ViconProjector:
                 for mark_name, (u_coord, v_coord) in current_frame_markers.items():
                     u = int(u_coord); v = int(v_coord)
                     if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                        cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                        cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                            cv2.circle(img, (u, v), 3, (255, 0, 0), cv2.FILLED)
+                            cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 0, 0))
 
             # Only add one timestamp per frame for each marker (not for every event)
             if current_frame_markers and i_events < len(e_ts):
@@ -368,6 +727,8 @@ class ViconProjector:
 
             # prepare next frame
             img = np.ones(self.cam_res, dtype=np.uint8) * 255
+            if img.ndim == 2:
+                img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
             tic_markers += period
             tic_events += period
         
@@ -375,12 +736,12 @@ class ViconProjector:
         return synced_image_points, video_segment, current_delay, delay_step
 
     def manual_rotation_adjustment(self, marker_t, delay, e_ts, e_us, e_vs, period,
-                                   R_init=None, tvec=None, visualize=True, video_record=True, video_writer=None,
+                                   R_init=None, tvec=None, visualize=True, video_record=False,
                                    chosen_one=None, angle_step=1.0, marker_time_offset=0.0):
 
         own_writer = None
         H, W = self.cam_res[0], self.cam_res[1]
-        if video_record and video_writer is None:
+        if video_record:
             fps = max(1, int(round(1.0 / period)))
             fourcc = cv2.VideoWriter_fourcc(*"mp4v")
             own_writer = cv2.VideoWriter("manual_rotation_tmp.mp4", fourcc, fps, (W, H), isColor=False)
@@ -427,6 +788,8 @@ class ViconProjector:
         tic_markers = marker_t[0] + marker_time_offset - current_delay # + period
         tic_events = e_ts[0] # + period
         img = np.ones(self.cam_res, dtype=np.uint8) * 255
+        if img.ndim == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 
         while tic_markers < marker_t[-1] and tic_events < e_ts[-1]:
             # Draw markers and events only when not paused
@@ -449,8 +812,8 @@ class ViconProjector:
                     for mark_name, (u_coord, v_coord) in current_frame_markers.items():
                         u = int(u_coord); v = int(v_coord)
                         if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                            cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                            cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                            cv2.circle(img, (u, v), 3, (255, 0, 0), cv2.FILLED)
+                            cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 0, 0))
 
                 # Render events up to current event time
                 while i_events < len(e_ts) and e_ts[i_events] < tic_events:
@@ -463,13 +826,9 @@ class ViconProjector:
             cv2.putText(img, "Keys: space=start/stop | enter = select roll/pitch/yaw | +/- = increase/decrease angle value | q=quit", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
             cv2.putText(img, "Currently modifying: " + ['roll', 'pitch', 'yaw'][selected_angle] + " by a factor of: " + str(angle_step) + " degrees", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
  
- 
             # Record video frame if enabled
             if video_record:
-                if video_writer is not None:
-                    video_writer.write(img)
-                elif own_writer is not None:
-                    own_writer.write(img)
+                own_writer.write(img)
 
             cv2.imshow('Manual Rotation', img)
             c = cv2.waitKey(int(1000 * period))
@@ -489,6 +848,8 @@ class ViconProjector:
                 print(f"Selected rotation axis: {['roll', 'pitch', 'yaw'][selected_angle]}")
                
                 img = np.ones(self.cam_res, dtype=np.uint8) * 255
+                if img.ndim == 2:
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
  
                 # First, redraw events up to current time
                 event_time_end = tic_markers + current_delay
@@ -513,8 +874,8 @@ class ViconProjector:
                                 u = int(u_coord)
                                 v = int(v_coord)
                                 if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                                    cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                                    cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                                    cv2.circle(img, (u, v), 3, (255, 0, 0), cv2.FILLED)
+                                    cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 0, 0))
  
             # - key pressed -> decrease angle by angle step
             elif c == ord('-'):
@@ -531,6 +892,8 @@ class ViconProjector:
                 print(f"Angle step increased to: {angle_step:.3f}")
                
                 img = np.ones(self.cam_res, dtype=np.uint8) * 255
+                if img.ndim == 2:
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
  
                 # First, redraw events up to current time
                 event_time_end = tic_markers + current_delay
@@ -555,14 +918,16 @@ class ViconProjector:
                                 u = int(u_coord)
                                 v = int(v_coord)
                                 if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                                    cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                                    cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                                    cv2.circle(img, (u, v), 3, (255, 0, 0), cv2.FILLED)
+                                    cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 0, 0))
                
             elif c == ord('k'):
                 angle_step = max(0.5, angle_step - 0.5)
                 print(f"Angle step decreased to: {angle_step:.3f}")
                
                 img = np.ones(self.cam_res, dtype=np.uint8) * 255
+                if img.ndim == 2:
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
  
                 # First, redraw events up to current time
                 event_time_end = tic_markers + current_delay
@@ -587,8 +952,8 @@ class ViconProjector:
                                 u = int(u_coord)
                                 v = int(v_coord)
                                 if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                                    cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                                    cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                                    cv2.circle(img, (u, v), 3, (255, 0, 0), cv2.FILLED)
+                                    cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 0, 0))
  
             # quit and save current rotation
             elif c == ord('q') or c == 27:
@@ -618,6 +983,8 @@ class ViconProjector:
  
                     # Redraw current frame with both markers and events
                     img = np.ones(self.cam_res, dtype=np.uint8) * 255
+                    if img.ndim == 2:
+                        img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
                    
                     # First, redraw events up to current time
                     event_time_end = tic_markers + current_delay
@@ -642,8 +1009,8 @@ class ViconProjector:
                                     u = int(u_coord)
                                     v = int(v_coord)
                                     if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                                        cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                                        cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                                        cv2.circle(img, (u, v), 3, (255, 0, 0), cv2.FILLED)
+                                        cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 0, 0))
                                
                     print(f"Recomputed projections: roll={Rot_deg[0]:.2f}, pitch={Rot_deg[1]:.2f}, yaw={Rot_deg[2]:.2f}")
  
@@ -665,6 +1032,8 @@ class ViconProjector:
             # Update timers (only when not paused)
             if not paused:
                 img = np.ones(self.cam_res, dtype=np.uint8) * 255
+                if img.ndim == 2:
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
                 tic_markers += period
                 tic_events += period
 
@@ -680,9 +1049,16 @@ class ViconProjector:
         return r_vec  
 
     def fix_delay(self, marker_t, delay, e_ts, e_us, e_vs, period, 
-              visualize=True, marker_time_offset=0.0, video_record=False, video_writer=None, delay_step=0.01):
+              visualize=True, marker_time_offset=0.0, video_record=False, delay_step=0.01):
         # Project points from Vicon to event plane using a transformation matrix for each frame
         image_points = {}
+
+        own_writer = None
+        H, W = self.cam_res[0], self.cam_res[1]
+        if video_record:
+            fps = max(1, int(round(1.0 / period)))
+            fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+            own_writer = cv2.VideoWriter("fix_delay_tmp.mp4", fourcc, fps, (W, H), isColor=False)
 
         for mark_name in self.marker_names:
             ps = marker_p(self.c3d_data.point_labels, self.points_3d.values(), mark_name, subject=self.subject)
@@ -709,6 +1085,8 @@ class ViconProjector:
         tic_events = e_ts[0] # + period
         
         img = np.ones(self.cam_res, dtype = np.uint8)*255
+        if img.ndim == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
         
         # Loop for image update
         while tic_markers < marker_t[-1] and tic_events < e_ts[-1]:
@@ -732,8 +1110,8 @@ class ViconProjector:
                     for mark_name, (u_coord, v_coord) in current_frame_markers.items():
                         u = int(u_coord); v = int(v_coord)
                         if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                            cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                            cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                            cv2.circle(img, (u, v), 3, (255, 0, 0), cv2.FILLED)
+                            cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 0, 0))
 
                 # Render events up to current event time
                 while i_events < len(e_ts) and e_ts[i_events] < tic_events:
@@ -754,8 +1132,8 @@ class ViconProjector:
             cv2.putText(img, event_time_text, (self.cam_res[1] - 200, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, 128, 1)
 
             # Record video frame if enabled
-            if video_record and video_writer is not None:
-                video_writer.write(img)
+            if video_record:
+                own_writer.write(img)
 
             # Visualize
             cv2.imshow('Fix Delay', img)
@@ -780,6 +1158,8 @@ class ViconProjector:
                 
                 # Redraw frame immediately
                 img = np.ones(self.cam_res, dtype=np.uint8) * 255
+                if img.ndim == 2:
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
                 
                 # Extract markers for current frame
                 if i_markers < len(marker_t) and i_markers >= 0:
@@ -793,8 +1173,8 @@ class ViconProjector:
                                 v = int(v_coord)
                                 
                                 if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                                    cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                                    cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                                    cv2.circle(img, (u, v), 3, (255, 0, 0), cv2.FILLED)
+                                    cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 0, 0))
 
                 # Calculate event time window based on marker time + current delay
                 event_time_end = tic_markers + current_delay
@@ -822,6 +1202,8 @@ class ViconProjector:
                 
                 # Redraw frame immediately
                 img = np.ones(self.cam_res, dtype=np.uint8) * 255
+                if img.ndim == 2:
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 
                 # Extract markers for current frame
                 if i_markers < len(marker_t) and marker_t[i_markers] < tic_markers:
@@ -835,8 +1217,8 @@ class ViconProjector:
                                 v = int(v_coord)
                                 
                                 if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                                    cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                                    cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                                    cv2.circle(img, (u, v), 3, (255, 0, 0), cv2.FILLED)
+                                    cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 0, 0))
                     i_markers += 1
                 
                 # Calculate event time window based on marker time + current delay
@@ -863,6 +1245,8 @@ class ViconProjector:
                                 
                 # Immediately redraw frame with new delay
                 img = np.ones(self.cam_res, dtype=np.uint8) * 255
+                if img.ndim == 2:
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
                 
                 # Render markers for current frame
                 current_marker_idx = max(0, min(i_markers, len(marker_t) - 1))
@@ -877,8 +1261,8 @@ class ViconProjector:
                                 v = int(v_coord)
 
                                 if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                                    cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                                    cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                                    cv2.circle(img, (u, v), 3, (255, 0, 0), cv2.FILLED)
+                                    cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 0, 0))
                 
                 # Calculate and render events with new delay
                 event_time_end = tic_markers + current_delay
@@ -904,6 +1288,8 @@ class ViconProjector:
                                 
                 # Immediately redraw frame with new delay
                 img = np.ones(self.cam_res, dtype=np.uint8) * 255
+                if img.ndim == 2:
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
                 
                 # Render markers for current frame
                 current_marker_idx = max(0, min(i_markers, len(marker_t) - 1))
@@ -918,8 +1304,8 @@ class ViconProjector:
                                 v = int(v_coord)
 
                                 if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                                    cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                                    cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                                    cv2.circle(img, (u, v), 3, (255, 0, 0), cv2.FILLED)
+                                    cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 0, 0))
                 
                 # Calculate and render events with new delay
                 event_time_end = tic_markers + current_delay
@@ -944,6 +1330,8 @@ class ViconProjector:
                 
                 # Immediately redraw frame with new delay
                 img = np.ones(self.cam_res, dtype=np.uint8) * 255
+                if img.ndim == 2:
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
                 
                 # Render markers for current frame
                 current_marker_idx = max(0, min(i_markers, len(marker_t) - 1))
@@ -958,8 +1346,8 @@ class ViconProjector:
                                 v = int(v_coord)
 
                                 if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                                    cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                                    cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                                    cv2.circle(img, (u, v), 3, (255, 0, 0), cv2.FILLED)
+                                    cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 0, 0))
                 
                 # Calculate and render events with new delay
                 event_time_end = tic_markers + current_delay
@@ -994,8 +1382,8 @@ class ViconProjector:
                                 v = int(v_coord)
 
                                 if 0 <= u < self.cam_res[1] and 0 <= v < self.cam_res[0]:
-                                    cv2.circle(img, (u, v), 3, 0, cv2.FILLED)
-                                    cv2.putText(img, mark_name, (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, 0)
+                                    cv2.circle(img, (u, v), 3, (0, 255, 0), cv2.FILLED)
+                                    cv2.putText(img, self._clean_marker_name(mark_name), (u, v), cv2.FONT_HERSHEY_PLAIN, 1.0, (0, 255, 0))
                 
                 # Calculate and render events with new delay
                 event_time_end = tic_markers + current_delay
@@ -1024,10 +1412,12 @@ class ViconProjector:
             # Reset image and update timer (only when not paused)
             if not paused:                
                 img = np.ones(self.cam_res, dtype=np.uint8) * 255
+                if img.ndim == 2:
+                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
                 tic_markers += period
                 tic_events += period
                 
-        return current_delay  # Return the adjusted delay
+        return current_delay, delay_step  # Return the adjusted delay and delay step
             
 class DvsLabeler:
     # functions relative to the labeling of the sequences
@@ -1118,12 +1508,22 @@ class DvsLabeler:
         
         assert self.labels_done is True
         
+        # Handle case where out_file is a directory
+        if os.path.isdir(out_file):
+            # Create a default filename in the directory
+            filename = "labeled_points.yml"
+            out_file = os.path.join(out_file, filename)
+            print(f"Directory provided, saving to: {out_file}")
+        
         # Check if there are actually points to save
         has_points = (self.labeled_dict and 
                      'points' in self.labeled_dict and 
                      any(len(points_dict) > 0 for points_dict in self.labeled_dict['points']))
         
         if has_points:
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(out_file), exist_ok=True)
+            
             with open(out_file, 'w') as yaml_file:
                 yaml.dump(self.labeled_dict, yaml_file, default_flow_style=False)
             print(f"Saved corrected points at: {out_file}")
@@ -1546,47 +1946,47 @@ class ViconHelper:
         self.frame_times = times
 
     # atual one
-    # def get_frame_time(self, times):
-    #     # attribute each label an id based on the timestamp.
-        
-    #     frame_ids = []
-    #     for t in times:
-    #         idx = np.searchsorted(self.frame_times, t)
-    #         if idx >= len(self.frame_times):
-    #             break
-    #         frame_ids.append(idx)
-    #     return frame_ids
-
-    #new_Dataset_giorgia
     def get_frame_time(self, times):
-        # Find closest frame for each timestamp using binary search + closest matching
-        # This matches the approach used in calculate_projection_error for consistency
+        # attribute each label an id based on the timestamp.
         
         frame_ids = []
         for t in times:
-            # Use binary search to find insertion position
-            insert_pos = np.searchsorted(self.frame_times, t)
-            
-            # Find closest frame by comparing candidates on both sides
-            candidates = []
-            for idx in [insert_pos - 1, insert_pos]:
-                if 0 <= idx < len(self.frame_times):
-                    frame_time = self.frame_times[idx]
-                    time_diff = abs(frame_time - t)
-                    candidates.append((time_diff, idx))
-            
-            if candidates:
-                # Select frame with minimum time difference
-                _, closest_idx = min(candidates)
-                frame_ids.append(closest_idx)
-            else:
-                # Fallback if no valid candidates (shouldn't happen in normal cases)
-                if insert_pos < len(self.frame_times):
-                    frame_ids.append(insert_pos)
-                else:
-                    break
-                    
+            idx = np.searchsorted(self.frame_times, t)
+            if idx >= len(self.frame_times):
+                break
+            frame_ids.append(idx)
         return frame_ids
+
+    # #new_Dataset_giorgia
+    # def get_frame_time(self, times):
+    #     # Find closest frame for each timestamp using binary search + closest matching
+    #     # This matches the approach used in calculate_projection_error for consistency
+        
+    #     frame_ids = []
+    #     for t in times:
+    #         # Use binary search to find insertion position
+    #         insert_pos = np.searchsorted(self.frame_times, t)
+            
+    #         # Find closest frame by comparing candidates on both sides
+    #         candidates = []
+    #         for idx in [insert_pos - 1, insert_pos]:
+    #             if 0 <= idx < len(self.frame_times):
+    #                 frame_time = self.frame_times[idx]
+    #                 time_diff = abs(frame_time - t)
+    #                 candidates.append((time_diff, idx))
+            
+    #         if candidates:
+    #             # Select frame with minimum time difference
+    #             _, closest_idx = min(candidates)
+    #             frame_ids.append(closest_idx)
+    #         else:
+    #             # Fallback if no valid candidates (shouldn't happen in normal cases)
+    #             if insert_pos < len(self.frame_times):
+    #                 frame_ids.append(insert_pos)
+    #             else:
+    #                 break
+                    
+    #     return frame_ids
 
     def get_points_dict(self, frame_id):
         # get 3D points for a specific frame id.
@@ -1641,7 +2041,7 @@ class ViconHelper:
             t1 = self.frame_times[idx - 1]
             t2 = self.frame_times[idx]
             
-            print(f"Interpolating frame {idx} at time {d_t:.6f}s between {t1:.6f}s and {t2:.6f}s")
+            # print(f"Interpolating frame {idx} at time {d_t:.6f}s between {t1:.6f}s and {t2:.6f}s")
             
             f = (d_t - t1) / (t2 - t1) if (t2 - t1) != 0 else 0.0
 
@@ -1667,7 +2067,7 @@ class ViconHelper:
         out['times'] = np.array([self.frame_times[idx] for idx in frames_id])
         
         # # new_dataset_giorgia:
-        # ###
+        ###
         # def get_frame_time_safe(idx):
         #     # Convert 1-based C3D index to 0-based frame_times index
         #     time_idx = idx - 1 if idx > 0 else 0
@@ -1676,7 +2076,7 @@ class ViconHelper:
         #     return self.frame_times[time_idx]
         
         # out['times'] = np.array([get_frame_time_safe(idx) for idx in frames_id])
-        # ###
+        ###
         out['frame_ids'] = frames_id
                 
         return out
